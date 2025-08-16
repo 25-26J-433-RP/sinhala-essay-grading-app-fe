@@ -1,12 +1,17 @@
 import { storage } from '@/config/firebase';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
-export default function HomeScreen() {
+export default function ScanScreen() {
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [allImages, setAllImages] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const pageSize = 6;
+  const totalPages = Math.max(1, Math.ceil(allImages.length / pageSize));
+  const paginatedImages = allImages.slice((page - 1) * pageSize, page * pageSize);
 
   const uploadImage = async (asset: any) => {
     if (!asset.uri) {
@@ -25,6 +30,27 @@ export default function HomeScreen() {
       setImageUrl(url);
       console.log('Image uploaded successfully! URL:', url);
       Alert.alert('Success', 'Image uploaded successfully!');
+      // Refresh all images after upload
+      setTimeout(() => {
+        fetchAllImages();
+        setPage(1); // Reset to first page after upload
+      }, 1000);
+  // Fetch all images from Firebase Storage
+  const fetchAllImages = async () => {
+    try {
+      const imagesRef = ref(storage, 'images/');
+      const result = await listAll(imagesRef);
+      const urls = await Promise.all(result.items.map(item => getDownloadURL(item)));
+      // Show newest first
+      setAllImages(urls.reverse());
+    } catch (error) {
+      console.error('Error fetching images:', error);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchAllImages();
+  }, []);
     } catch (error) {
       console.error('Upload Error:', error);
       Alert.alert('Upload Error', (error as Error).message);
@@ -55,66 +81,35 @@ export default function HomeScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.hero}>
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('../../assets/images/react-logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </View>
-        <Text style={styles.heroTitle}>Welcome to the Essay Grading System</Text>
-        <Text style={styles.heroSubtitle}>
-          Effortlessly record, upload, and grade student essays with AI-powered feedback and analytics. Start by exploring the tabs for scanning essays or recording readings.
-        </Text>
+      <View style={styles.section}>
+        <Button
+          title={uploading ? 'Uploading...' : 'Scan Photo from Camera'}
+          onPress={scanWithCamera}
+          disabled={uploading}
+        />
+        <View style={{ height: 16 }} />
+        <Button
+          title={uploading ? 'Uploading...' : 'Select Photo from Gallery'}
+          onPress={pickFromLibrary}
+          disabled={uploading}
+        />
+        {uploading && <ActivityIndicator style={{ marginTop: 16 }} />}
       </View>
+  {/* Uploaded images section moved to its own page */}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    marginBottom: 8,
-  },
   container: {
     flexGrow: 1,
-    padding: 0,
-    backgroundColor: '#181A20',
-    minHeight: '100%',
-  },
-  hero: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 24,
-    backgroundColor: '#23262F',
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 4,
+    padding: 20,
   },
-  heroTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  heroSubtitle: {
-    fontSize: 18,
-    color: '#B0B3C6',
-    textAlign: 'center',
-    maxWidth: 500,
-    lineHeight: 28,
+  section: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
