@@ -25,8 +25,13 @@ export default function TabLayout() {
           ios: {
             // Use a transparent background on iOS to show the blur effect
             position: 'absolute',
+            paddingTop: 8,
+            height: 74,
           },
-          default: {},
+          default: {
+            paddingTop: 8,
+            height: 64,
+          },
         }),
       }}>
       <Tabs.Screen
@@ -57,7 +62,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="uploaded-images"
         options={{
-          title: 'Gallery',
+          title: 'Collection',
           tabBarIcon: ({ color }: { color: string }) => (
             <MaterialIcons name="photo-library" size={26} color={color} />
           ),

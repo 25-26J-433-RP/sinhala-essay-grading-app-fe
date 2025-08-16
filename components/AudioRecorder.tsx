@@ -1,4 +1,5 @@
 import { storage } from '@/config/firebase';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Audio } from 'expo-av';
 import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import React, { useEffect, useState } from 'react';
@@ -213,10 +214,10 @@ export default function AudioRecorderScreen() {
   const renderRecording = ({ item }: { item: Recording }) => (
     <View style={styles.recordingItem}>
       <View style={styles.recordingInfo}>
-        <Text style={styles.recordingName}>{item.name}</Text>
+  <Text style={styles.recordingName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
         <Text style={styles.recordingDetails}>Tap to play</Text>
       </View>
-      <View style={styles.recordingActions}>
+  <View style={styles.recordingActions}>
         <TouchableOpacity
           style={[
             styles.playButton,
@@ -230,11 +231,18 @@ export default function AudioRecorderScreen() {
             }
           }}
         >
-          <Text style={styles.buttonText}>
-            {currentPlayingId === item.id && isPlaying ? 'Stop' : 'Play'}
-          </Text>
+          <MaterialIcons
+            name={currentPlayingId === item.id && isPlaying ? 'stop' : 'play-arrow'}
+            size={20}
+            color="#fff"
+          />
         </TouchableOpacity>
-  {/* Delete button removed as requested */}
+        <TouchableOpacity
+          style={styles.deleteRecordingButton}
+          onPress={() => deleteRecording(item.id)}
+        >
+          <MaterialIcons name="delete" size={18} color="#fff" />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -281,18 +289,7 @@ export default function AudioRecorderScreen() {
         )}
       </View>
       
-      <TouchableOpacity
-        style={styles.refreshButton}
-        onPress={() => {
-          console.log('Manual refresh triggered');
-          loadRecordings();
-        }}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>
-          {loading ? 'Loading...' : 'Refresh Recordings'}
-        </Text>
-      </TouchableOpacity>
+  {/* Manual refresh removed - recordings auto-refresh periodically */}
     </View>
   );
 }
@@ -379,8 +376,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   recordingName: {
-    fontSize: 16,
-    fontWeight: '500',
+  fontSize: 12,
+  fontWeight: '400',
     color: '#fff',
   },
   recordingDetails: {
@@ -390,22 +387,25 @@ const styles = StyleSheet.create({
   },
   recordingActions: {
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'center',
+    gap: 12,
   },
   playButton: {
     backgroundColor: '#34C759',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 5,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  marginLeft: 12,
   },
   stopButton: {
     backgroundColor: '#FF9500',
   },
   deleteButton: {
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 5,
+    backgroundColor: 'transparent',
+    padding: 6,
+    borderRadius: 18,
   },
   buttonText: {
     color: 'white',
@@ -418,12 +418,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 50,
   },
-  refreshButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+  // refreshButton removed - auto-refresh handled in code
+  deleteRecordingButton: {
+    backgroundColor: 'transparent',
+    padding: 8,
+    borderRadius: 6,
+    marginLeft: 8,
     alignItems: 'center',
-    marginTop: 20,
+    justifyContent: 'center',
   },
 });

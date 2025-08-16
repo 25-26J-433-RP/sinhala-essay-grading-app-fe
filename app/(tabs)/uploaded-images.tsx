@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View, Image, Text, Button, ActivityIndicator } from 'react-native';
 import { storage } from '@/config/firebase';
-import { getDownloadURL, listAll, ref } from 'firebase/storage';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { deleteObject, getDownloadURL, listAll, ref } from 'firebase/storage';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function UploadedImagesScreen() {
   const [allImages, setAllImages] = useState<string[]>([]);
@@ -28,40 +29,77 @@ export default function UploadedImagesScreen() {
   useEffect(() => {
     fetchAllImages();
   }, []);
+    const handleDelete = (url: string) => {
+      Alert.alert(
+        'Delete Photo',
+        'Are you sure you want to delete this photo?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // Extract the filename from the URL
+                const match = url.match(/%2F([^?]+)\?/);
+                const filename = match ? match[1] : null;
+                if (!filename) throw new Error('Could not extract filename');
+                const imageRef = ref(storage, `images/${filename}`);
+                await deleteObject(imageRef);
+                setAllImages((imgs) => imgs.filter((img) => img !== url));
+                Alert.alert('Deleted', 'Photo deleted successfully.');
+              } catch (error) {
+                console.error('Failed to delete image:', error);
+                Alert.alert('Error', 'Failed to delete image.');
+              }
+            },
+          },
+        ]
+      );
+    };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Uploaded Images</Text>
+      <Text style={styles.title}>Uploaded Essays</Text>
       {loading ? (
         <ActivityIndicator style={{ marginTop: 32 }} />
       ) : allImages.length === 0 ? (
         <Text style={styles.emptyText}>No images uploaded yet.</Text>
       ) : (
         <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 8 }}>
-            {paginatedImages.map((url, idx) => (
-              <Image
-                key={url + idx}
-                source={{ uri: url }}
-                style={styles.image}
-                resizeMode="cover"
-              />
-            ))}
-          </ScrollView>
+          <FlatList
+            data={paginatedImages}
+            keyExtractor={(item, index) => item + index}
+            numColumns={3}
+            columnWrapperStyle={styles.columnWrapper}
+            contentContainerStyle={styles.gridContainer}
+            renderItem={({ item }) => (
+              <View style={styles.imageWrapper}>
+                <Image source={{ uri: item }} style={styles.image} resizeMode="cover" />
+                <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item)}>
+                  <MaterialIcons name="delete" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            )}
+          />
           <View style={styles.paginationRow}>
-            <Button
-              title="Prev"
+            <TouchableOpacity
               onPress={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-            />
+              style={[styles.arrowButton, page === 1 && styles.arrowButtonDisabled]}
+            >
+              <MaterialIcons name="chevron-left" size={32} color={page === 1 ? '#444' : '#fff'} />
+            </TouchableOpacity>
             <Text style={styles.pageText}>
               Page {page} of {totalPages}
             </Text>
-            <Button
-              title="Next"
+            <TouchableOpacity
               onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-            />
+              style={[styles.arrowButton, page === totalPages && styles.arrowButtonDisabled]}
+            >
+              <MaterialIcons name="chevron-right" size={32} color={page === totalPages ? '#444' : '#fff'} />
+            </TouchableOpacity>
           </View>
         </>
       )}
@@ -105,5 +143,38 @@ const styles = StyleSheet.create({
   pageText: {
     color: '#B0B3C6',
     marginHorizontal: 16,
+  },
+  arrowButton: {
+    backgroundColor: 'transparent',
+    padding: 4,
+    borderRadius: 20,
+  },
+  arrowButtonDisabled: {
+    opacity: 0.5,
+  },
+  imageWrapper: {
+    position: 'relative',
+    marginRight: 12,
+    marginBottom: 12,
+  },
+  // image style is already defined above, so remove duplicate
+  deleteButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 16,
+    padding: 4,
+    zIndex: 2,
+  },
+  gridContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 12,
   },
 });

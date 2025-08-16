@@ -58,7 +58,7 @@ export default function HomeScreen() {
       <View style={styles.hero}>
         <View style={styles.logoContainer}>
           <Image
-            source={require('../../assets/images/react-logo.png')}
+            source={require('../../assets/images/akura-logo.png')}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -67,6 +67,9 @@ export default function HomeScreen() {
         <Text style={styles.heroSubtitle}>
           Effortlessly record, upload, and grade student essays with AI-powered feedback and analytics. Start by exploring the tabs for scanning essays or recording readings.
         </Text>
+      </View>
+      <View style={styles.partnerContainer}>
+        <Text style={styles.partnerInfo}>Developed by Team Akura</Text>
       </View>
     </ScrollView>
   );
@@ -84,7 +87,8 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    padding: 0,
+  padding: 0,
+  paddingHorizontal: 20,
     backgroundColor: '#181A20',
     minHeight: '100%',
   },
@@ -95,8 +99,8 @@ const styles = StyleSheet.create({
     paddingVertical: 80,
     paddingHorizontal: 24,
     backgroundColor: '#23262F',
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    // borderBottomLeftRadius: 32,
+    // borderBottomRightRadius: 32,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
@@ -116,5 +120,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 500,
     lineHeight: 28,
+  },
+  partnerContainer: {
+    alignItems: 'center',
+    marginTop: 40,
+    marginBottom: 24,
+  },
+  partnerInfo: {
+    color: '#B0B3C6',
+    fontSize: 13,
+    textAlign: 'center',
   },
 });

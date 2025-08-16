@@ -1,11 +1,12 @@
 import { storage } from '@/config/firebase';
 import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Button, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, ScrollView, StyleSheet, View } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
 export default function ScanScreen() {
   const [uploading, setUploading] = useState(false);
+  const [uploadingSource, setUploadingSource] = useState<'camera' | 'gallery' | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [allImages, setAllImages] = useState<string[]>([]);
   const [page, setPage] = useState(1);
@@ -55,7 +56,8 @@ export default function ScanScreen() {
       console.error('Upload Error:', error);
       Alert.alert('Upload Error', (error as Error).message);
     } finally {
-      setUploading(false);
+  setUploading(false);
+  setUploadingSource(null);
     }
   };
 
@@ -65,16 +67,18 @@ export default function ScanScreen() {
         return;
       }
       setUploading(true);
+      setUploadingSource('gallery');
       await uploadImage(response.assets[0]);
     });
   };
 
   const scanWithCamera = async () => {
-    launchCamera({ mediaType: 'photo' }, async (response) => {
+    launchCamera({ mediaType: 'photo', cameraType: 'back' }, async (response) => {
       if (response.didCancel || !response.assets || response.assets.length === 0) {
         return;
       }
       setUploading(true);
+      setUploadingSource('camera');
       await uploadImage(response.assets[0]);
     });
   };
@@ -82,18 +86,23 @@ export default function ScanScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.section}>
-        <Button
-          title={uploading ? 'Uploading...' : 'Scan Photo from Camera'}
-          onPress={scanWithCamera}
-          disabled={uploading}
-        />
+        <View style={{ width: '100%', alignItems: 'center' }}>
+          <Button
+            title={uploading && uploadingSource === 'camera' ? 'Uploading...' : 'Scan Photo from Camera'}
+            onPress={scanWithCamera}
+            disabled={uploading && uploadingSource !== 'camera'}
+          />
+          {uploading && uploadingSource === 'camera' && <ActivityIndicator style={{ marginTop: 8 }} />}
+        </View>
         <View style={{ height: 16 }} />
-        <Button
-          title={uploading ? 'Uploading...' : 'Select Photo from Gallery'}
-          onPress={pickFromLibrary}
-          disabled={uploading}
-        />
-        {uploading && <ActivityIndicator style={{ marginTop: 16 }} />}
+        <View style={{ width: '100%', alignItems: 'center' }}>
+          <Button
+            title={uploading && uploadingSource === 'gallery' ? 'Uploading...' : 'Select Photo from Gallery'}
+            onPress={pickFromLibrary}
+            disabled={uploading && uploadingSource !== 'gallery'}
+          />
+          {uploading && uploadingSource === 'gallery' && <ActivityIndicator style={{ marginTop: 8 }} />}
+        </View>
       </View>
   {/* Uploaded images section moved to its own page */}
     </ScrollView>
