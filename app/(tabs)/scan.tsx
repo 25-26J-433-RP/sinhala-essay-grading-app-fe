@@ -1,8 +1,8 @@
 import { storage } from '@/config/firebase';
+import * as ImagePicker from 'expo-image-picker';
 import { getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, ScrollView, StyleSheet, View } from 'react-native';
-import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
 export default function ScanScreen() {
   const [uploading, setUploading] = useState(false);
@@ -13,6 +13,22 @@ export default function ScanScreen() {
   const pageSize = 6;
   const totalPages = Math.max(1, Math.ceil(allImages.length / pageSize));
   const paginatedImages = allImages.slice((page - 1) * pageSize, page * pageSize);
+
+  // ✅ Fetch all images function moved out
+  const fetchAllImages = async () => {
+    try {
+      const imagesRef = ref(storage, 'images/');
+      const result = await listAll(imagesRef);
+      const urls = await Promise.all(result.items.map(item => getDownloadURL(item)));
+      setAllImages(urls.reverse()); // newest first
+    } catch (error) {
+      console.error('Error fetching images:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllImages();
+  }, []);
 
   const uploadImage = async (asset: any) => {
     if (!asset.uri) {
@@ -31,56 +47,47 @@ export default function ScanScreen() {
       setImageUrl(url);
       console.log('Image uploaded successfully! URL:', url);
       Alert.alert('Success', 'Image uploaded successfully!');
-      // Refresh all images after upload
-      setTimeout(() => {
-        fetchAllImages();
-        setPage(1); // Reset to first page after upload
-      }, 1000);
-  // Fetch all images from Firebase Storage
-  const fetchAllImages = async () => {
-    try {
-      const imagesRef = ref(storage, 'images/');
-      const result = await listAll(imagesRef);
-      const urls = await Promise.all(result.items.map(item => getDownloadURL(item)));
-      // Show newest first
-      setAllImages(urls.reverse());
-    } catch (error) {
-      console.error('Error fetching images:', error);
-    }
-  };
-
-  React.useEffect(() => {
-    fetchAllImages();
-  }, []);
+      fetchAllImages();
+      setPage(1);
     } catch (error) {
       console.error('Upload Error:', error);
       Alert.alert('Upload Error', (error as Error).message);
     } finally {
-  setUploading(false);
-  setUploadingSource(null);
+      setUploading(false);
+      setUploadingSource(null);
     }
   };
 
+  // ✅ Expo version of picking from gallery
   const pickFromLibrary = async () => {
-    launchImageLibrary({ mediaType: 'photo' }, async (response) => {
-      if (response.didCancel || !response.assets || response.assets.length === 0) {
-        return;
-      }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+    if (!result.canceled) {
       setUploading(true);
       setUploadingSource('gallery');
-      await uploadImage(response.assets[0]);
-    });
+      await uploadImage(result.assets[0]);
+    }
   };
 
+  // ✅ Expo version of taking photo from camera
   const scanWithCamera = async () => {
-    launchCamera({ mediaType: 'photo', cameraType: 'back' }, async (response) => {
-      if (response.didCancel || !response.assets || response.assets.length === 0) {
-        return;
-      }
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission denied', 'Camera access is required!');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+    if (!result.canceled) {
       setUploading(true);
       setUploadingSource('camera');
-      await uploadImage(response.assets[0]);
-    });
+      await uploadImage(result.assets[0]);
+    }
   };
 
   return (
@@ -104,7 +111,6 @@ export default function ScanScreen() {
           {uploading && uploadingSource === 'gallery' && <ActivityIndicator style={{ marginTop: 8 }} />}
         </View>
       </View>
-  {/* Uploaded images section moved to its own page */}
     </ScrollView>
   );
 }

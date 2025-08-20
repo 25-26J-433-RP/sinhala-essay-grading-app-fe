@@ -32,7 +32,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-  "favicon": "./assets/images/akura-logo.png"
+      "favicon": "./assets/images/akura-logo.png"
     },
     "plugins": [
       "expo-router",
@@ -44,7 +44,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-barcode-scanner"
     ],
     "experiments": {
       "typedRoutes": true
