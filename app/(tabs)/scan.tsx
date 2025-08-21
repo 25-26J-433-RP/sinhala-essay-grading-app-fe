@@ -75,13 +75,31 @@ export default function ScanScreen() {
     }
   };
 
-  // 🔹 Mobile camera
+  // 🔹 Scan with camera (mobile web fix included)
   const scanWithCamera = async () => {
     if (Platform.OS === "web") {
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        // ✅ Mobile web → use ImagePicker (opens native camera/photo sheet)
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          quality: 1,
+        });
+        if (!result.canceled) {
+          setUploading(true);
+          setUploadingSource("camera");
+          await uploadImage(result.assets[0]);
+        }
+        return;
+      }
+
+      // ✅ Desktop web → show webcam
       setShowWebCamera(true);
       return;
     }
 
+    // ✅ Native apps
     if (!permission?.granted) {
       const { granted } = await requestPermission();
       if (!granted) {
@@ -101,7 +119,7 @@ export default function ScanScreen() {
     }
   };
 
-  // 🔹 Take photo on web
+  // 🔹 Take photo on web desktop
   const captureWebcamPhoto = async () => {
     if (webcamRef.current) {
       const screenshot = webcamRef.current.getScreenshot();
