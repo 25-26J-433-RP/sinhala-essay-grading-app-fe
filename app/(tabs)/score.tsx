@@ -1,5 +1,6 @@
+// app/(tabs)/score.tsx
 import ScoreScreen from "../screens/ScoreScreen";
 
-export default function ScoreRoute() {
+export default function ScoreTab() {
   return <ScoreScreen />;
 }
