@@ -17,10 +17,53 @@ const firebaseConfig = {
   measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-let analytics;
-if (typeof window !== 'undefined') {
-  analytics = getAnalytics(app);
+// Validate required Firebase config values before initializing.
+const requiredKeys = [
+  'apiKey',
+  'authDomain', 
+  'projectId',
+  'storageBucket',
+  'messagingSenderId',
+  'appId',
+];
+
+const missingKeys = requiredKeys.filter((k) => !(firebaseConfig as any)[k]);
+
+if (missingKeys.length) {
+  // Provide a clearer message than the underlying Firebase error and avoid
+  // calling initializeApp which throws when projectId is missing.
+  // Consumers can check for `storage`/`analytics` being null to handle this
+  // gracefully in development environments where env vars are not set.
+  //
+  // Typical resolution: add the EXPO_PUBLIC_FIREBASE_* values to your
+  // environment (for Expo, set them in app.json or in a .env loaded at runtime).
+  // Example key to set: EXPO_PUBLIC_FIREBASE_PROJECT_ID
+  //
+  // We intentionally do not throw here to avoid an uncaught exception; instead
+  // we export null placeholders so the app can decide how to proceed.
+  // Log once to help debugging.
+  // eslint-disable-next-line no-console
+  console.warn(
+    `Firebase configuration missing keys: ${missingKeys.join(', ')}. ` +
+      'Set EXPO_PUBLIC_FIREBASE_... env vars (for example EXPO_PUBLIC_FIREBASE_PROJECT_ID)'
+  );
 }
-export const storage = getStorage(app);
+
+let app = null as ReturnType<typeof initializeApp> | null;
+let analytics = null as ReturnType<typeof getAnalytics> | null;
+let storage = null as any;
+
+if (missingKeys.length === 0) {
+  // All required values present — safe to initialize Firebase.
+  app = initializeApp(firebaseConfig);
+  if (typeof window !== 'undefined') {
+    analytics = getAnalytics(app);
+  }
+  storage = getStorage(app);
+} else {
+  // keep exports as null placeholders
+  storage = null;
+}
+
+export { analytics };
+export { storage };
