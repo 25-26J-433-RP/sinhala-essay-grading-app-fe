@@ -1,15 +1,20 @@
+import AppHeader from "@/components/AppHeader";
 import { storage } from "@/config/firebase";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRole } from "@/hooks/useRole";
+import { UserImageService } from "@/services/userImageService";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
-import { getDownloadURL, listAll, ref, uploadBytes } from "firebase/storage";
+import { getDownloadURL, listAll, ref } from "firebase/storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Button,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  View,
+    Alert,
+    Button,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 import ReactWebcam from "react-webcam"; // ✅ for web
 
@@ -22,11 +27,50 @@ export default function ScanScreen() {
   const [showWebCamera, setShowWebCamera] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<"front" | "back">("back");
 
+  const { user } = useAuth();
+  const { isStudent, isTeacher, userProfile, profileLoading } = useRole();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView | null>(null);
   const webcamRef = useRef<ReactWebcam | null>(null); // ✅ for web
 
-  // 🔹 Fetch all images
+  // More robust role-based access control
+  // Allow access if user is authenticated and either:
+  // 1. Profile is still loading, OR
+  // 2. User is a student (regardless of isActive for now), OR
+  // 3. No profile exists yet (newly registered users)
+  const canUpload = user && (profileLoading || !userProfile || isStudent());
+
+  // Show access denied only for confirmed teachers
+  if (user && !profileLoading && userProfile && isTeacher()) {
+    return (
+      <View style={styles.container}>
+        <AppHeader />
+        <View style={styles.accessDeniedContainer}>
+          <Text style={styles.accessDeniedTitle}>Teacher Access</Text>
+          <Text style={styles.accessDeniedText}>
+            Image scanning and uploading is available for students. Teachers can view student submissions in other sections.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Show loading state while profile is being determined
+  if (profileLoading) {
+    return (
+      <View style={styles.container}>
+        <AppHeader />
+        <View style={styles.accessDeniedContainer}>
+          <Text style={styles.accessDeniedTitle}>Loading...</Text>
+          <Text style={styles.accessDeniedText}>
+            Setting up your profile...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // 🔹 Fetch all images (keeping for backward compatibility, but not used for student view)
   const fetchAllImages = async () => {
     try {
       const imagesRef = ref(storage, "images/");
@@ -45,14 +89,25 @@ export default function ScanScreen() {
   }, []);
 
   const uploadImage = async (asset: any) => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to upload images.');
+      return;
+    }
+
     try {
       const response = await fetch(asset.uri);
       const blob = await response.blob();
       const filename = asset.fileName || `image_${Date.now()}.jpg`;
-      const storageRef = ref(storage, `images/${filename}`);
-      await uploadBytes(storageRef, blob);
-      await getDownloadURL(storageRef);
-      fetchAllImages();
+      
+      // Use UserImageService for user-specific uploads
+      await UserImageService.uploadUserImage({
+        userId: user.uid,
+        fileName: filename,
+        fileBlob: blob,
+        description: 'Scanned essay document',
+      });
+
+      Alert.alert('Success', 'Image uploaded successfully!');
     } catch (error) {
       console.error("Upload Error:", error);
       Alert.alert("Upload Error", (error as Error).message);
@@ -136,6 +191,7 @@ export default function ScanScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <AppHeader />
       {showWebCamera && Platform.OS === "web" ? (
         <View style={styles.cameraContainer}>
           <ReactWebcam
@@ -189,7 +245,12 @@ export default function ScanScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, justifyContent: "center", padding: 20 },
+  container: { 
+    flexGrow: 1, 
+    justifyContent: "center", 
+    padding: 20,
+    backgroundColor: '#181A20',
+  },
   section: { flex: 1, justifyContent: "center", alignItems: "center" },
   cameraContainer: {
     flex: 1,
@@ -198,4 +259,24 @@ const styles = StyleSheet.create({
     height: 500,
   },
   camera: { width: "100%", height: 400 },
+  accessDeniedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  accessDeniedTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  accessDeniedText: {
+    color: '#B0B3C6',
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    maxWidth: 400,
+  },
 });

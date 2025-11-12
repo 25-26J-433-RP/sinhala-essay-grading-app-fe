@@ -2,6 +2,7 @@
 import { getAnalytics } from "firebase/analytics";
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
@@ -28,6 +29,14 @@ const requiredKeys = [
   'appId',
 ];
 
+console.log('🔥 Firebase Config Validation:', {
+  projectId: firebaseConfig.projectId,
+  authDomain: firebaseConfig.authDomain,
+  storageBucket: firebaseConfig.storageBucket,
+  hasApiKey: !!firebaseConfig.apiKey,
+  hasAppId: !!firebaseConfig.appId
+});
+
 const missingKeys = requiredKeys.filter((k) => !(firebaseConfig as any)[k]);
 
 if (missingKeys.length) {
@@ -53,6 +62,7 @@ if (missingKeys.length) {
 let app = null as ReturnType<typeof initializeApp> | null;
 let analytics = null as ReturnType<typeof getAnalytics> | null;
 let auth = null as ReturnType<typeof getAuth> | null;
+let db = null as ReturnType<typeof getFirestore> | null;
 let storage = null as any;
 
 if (missingKeys.length === 0) {
@@ -62,11 +72,13 @@ if (missingKeys.length === 0) {
     analytics = getAnalytics(app);
   }
   auth = getAuth(app);
+  db = getFirestore(app);
   storage = getStorage(app);
 } else {
   // keep exports as null placeholders
   auth = null;
+  db = null;
   storage = null;
 }
 
-export { analytics, auth, storage };
+export { analytics, auth, db, storage };

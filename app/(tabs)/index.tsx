@@ -1,14 +1,16 @@
-import { storage } from '@/config/firebase';
+import AppHeader from '@/components/AppHeader';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { useRole } from '@/hooks/useRole';
+import { UserImageService } from '@/services/userImageService';
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
 export default function HomeScreen() {
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const { userProfile, profileLoading, isStudent, isTeacher, role } = useRole();
 
   const uploadImage = async (asset: any) => {
     if (!asset.uri) {
@@ -16,16 +18,28 @@ export default function HomeScreen() {
       Alert.alert('Error', 'No image selected.');
       return;
     }
+
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to upload images.');
+      return;
+    }
+
     try {
       console.log('Uploading image:', asset);
       const response = await fetch(asset.uri);
       const blob = await response.blob();
-      const filename = asset.fileName || `image_${Date.now()}`;
-      const storageRef = ref(storage, `images/${filename}`);
-      await uploadBytes(storageRef, blob);
-      const url = await getDownloadURL(storageRef);
-      setImageUrl(url);
-      console.log('Image uploaded successfully! URL:', url);
+      const filename = asset.fileName || `image_${Date.now()}.jpg`;
+
+      // Use the new UserImageService for user-specific uploads
+      const uploadedImage = await UserImageService.uploadUserImage({
+        userId: user.uid,
+        fileName: filename,
+        fileBlob: blob,
+        description: 'Essay submission', // Could be made configurable
+      });
+
+      setImageUrl(uploadedImage.imageUrl);
+      console.log('Image uploaded successfully!', uploadedImage);
       Alert.alert('Success', 'Image uploaded successfully!');
     } catch (error) {
       console.error('Upload Error:', error);
@@ -55,25 +69,9 @@ export default function HomeScreen() {
     });
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-      Alert.alert('Error', 'Failed to logout. Please try again.');
-    }
-  };
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.userInfo}>
-          <Text style={styles.userEmail}>{user?.email}</Text>
-        </View>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+      <AppHeader />
       
       <View style={styles.hero}>
         <View style={styles.logoContainer}>
@@ -87,6 +85,25 @@ export default function HomeScreen() {
         <Text style={styles.heroSubtitle}>
           Effortlessly record, upload, and grade student essays with AI-powered feedback and analytics. Start by exploring the tabs for scanning essays or recording readings.
         </Text>
+        
+        {userProfile && !profileLoading && (
+          <View style={styles.roleFeatures}>
+            <Text style={styles.roleFeaturesTitle}>
+              {isTeacher() ? 'Teacher Dashboard' : 'Student Dashboard'}
+            </Text>
+            <Text style={styles.roleFeaturesText}>
+              {isTeacher() 
+                ? 'Grade essays, provide feedback, and manage student submissions.'
+                : 'Submit essays, view grades, and track your progress.'
+              }
+            </Text>
+            <View style={styles.debugInfo}>
+              <Text style={styles.debugText}>
+                Profile Status: ✅ Active | Role: {userProfile.role} | Access: {userProfile.isActive ? 'Enabled' : 'Pending'}
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
       <View style={styles.partnerContainer}>
         <Text style={styles.partnerInfo}>Developed by Team Akura</Text>
@@ -111,33 +128,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     backgroundColor: '#181A20',
     minHeight: '100%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 16,
-    paddingHorizontal: 4,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userEmail: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  logoutButton: {
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  logoutButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   hero: {
     flex: 1,
@@ -167,6 +157,41 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 500,
     lineHeight: 28,
+  },
+  roleFeatures: {
+    marginTop: 32,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    backgroundColor: '#1A1D24',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#333640',
+    maxWidth: 500,
+  },
+  roleFeaturesTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  roleFeaturesText: {
+    fontSize: 16,
+    color: '#B0B3C6',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  debugInfo: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#333640',
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#34C759',
+    textAlign: 'center',
+    fontFamily: 'monospace',
   },
   partnerContainer: {
     alignItems: 'center',

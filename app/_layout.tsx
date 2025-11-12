@@ -25,6 +25,20 @@ export default function RootLayout() {
         <AuthWrapper>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen 
+              name="profile" 
+              options={{ 
+                headerShown: true,
+                title: 'Profile',
+                headerStyle: {
+                  backgroundColor: '#23262F',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }} 
+            />
             <Stack.Screen name="+not-found" />
           </Stack>
         </AuthWrapper>

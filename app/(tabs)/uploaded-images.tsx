@@ -1,180 +1,155 @@
-import { storage } from '@/config/firebase';
+import AppHeader from '@/components/AppHeader';
+import StudentImageGallery from '@/components/StudentImageGallery';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRole } from '@/hooks/useRole';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { deleteObject, getDownloadURL, listAll, ref } from 'firebase/storage';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function UploadedImagesScreen() {
-  const [allImages, setAllImages] = useState<string[]>([]);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const pageSize = 6;
-  const totalPages = Math.max(1, Math.ceil(allImages.length / pageSize));
-  const paginatedImages = allImages.slice((page - 1) * pageSize, page * pageSize);
+  const { user } = useAuth();
+  const { isStudent, isTeacher, userProfile, profileLoading } = useRole();
 
-  const fetchAllImages = async () => {
-    setLoading(true);
-    try {
-      const imagesRef = ref(storage, 'images/');
-      const result = await listAll(imagesRef);
-      const urls = await Promise.all(result.items.map(item => getDownloadURL(item)));
-      setAllImages(urls.reverse());
-    } catch (error) {
-      console.error('Error fetching images:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Debug logging
+  console.log('📱 UploadedImagesScreen - Debug Info:', {
+    hasUser: !!user,
+    userId: user?.uid,
+    profileLoading,
+    hasProfile: !!userProfile,
+    userRole: userProfile?.role,
+    isStudentResult: isStudent(),
+    isTeacherResult: isTeacher(),
+  });
 
-  useEffect(() => {
-    fetchAllImages();
-  }, []);
-    const handleDelete = (url: string) => {
-      Alert.alert(
-        'Delete Photo',
-        'Are you sure you want to delete this photo?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                // Extract the filename from the URL
-                const match = url.match(/%2F([^?]+)\?/);
-                const filename = match ? match[1] : null;
-                if (!filename) throw new Error('Could not extract filename');
-                const imageRef = ref(storage, `images/${filename}`);
-                await deleteObject(imageRef);
-                setAllImages((imgs) => imgs.filter((img) => img !== url));
-                Alert.alert('Deleted', 'Photo deleted successfully.');
-              } catch (error) {
-                console.error('Failed to delete image:', error);
-                Alert.alert('Error', 'Failed to delete image.');
-              }
-            },
-          },
-        ]
-      );
-    };
+  // Show loading state while profile is being loaded
+  if (profileLoading) {
+    return (
+      <View style={styles.container}>
+        <AppHeader />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Setting up your profile...</Text>
+        </View>
+      </View>
+    );
+  }
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Uploaded Essays</Text>
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 32 }} />
-      ) : allImages.length === 0 ? (
-        <Text style={styles.emptyText}>No images uploaded yet.</Text>
-      ) : (
-        <>
-          <FlatList
-            data={paginatedImages}
-            keyExtractor={(item, index) => item + index}
-            numColumns={3}
-            columnWrapperStyle={styles.columnWrapper}
-            contentContainerStyle={styles.gridContainer}
-            renderItem={({ item }) => (
-              <View style={styles.imageWrapper}>
-                <Image source={{ uri: item }} style={styles.image} resizeMode="cover" />
-                <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item)}>
-                  <MaterialIcons name="delete" size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            )}
-          />
-          <View style={styles.paginationRow}>
-            <TouchableOpacity
-              onPress={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              style={[styles.arrowButton, page === 1 && styles.arrowButtonDisabled]}
-            >
-              <MaterialIcons name="chevron-left" size={32} color={page === 1 ? '#444' : '#fff'} />
-            </TouchableOpacity>
-            <Text style={styles.pageText}>
-              Page {page} of {totalPages}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              style={[styles.arrowButton, page === totalPages && styles.arrowButtonDisabled]}
-            >
-              <MaterialIcons name="chevron-right" size={32} color={page === totalPages ? '#444' : '#fff'} />
-            </TouchableOpacity>
+  // Show role-based content - allow students and users without profiles (newly registered)
+  // Also show for students who might not be marked as active yet
+  if (isStudent() || (!userProfile && user) || (userProfile?.role === 'student')) {
+    console.log('📚 Showing StudentImageGallery for student user');
+    return (
+      <View style={styles.container}>
+        <AppHeader />
+        <StudentImageGallery 
+          onImagePress={(image) => {
+            // Future: Navigate to image details or preview
+            console.log('Image pressed:', image.fileName);
+          }}
+        />
+      </View>
+    );
+  }
+
+  if (isTeacher()) {
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <AppHeader />
+        <View style={styles.centerContent}>
+          <MaterialIcons name="school" size={64} color="#666" />
+          <Text style={styles.title}>Teacher Dashboard</Text>
+          <Text style={styles.description}>
+            As a teacher, you can view and grade student submissions. 
+            Student image galleries are private to each individual student.
+          </Text>
+          <View style={styles.featureList}>
+            <Text style={styles.featureItem}>📚 Review student submissions</Text>
+            <Text style={styles.featureItem}>✏️ Provide feedback and grades</Text>
+            <Text style={styles.featureItem}>📊 Track student progress</Text>
           </View>
-        </>
-      )}
-    </ScrollView>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  // Fallback - this should rarely be reached now
+  return (
+    <View style={styles.container}>
+      <AppHeader />
+      <View style={styles.centerContent}>
+        <MaterialIcons name="info" size={64} color="#007AFF" />
+        <Text style={styles.title}>Welcome!</Text>
+        <Text style={styles.description}>
+          Your profile is being set up. You should have access to upload and view your images shortly.
+        </Text>
+        {userProfile && (
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileText}>Email: {userProfile.email}</Text>
+            <Text style={styles.profileText}>Role: {userProfile.role || 'Teacher'}</Text>
+            <Text style={styles.profileText}>Status: {userProfile.isActive ? 'Active' : 'Setting up...'}</Text>
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
     flex: 1,
     backgroundColor: '#181A20',
     padding: 20,
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#B0B3C6',
+    fontSize: 16,
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   title: {
     color: '#fff',
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 18,
+    marginTop: 20,
+    marginBottom: 16,
     textAlign: 'center',
   },
-  image: {
-    width: 120,
-    height: 120,
-    borderRadius: 10,
-    marginRight: 12,
-    backgroundColor: '#23262F',
-  },
-  emptyText: {
+  description: {
     color: '#B0B3C6',
+    fontSize: 16,
     textAlign: 'center',
-    marginTop: 32,
+    lineHeight: 24,
+    marginBottom: 32,
+    maxWidth: 400,
   },
-  paginationRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 16,
+  featureList: {
+    alignItems: 'flex-start',
   },
-  pageText: {
+  featureItem: {
     color: '#B0B3C6',
-    marginHorizontal: 16,
-  },
-  arrowButton: {
-    backgroundColor: 'transparent',
-    padding: 4,
-    borderRadius: 20,
-  },
-  arrowButtonDisabled: {
-    opacity: 0.5,
-  },
-  imageWrapper: {
-    position: 'relative',
-    marginRight: 12,
+    fontSize: 16,
     marginBottom: 12,
+    lineHeight: 24,
   },
-  // image style is already defined above, so remove duplicate
-  deleteButton: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 16,
-    padding: 4,
-    zIndex: 2,
+  profileInfo: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#23262F',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333640',
   },
-  gridContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  columnWrapper: {
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 12,
+  profileText: {
+    color: '#B0B3C6',
+    fontSize: 14,
+    marginBottom: 4,
   },
 });
