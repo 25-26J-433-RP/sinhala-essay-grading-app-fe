@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { getAnalytics } from "firebase/analytics";
 import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
@@ -51,6 +52,7 @@ if (missingKeys.length) {
 
 let app = null as ReturnType<typeof initializeApp> | null;
 let analytics = null as ReturnType<typeof getAnalytics> | null;
+let auth = null as ReturnType<typeof getAuth> | null;
 let storage = null as any;
 
 if (missingKeys.length === 0) {
@@ -59,11 +61,12 @@ if (missingKeys.length === 0) {
   if (typeof window !== 'undefined') {
     analytics = getAnalytics(app);
   }
+  auth = getAuth(app);
   storage = getStorage(app);
 } else {
   // keep exports as null placeholders
+  auth = null;
   storage = null;
 }
 
-export { analytics };
-export { storage };
+export { analytics, auth, storage };

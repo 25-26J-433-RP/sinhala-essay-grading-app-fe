@@ -1,12 +1,14 @@
 import { storage } from '@/config/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
 export default function HomeScreen() {
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const { user, logout } = useAuth();
 
   const uploadImage = async (asset: any) => {
     if (!asset.uri) {
@@ -53,8 +55,26 @@ export default function HomeScreen() {
     });
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.userInfo}>
+          <Text style={styles.userEmail}>{user?.email}</Text>
+        </View>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+      
       <View style={styles.hero}>
         <View style={styles.logoContainer}>
           <Image
@@ -87,10 +107,37 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-  padding: 0,
-  paddingHorizontal: 20,
+    padding: 0,
+    paddingHorizontal: 20,
     backgroundColor: '#181A20',
     minHeight: '100%',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 16,
+    paddingHorizontal: 4,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userEmail: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  logoutButton: {
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   hero: {
     flex: 1,
