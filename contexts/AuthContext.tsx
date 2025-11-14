@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const refreshProfile = async () => {
+  const refreshProfile = React.useCallback(async () => {
     if (!user) return;
     
     setProfileLoading(true);
@@ -119,15 +119,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setProfileLoading(false);
     }
-  };
+  }, [user]);
 
-  // Auto-create profile if user exists but no profile found
+  // Auto-create profile if user exists but no profile found (run only once when conditions change)
+  const hasAttemptedProfileCreation = React.useRef(false);
+  
   useEffect(() => {
-    if (user && !userProfile && !profileLoading) {
+    if (user && !userProfile && !profileLoading && !hasAttemptedProfileCreation.current) {
       console.log('User authenticated but no profile found, attempting to create/fetch profile...');
+      hasAttemptedProfileCreation.current = true;
       refreshProfile();
     }
-  }, [user, userProfile, profileLoading]);
+    
+    // Reset flag when user changes
+    if (!user) {
+      hasAttemptedProfileCreation.current = false;
+    }
+  }, [user, userProfile, profileLoading, refreshProfile]);
 
   const logout = async () => {
     if (!auth) {

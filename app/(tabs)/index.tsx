@@ -86,7 +86,7 @@ export default function HomeScreen() {
           Effortlessly record, upload, and grade student essays with AI-powered feedback and analytics. Start by exploring the tabs for scanning essays or recording readings.
         </Text>
         
-        {userProfile && !profileLoading && (
+        {/* {userProfile && !profileLoading && (
           <View style={styles.roleFeatures}>
             <Text style={styles.roleFeaturesTitle}>
               {isTeacher() ? 'Teacher Dashboard' : 'Student Dashboard'}
@@ -97,13 +97,9 @@ export default function HomeScreen() {
                 : 'Submit essays, view grades, and track your progress.'
               }
             </Text>
-            <View style={styles.debugInfo}>
-              <Text style={styles.debugText}>
-                Profile Status: ✅ Active | Role: {userProfile.role} | Access: {userProfile.isActive ? 'Enabled' : 'Pending'}
-              </Text>
-            </View>
+            
           </View>
-        )}
+        )} */}
       </View>
       <View style={styles.partnerContainer}>
         <Text style={styles.partnerInfo}>Developed by Team Akura</Text>

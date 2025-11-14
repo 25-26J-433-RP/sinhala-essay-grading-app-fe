@@ -8,13 +8,22 @@ import {
     orderBy,
     query,
     serverTimestamp,
+    updateDoc,
     where
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 
+const DEBUG = __DEV__ === true;
+const dlog = (...args: any[]) => { if (DEBUG) console.log(...args); };
+const dwarn = (...args: any[]) => { if (DEBUG) console.warn(...args); };
+
 export interface UserImageUpload {
   id: string;
   userId: string;
+  studentId: string;
+  studentAge?: number;
+  studentGrade?: string;
+  studentGender?: string;
   imageUrl: string;
   fileName: string;
   storagePath: string;
@@ -26,9 +35,12 @@ export interface UserImageUpload {
 
 export interface CreateImageUploadData {
   userId: string;
+  studentId: string;
+  studentAge?: number;
+  studentGrade?: string;
+  studentGender?: string;
   fileName: string;
   fileBlob: Blob;
-  description?: string;
 }
 
 export class UserImageService {
@@ -52,21 +64,25 @@ export class UserImageService {
     await uploadBytes(storageRef, data.fileBlob);
     const imageUrl = await getDownloadURL(storageRef);
 
-    // Save metadata to Firestore
+    // Save metadata to Firestore, including required studentId and optional age/grade/gender
     const uploadData = {
       userId: data.userId,
+      studentId: data.studentId,
+      studentAge: data.studentAge,
+      studentGrade: data.studentGrade,
+      studentGender: data.studentGender,
       imageUrl,
       fileName: data.fileName,
       storagePath,
       uploadedAt: serverTimestamp(),
       fileSize: data.fileBlob.size,
       mimeType: data.fileBlob.type,
-      description: data.description || '',
+      description: '',
     };
 
     const docRef = await addDoc(collection(db, this.COLLECTION), uploadData);
 
-    console.log('✅ Image uploaded to Firestore:', {
+    dlog('✅ Image uploaded to Firestore:', {
       docId: docRef.id,
       userId: data.userId,
       fileName: data.fileName,
@@ -84,7 +100,7 @@ export class UserImageService {
    * Get all images uploaded by a specific user (includes migration from old system)
    */
   static async getUserImages(userId: string): Promise<UserImageUpload[]> {
-    console.log('🔍 getUserImages called for userId:', userId);
+    dlog('🔍 getUserImages called for userId:', userId);
     
     if (!db) {
       throw new Error('Firestore not initialized. Check your Firebase configuration.');
@@ -92,7 +108,7 @@ export class UserImageService {
 
     try {
       // Get images from new system (Firestore-tracked)
-      console.log(`🔍 Querying collection '${this.COLLECTION}' for userId: ${userId}`);
+      dlog(`🔍 Querying collection '${this.COLLECTION}' for userId: ${userId}`);
       
       // First try simple query without orderBy to avoid potential index issues
       let q = query(
@@ -100,38 +116,37 @@ export class UserImageService {
         where('userId', '==', userId)
       );
 
-      console.log('📝 Executing Firestore query (without orderBy)...');
+      dlog('📝 Executing Firestore query (without orderBy)...');
       let querySnapshot = await getDocs(q);
-      console.log(`📄 Simple query completed, found ${querySnapshot.docs.length} documents`);
+      dlog(`📄 Simple query completed, found ${querySnapshot.docs.length} documents`);
       
       // If simple query works, try with orderBy
       if (querySnapshot.docs.length > 0) {
         try {
-          console.log('📝 Trying query with orderBy...');
+          dlog('📝 Trying query with orderBy...');
           q = query(
             collection(db, this.COLLECTION),
             where('userId', '==', userId),
             orderBy('uploadedAt', 'desc')
           );
           querySnapshot = await getDocs(q);
-          console.log('✅ OrderBy query successful');
+          dlog('✅ OrderBy query successful');
         } catch (orderError) {
-          console.warn('⚠️ OrderBy query failed, using simple query results:', orderError);
+          dwarn('⚠️ OrderBy query failed, using simple query results:', orderError);
           // Continue with simple query results
         }
       }
       
       const firestoreImages = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        console.log(`📄 Document ${doc.id}:`, { userId: data.userId, fileName: data.fileName });
         return {
           id: doc.id,
-          ...data,
-          uploadedAt: data.uploadedAt?.toDate() || new Date(),
-        };
-      }) as UserImageUpload[];
+          ...(data as any),
+          uploadedAt: (data as any).uploadedAt?.toDate() || new Date(),
+        } as UserImageUpload;
+      });
 
-      console.log(`📊 Found ${firestoreImages.length} images in Firestore for user ${userId}`);
+      dlog(`📊 Found ${firestoreImages.length} images in Firestore for user ${userId}`);
 
       // Also check for old images in the legacy `images/` folder
       // Note: This is a temporary migration - in production you'd want to migrate these properly
@@ -142,7 +157,7 @@ export class UserImageService {
           const legacyRef = ref(storage, 'images/');
           const legacyResult = await listAll(legacyRef);
           
-          console.log(`📁 Found ${legacyResult.items.length} legacy images in storage`);
+          dlog(`📁 Found ${legacyResult.items.length} legacy images in storage`);
           
           // Create placeholder entries for legacy images
           legacyImages = await Promise.all(
@@ -153,6 +168,7 @@ export class UserImageService {
               return {
                 id: `legacy_${fileName}`,
                 userId: userId, // Assume current user owns these for now
+                studentId: 'LEGACY',
                 imageUrl: url,
                 fileName: fileName,
                 storagePath: `images/${fileName}`,
@@ -164,13 +180,13 @@ export class UserImageService {
             })
           );
         } catch (legacyError) {
-          console.log('No legacy images found or error accessing them:', legacyError);
+          dwarn('No legacy images found or error accessing them:', legacyError);
         }
       }
 
       // Combine and sort all images
       const allImages = [...firestoreImages, ...legacyImages];
-      console.log(`✅ Returning ${allImages.length} total images (${firestoreImages.length} new + ${legacyImages.length} legacy)`);
+      dlog(`✅ Returning ${allImages.length} total images (${firestoreImages.length} new + ${legacyImages.length} legacy)`);
       
       return allImages.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
       
@@ -184,17 +200,43 @@ export class UserImageService {
    * Delete a user's image (both from Storage and Firestore, handles legacy images)
    */
   static async deleteUserImage(imageId: string, storagePath: string): Promise<void> {
+    dlog('🗑️ deleteUserImage called:', { imageId, storagePath });
+    
     if (!db || !storage) {
+      console.error('❌ Firebase not initialized');
       throw new Error('Firebase not initialized. Check your Firebase configuration.');
     }
 
-    // Delete from Storage
-    const storageRef = ref(storage, storagePath);
-    await deleteObject(storageRef);
+    try {
+      // Delete from Storage
+      dlog('🗑️ Deleting from Storage:', storagePath);
+      const storageRef = ref(storage, storagePath);
+      try {
+        await deleteObject(storageRef);
+        dlog('✅ Deleted from Storage');
+      } catch (storageErr: any) {
+        // If the object doesn't exist, continue to delete the Firestore doc
+        if (storageErr?.code === 'storage/object-not-found') {
+          dwarn('⚠️ Storage object not found, continuing with Firestore delete');
+        } else {
+          console.error('❌ Storage delete failed:', storageErr);
+          throw storageErr;
+        }
+      }
 
-    // Delete from Firestore (only if it's not a legacy image)
-    if (!imageId.startsWith('legacy_')) {
-      await deleteDoc(doc(db, this.COLLECTION, imageId));
+      // Delete from Firestore (only if it's not a legacy image)
+      if (!imageId.startsWith('legacy_')) {
+        dlog('🗑️ Deleting from Firestore:', imageId);
+        await deleteDoc(doc(db, this.COLLECTION, imageId));
+        dlog('✅ Deleted from Firestore');
+      } else {
+        dlog('⏭️ Skipping Firestore delete (legacy image)');
+      }
+      
+      dlog('✅ Image deletion complete');
+    } catch (error) {
+      console.error('❌ Error during deletion:', error);
+      throw error;
     }
   }
 
@@ -241,6 +283,22 @@ export class UserImageService {
   }
 
   /**
+   * Update the description/notes for an image
+   */
+  static async updateImageDescription(imageId: string, description: string): Promise<void> {
+    if (!db) {
+      throw new Error('Firestore not initialized. Check your Firebase configuration.');
+    }
+
+    const docRef = doc(db, this.COLLECTION, imageId);
+    await updateDoc(docRef, {
+      description,
+    });
+
+    dlog('✅ Image description updated:', { imageId, description });
+  }
+
+  /**
    * Debug method to check all documents in the collection
    */
   static async debugGetAllImages(): Promise<any[]> {
@@ -249,16 +307,16 @@ export class UserImageService {
     }
 
     try {
-      console.log('🚨 DEBUG: Getting ALL documents from userImages collection...');
+      dlog('🚨 DEBUG: Getting ALL documents from userImages collection...');
       const querySnapshot = await getDocs(collection(db, this.COLLECTION));
       const allDocs = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      console.log(`🚨 DEBUG: Found ${allDocs.length} total documents in ${this.COLLECTION} collection`);
+      dlog(`🚨 DEBUG: Found ${allDocs.length} total documents in ${this.COLLECTION} collection`);
       allDocs.forEach(doc => {
         const data = doc as any;
-        console.log(`🚨 DEBUG Doc ${doc.id}:`, { userId: data.userId, fileName: data.fileName });
+        dlog(`🚨 DEBUG Doc ${doc.id}:`, { userId: data.userId, fileName: data.fileName });
       });
       return allDocs;
     } catch (error) {

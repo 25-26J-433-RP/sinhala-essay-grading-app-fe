@@ -1,10 +1,11 @@
 import AppHeader from '@/components/AppHeader';
-import StudentImageGallery from '@/components/StudentImageGallery';
+import StudentListView from '@/components/StudentListView';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { router } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 export default function UploadedImagesScreen() {
   const { user } = useAuth();
@@ -33,41 +34,31 @@ export default function UploadedImagesScreen() {
     );
   }
 
-  // Show role-based content - allow students and users without profiles (newly registered)
-  // Also show for students who might not be marked as active yet
-  if (isStudent() || (!userProfile && user) || (userProfile?.role === 'student')) {
-    console.log('📚 Showing StudentImageGallery for student user');
+  // Show StudentListView for both students and teachers (teachers manage student essays)
+  if (user && (isStudent() || isTeacher() || !userProfile)) {
+    console.log('📚 Showing StudentListView for user');
     return (
       <View style={styles.container}>
         <AppHeader />
-        <StudentImageGallery 
-          onImagePress={(image) => {
-            // Future: Navigate to image details or preview
-            console.log('Image pressed:', image.fileName);
+        <StudentListView 
+          onStudentPress={(studentInfo) => {
+            // Navigate to student essays page
+            router.push({
+              pathname: '/student-essays',
+              params: {
+                studentData: JSON.stringify({
+                  ...studentInfo,
+                  lastUploadDate: studentInfo.lastUploadDate.toISOString(),
+                  essays: studentInfo.essays.map(essay => ({
+                    ...essay,
+                    uploadedAt: essay.uploadedAt.toISOString(),
+                  })),
+                }),
+              },
+            });
           }}
         />
       </View>
-    );
-  }
-
-  if (isTeacher()) {
-    return (
-      <ScrollView contentContainerStyle={styles.container}>
-        <AppHeader />
-        <View style={styles.centerContent}>
-          <MaterialIcons name="school" size={64} color="#666" />
-          <Text style={styles.title}>Teacher Dashboard</Text>
-          <Text style={styles.description}>
-            As a teacher, you can view and grade student submissions. 
-            Student image galleries are private to each individual student.
-          </Text>
-          <View style={styles.featureList}>
-            <Text style={styles.featureItem}>📚 Review student submissions</Text>
-            <Text style={styles.featureItem}>✏️ Provide feedback and grades</Text>
-            <Text style={styles.featureItem}>📊 Track student progress</Text>
-          </View>
-        </View>
-      </ScrollView>
     );
   }
 

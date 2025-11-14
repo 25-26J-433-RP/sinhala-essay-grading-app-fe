@@ -21,16 +21,18 @@ export class UserProfileService {
       throw new Error('Firestore not initialized. Check your Firebase configuration.');
     }
 
-    const userProfile: Omit<UserProfile, 'createdAt' | 'updatedAt'> = {
+    const userProfile: any = {
       uid: data.uid,
       email: data.email,
       role: data.role || 'teacher', // Default to teacher role
-      displayName: data.displayName,
-      institution: data.institution,
-      grade: data.grade,
-      subjects: data.subjects,
       isActive: true,
     };
+
+    // Only add optional fields if they are defined
+    if (data.displayName) userProfile.displayName = data.displayName;
+    if (data.institution) userProfile.institution = data.institution;
+    if (data.grade) userProfile.grade = data.grade;
+    if (data.subjects) userProfile.subjects = data.subjects;
 
     const docRef = doc(db, this.COLLECTION, data.uid);
     
