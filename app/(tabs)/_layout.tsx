@@ -72,6 +72,17 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="sinhala-score"
+        options={{
+          title: "Sinhala Score",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="book-open-variant" size={26} color={color} />
+          ),
+        }}
+      />
+
+
+      <Tabs.Screen
         name="recording"
         options={{
           title: "Recording",
