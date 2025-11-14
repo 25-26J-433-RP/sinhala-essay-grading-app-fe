@@ -100,6 +100,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="add-student"
+        options={{
+          title: 'Add Student',
+          tabBarIcon: ({ color }: { color: string }) => (
+            <MaterialIcons name="person-add" size={26} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

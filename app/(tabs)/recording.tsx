@@ -1,3 +1,4 @@
+import AppHeader from '@/components/AppHeader';
 import AudioRecorder from '@/components/AudioRecorder';
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -5,6 +6,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 export default function RecordingScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <AppHeader />
       <View style={styles.section}>
         <AudioRecorder />
       </View>
