@@ -1,29 +1,44 @@
-import AppHeader from '@/components/AppHeader';
-import { useConfirm } from '@/components/Confirm';
-import { useToast } from '@/components/Toast';
-import { UserImageService, UserImageUpload } from '@/services/userImageService';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import AppHeader from "@/components/AppHeader";
+import { useConfirm } from "@/components/Confirm";
+import { useToast } from "@/components/Toast";
+import { UserImageService, UserImageUpload } from "@/services/userImageService";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+import {
+  scoreSinhala,
+  SinhalaScoreResponse,
+} from "@/app/api/scoreSinhala"; // ✅ FIXED IMPORT
 
 export default function ImageDetailScreen() {
-  const { imageData: imageDataParam } = useLocalSearchParams<{ imageData?: string }>();
+  const { imageData: imageDataParam } = useLocalSearchParams<{
+    imageData?: string;
+  }>();
+
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
-  const [inputText, setInputText] = useState('');
+
+  const [essayTopic, setEssayTopic] = useState("");
+  const [inputText, setInputText] = useState("");
+
+  const [isScoring, setIsScoring] = useState(false);
+  const [scoreData, setScoreData] = useState<SinhalaScoreResponse | null>(null);
+
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
   const { showToast } = useToast();
   const confirm = useConfirm();
   const DEBUG = __DEV__ === true;
@@ -32,86 +47,49 @@ export default function ImageDetailScreen() {
   useEffect(() => {
     if (initializedRef.current) return;
     try {
-      if (typeof imageDataParam === 'string') {
+      if (typeof imageDataParam === "string") {
         const parsed = JSON.parse(imageDataParam);
         setImageData(parsed);
-        setInputText(parsed.description || '');
+        setInputText(parsed.description || "");
       }
     } catch (error) {
-      console.error('Error parsing image data:', error);
+      console.error("Error parsing image data:", error);
     } finally {
       setLoading(false);
       initializedRef.current = true;
     }
   }, [imageDataParam]);
 
-  const handleSaveInput = async () => {
-    if (!inputText.trim()) {
-      Alert.alert('Validation', 'Please enter some text before saving.');
-      return;
-    }
-
-    if (!imageData?.id) {
-      Alert.alert('Error', 'Unable to save. Image ID not found.');
-      return;
-    }
-
-    setIsSaving(true);
-    
-    try {
-      await UserImageService.updateImageDescription(imageData.id, inputText.trim());
-      
-      // Update local state so the change is reflected immediately
-      setImageData({
-        ...imageData,
-        description: inputText.trim(),
-      });
-      
-      showToast('Notes saved successfully!', { type: 'success' });
-      console.log('Saved text:', inputText);
-    } catch (error) {
-      console.error('Error saving notes:', error);
-      showToast('Failed to save notes. Please try again.', { type: 'error' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleDeleteImage = async () => {
-    if (DEBUG) console.log('🗑️ handleDeleteImage called');
-    if (DEBUG) console.log('📊 Image data:', { id: imageData?.id, storagePath: imageData?.storagePath });
     const ok = await confirm({
-      title: 'Delete Essay',
-      message: 'Are you sure you want to delete this essay? This action cannot be undone.',
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
+      title: "Delete Essay",
+      message: "Are you sure you want to delete this essay?",
+      confirmText: "Delete",
+      cancelText: "Cancel",
     });
-    if (!ok) {
-      console.log('❌ Delete cancelled');
-      return;
-    }
+
+    if (!ok) return;
 
     if (!imageData?.id || !imageData?.storagePath) {
-      console.error('❌ Missing image data:', { id: imageData?.id, storagePath: imageData?.storagePath });
-      showToast('Unable to delete. Image data not found.', { type: 'error' });
+      showToast("Missing image data", { type: "error" });
       return;
     }
 
-    console.log('🔄 Starting deletion...');
     setIsDeleting(true);
+
     try {
-      console.log('📞 Calling UserImageService.deleteUserImage...');
-      await UserImageService.deleteUserImage(imageData.id, imageData.storagePath);
-      if (DEBUG) console.log('✅ Deletion successful');
-      showToast('Essay deleted successfully!', { type: 'success' });
-      // Navigate back after a short delay
+      await UserImageService.deleteUserImage(
+        imageData.id,
+        imageData.storagePath
+      );
+
+      showToast("Essay deleted!", { type: "success" });
+
       setTimeout(() => {
-        if (DEBUG) console.log('🔙 Navigating back');
-        router.push('/(tabs)/uploaded-images');
-      }, 500);
-    } catch (error) {
-      console.error('❌ Error deleting image:', error);
-      showToast('Failed to delete essay. Please try again.', { type: 'error' });
+        router.push("/(tabs)/uploaded-images");
+      }, 300);
+    } catch (err) {
+      showToast("Failed to delete", { type: "error" });
       setIsDeleting(false);
     }
   };
@@ -122,7 +100,7 @@ export default function ImageDetailScreen() {
         <AppHeader />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading image details...</Text>
+          <Text style={styles.loadingText}>Loading image...</Text>
         </View>
       </View>
     );
@@ -135,223 +113,232 @@ export default function ImageDetailScreen() {
         <View style={styles.centerContainer}>
           <MaterialIcons name="error-outline" size={64} color="#FF3B30" />
           <Text style={styles.errorTitle}>Image Not Found</Text>
-          <Text style={styles.errorText}>
-            Unable to load image details. Please try again.
-          </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push('/(tabs)/uploaded-images')}
+            onPress={() => router.push("/(tabs)/uploaded-images")}
           >
-            <Text style={styles.backButtonText}>Go Back</Text>
+            <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  const formatDate = (date: Date | string) => {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return 'Unknown';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  };
-
   return (
     <ScrollView style={styles.container}>
       <AppHeader />
-      
+
       <View style={styles.content}>
         {/* Back Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButtonTop}
-          onPress={() => {
-            if (DEBUG) console.log('Back button pressed');
-            router.push('/(tabs)/uploaded-images');
-          }}
+          onPress={() => router.push("/(tabs)/uploaded-images")}
         >
           <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
           <Text style={styles.backButtonTopText}>Back to Collection</Text>
         </TouchableOpacity>
 
-        {/* Image Preview */}
+        {/* Image */}
         <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: imageData.imageUrl }} 
-            style={styles.image} 
+          <Image
+            source={{ uri: imageData.imageUrl }}
+            style={styles.image}
             resizeMode="contain"
           />
         </View>
 
-        {/* Input Field Section */}
+        {/* SCORING INPUT CARD */}
         <View style={styles.inputCard}>
-          <Text style={styles.cardTitle}>Extracted Essay</Text>
+          <Text style={styles.cardTitle}>Enter Sinhala Essay</Text>
+
+          {/* Topic */}
+          <Text style={styles.detailLabel}>Topic (optional)</Text>
           <TextInput
+            value={essayTopic}
+            onChangeText={setEssayTopic}
+            placeholder="e.g. මගේ පාසල"
             style={styles.textInput}
+          />
+
+          {/* Essay */}
+          <Text style={styles.detailLabel}>Essay *</Text>
+          <TextInput
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Edit essay text here..."
-            placeholderTextColor="#888"
+            placeholder="Paste Sinhala essay here"
             multiline
-            numberOfLines={4}
+            numberOfLines={8}
             textAlignVertical="top"
+            style={[styles.textInput, { minHeight: 160 }]}
           />
-          <TouchableOpacity 
-            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-            onPress={handleSaveInput}
-            disabled={isSaving}
+
+          {/* Score Button */}
+          <TouchableOpacity
+            style={[styles.scoreButton, isScoring && { opacity: 0.6 }]}
+            disabled={isScoring}
+            onPress={async () => {
+              if (!inputText.trim()) {
+                Alert.alert("Validation", "Please enter an essay.");
+                return;
+              }
+
+              setIsScoring(true);
+
+              try {
+                const result = await scoreSinhala({
+                  text: inputText,
+                  grade: Number(imageData.studentGrade) || 6,
+                  topic: essayTopic || undefined,
+                });
+
+                setScoreData(result);
+                showToast("Score calculated!", { type: "success" });
+              } catch (err: any) {
+                console.error(err);
+                showToast("Failed to score essay", { type: "error" });
+              } finally {
+                setIsScoring(false);
+              }
+            }}
           >
-            {isSaving ? (
-              <ActivityIndicator size="small" color="#fff" />
+            {isScoring ? (
+              <ActivityIndicator color="#fff" />
             ) : (
-              <MaterialIcons name="save" size={20} color="#fff" />
+              <Text style={styles.scoreButtonText}>Score Essay</Text>
             )}
           </TouchableOpacity>
         </View>
 
-        {/* Image Details Card */}
+        {/* SCORE DISPLAY */}
         <View style={styles.detailsCard}>
-          <Text style={styles.cardTitle}>Essay Details</Text>
-          
+          <Text style={styles.cardTitle}>Essay Details & Score</Text>
+
+          {scoreData && (
+            <View style={styles.scoreBox}>
+              <Text style={styles.scoreMain}>Score: {scoreData.score}</Text>
+
+              <Text style={styles.scoreDetail}>
+                Word Count: {scoreData.details.word_count}
+              </Text>
+              <Text style={styles.scoreDetail}>
+                Unique Words: {scoreData.details.unique_words}
+              </Text>
+              <Text style={styles.scoreDetail}>
+                Avg Word Length: {scoreData.details.avg_word_length}
+              </Text>
+            </View>
+          )}
+
+          {/* FILE DETAILS */}
           <View style={styles.detailRow}>
-            {[
-              <MaterialIcons key="icon" name="insert-drive-file" size={20} color="#007AFF" />,
-              <View key="content" style={styles.detailContent}>
-                <Text style={styles.detailLabel}>File Name</Text>
-                <Text style={styles.detailValue}>{imageData.fileName}</Text>
-              </View>,
-            ]}
+            <MaterialIcons name="insert-drive-file" size={20} color="#007AFF" />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>File Name</Text>
+              <Text style={styles.detailValue}>{imageData.fileName}</Text>
+            </View>
           </View>
 
           <View style={styles.detailRow}>
-            {[
-              <MaterialIcons key="icon" name="person" size={20} color="#007AFF" />,
-              <View key="content" style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Student ID</Text>
-                <Text style={styles.detailValue}>{imageData.studentId}</Text>
-              </View>,
-            ]}
+            <MaterialIcons name="person" size={20} color="#007AFF" />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Student ID</Text>
+              <Text style={styles.detailValue}>{imageData.studentId}</Text>
+            </View>
           </View>
-
+          {/* Student Age */}
           {imageData.studentAge && (
             <View style={styles.detailRow}>
-              {[
-                <MaterialIcons key="icon" name="cake" size={20} color="#007AFF" />,
-                <View key="content" style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Student Age</Text>
-                  <Text style={styles.detailValue}>{imageData.studentAge} years</Text>
-                </View>,
-              ]}
+              <MaterialIcons name="cake" size={20} color="#007AFF" />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Student Age</Text>
+                <Text style={styles.detailValue}>{imageData.studentAge} years</Text>
+              </View>
             </View>
           )}
 
+          {/* Student Grade */}
           {imageData.studentGrade && (
             <View style={styles.detailRow}>
-              {[
-                <MaterialIcons key="icon" name="school" size={20} color="#007AFF" />,
-                <View key="content" style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Student Grade</Text>
-                  <Text style={styles.detailValue}>{imageData.studentGrade}</Text>
-                </View>,
-              ]}
+              <MaterialIcons name="school" size={20} color="#007AFF" />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Student Grade</Text>
+                <Text style={styles.detailValue}>{imageData.studentGrade}</Text>
+              </View>
             </View>
           )}
 
+          {/* Gender */}
           {imageData.studentGender && (
             <View style={styles.detailRow}>
-              {[
-                <MaterialIcons key="icon" name="wc" size={20} color="#007AFF" />,
-                <View key="content" style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Student Gender</Text>
-                  <Text style={styles.detailValue}>{imageData.studentGender}</Text>
-                </View>,
-              ]}
+              <MaterialIcons name="wc" size={20} color="#007AFF" />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Student Gender</Text>
+                <Text style={styles.detailValue}>{imageData.studentGender}</Text>
+              </View>
             </View>
           )}
 
+          {/* Uploaded At */}
           <View style={styles.detailRow}>
-            {[
-              <MaterialIcons key="icon" name="access-time" size={20} color="#007AFF" />,
-              <View key="content" style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Uploaded At</Text>
-                <Text style={styles.detailValue}>{formatDate(imageData.uploadedAt)}</Text>
-              </View>,
-            ]}
+            <MaterialIcons name="access-time" size={20} color="#007AFF" />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Uploaded At</Text>
+              <Text style={styles.detailValue}>
+                {new Date(imageData.uploadedAt).toLocaleString()}
+              </Text>
+            </View>
           </View>
 
+          {/* File Size */}
           <View style={styles.detailRow}>
-            {[
-              <MaterialIcons key="icon" name="storage" size={20} color="#007AFF" />,
-              <View key="content" style={styles.detailContent}>
-                <Text style={styles.detailLabel}>File Size</Text>
-                <Text style={styles.detailValue}>{formatFileSize(imageData.fileSize)}</Text>
-              </View>,
-            ]}
+            <MaterialIcons name="storage" size={20} color="#007AFF" />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>File Size</Text>
+              <Text style={styles.detailValue}>
+                {imageData.fileSize
+                  ? (imageData.fileSize / 1024).toFixed(2) + " KB"
+                  : "Unknown"}
+              </Text>
+            </View>
           </View>
 
+          {/* MIME Type */}
           {imageData.mimeType && (
             <View style={styles.detailRow}>
-              {[
-                <MaterialIcons key="icon" name="image" size={20} color="#007AFF" />,
-                <View key="content" style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Type</Text>
-                  <Text style={styles.detailValue}>{imageData.mimeType}</Text>
-                </View>,
-              ]}
+              <MaterialIcons name="image" size={20} color="#007AFF" />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Type</Text>
+                <Text style={styles.detailValue}>{imageData.mimeType}</Text>
+              </View>
             </View>
           )}
+
         </View>
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => {
-              // Future: Implement download functionality
-              console.log('Download image:', imageData.fileName);
-            }}
-          >
-            {[
-              <MaterialIcons key="icon" name="download" size={24} color="#fff" />,
-              <Text key="label" style={styles.actionButtonText}>Download</Text>,
-            ]}
+          <TouchableOpacity style={styles.actionButton}>
+            <MaterialIcons name="download" size={24} color="#fff" />
+            <Text style={styles.actionButtonText}>Download</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.shareButton]}
-            onPress={() => {
-              // Future: Implement share functionality
-              console.log('Share image:', imageData.fileName);
-            }}
-          >
-            {[
-              <MaterialIcons key="icon" name="share" size={24} color="#fff" />,
-              <Text key="label" style={styles.actionButtonText}>Share</Text>,
-            ]}
+          <TouchableOpacity style={[styles.actionButton, styles.shareButton]}>
+            <MaterialIcons name="share" size={24} color="#fff" />
+            <Text style={styles.actionButtonText}>Share</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
             onPress={handleDeleteImage}
-            disabled={isDeleting}
           >
-            {isDeleting
-              ? <ActivityIndicator size="small" color="#fff" />
-              : [
-                  <MaterialIcons key="icon" name="delete" size={24} color="#fff" />,
-                  <Text key="label" style={styles.actionButtonText}>Delete</Text>,
-                ]
-            }
+            {isDeleting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <MaterialIcons name="delete" size={24} color="#fff" />
+                <Text style={styles.actionButtonText}>Delete</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -360,157 +347,156 @@ export default function ImageDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#181A20',
-  },
+  container: { flex: 1, backgroundColor: "#181A20" },
   centerContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 32,
   },
-  content: {
-    padding: 20,
-  },
-  loadingText: {
-    color: '#B0B3C6',
-    marginTop: 16,
-    fontSize: 16,
-  },
-  errorTitle: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  errorText: {
-    color: '#B0B3C6',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  backButtonTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  content: { padding: 20 },
+
+  imageContainer: {
+    backgroundColor: "#23262F",
+    padding: 16,
+    borderRadius: 12,
     marginBottom: 20,
   },
-  backButtonTopText: {
-    color: '#007AFF',
-    fontSize: 16,
-    marginLeft: 8,
-  },
-  imageContainer: {
-    backgroundColor: '#23262F',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  image: {
-    width: '100%',
-    height: 300,
-    borderRadius: 8,
-  },
-  inputCard: {
-    backgroundColor: '#23262F',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
-  },
-  textInput: {
-    backgroundColor: '#181A20',
-    color: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    minHeight: 100,
-    borderWidth: 1,
-    borderColor: '#333640',
+
+  image: { width: "100%", height: 300, borderRadius: 8 },
+
+  cardTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
     marginBottom: 12,
   },
-  saveButton: {
-    backgroundColor: '#007AFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  detailsCard: {
-    backgroundColor: '#23262F',
-    borderRadius: 12,
+
+  inputCard: {
+    backgroundColor: "#23262F",
     padding: 20,
-    marginBottom: 24,
-  },
-  cardTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
+    borderRadius: 12,
     marginBottom: 20,
   },
+
+  textInput: {
+    backgroundColor: "#1f2128",
+    color: "#fff",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    borderColor: "#333",
+    borderWidth: 1,
+    fontSize: 16,
+  },
+
+  detailLabel: {
+    color: "#9CA3AF",
+    marginBottom: 6,
+    fontSize: 13,
+  },
+
+  scoreButton: {
+    backgroundColor: "#2563eb",
+    padding: 16,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  scoreButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+
+  detailsCard: {
+    backgroundColor: "#23262F",
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+
+  scoreBox: {
+    backgroundColor: "#111827",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#2563eb",
+    marginBottom: 20,
+  },
+
+  scoreMain: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#3B82F6",
+    marginBottom: 10,
+  },
+
+  scoreDetail: { color: "#E5E7EB", marginBottom: 4 },
+
   detailRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
-  detailContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  detailLabel: {
-    color: '#B0B3C6',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  detailValue: {
-    color: '#fff',
-    fontSize: 16,
-  },
+
+  detailContent: { marginLeft: 12, flex: 1 },
+
+  detailValue: { color: "#fff", fontSize: 16 },
+
   actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 30,
   },
+
   actionButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: "#2563eb",
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 10,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
     gap: 8,
   },
+
   shareButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: "#10B981",
   },
+
   deleteButton: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: "#EF4444",
   },
+
   actionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
   },
+  loadingText: {
+    color: "#9CA3AF",
+    marginTop: 12,
+    fontSize: 16,
+  },
+
+  errorTitle: {
+    color: "#FF3B30",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginVertical: 10,
+  },
+
+
+  backButtonTop: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  backButtonTopText: { color: "#007AFF", marginLeft: 8 },
   backButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
   },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  backButtonText: { color: "#fff", fontWeight: "bold" },
 });
