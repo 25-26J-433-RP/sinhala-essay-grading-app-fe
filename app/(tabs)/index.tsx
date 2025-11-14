@@ -1,5 +1,7 @@
-import { storage } from '@/config/firebase';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import AppHeader from '@/components/AppHeader';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRole } from '@/hooks/useRole';
+import { UserImageService } from '@/services/userImageService';
 import React, { useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
@@ -7,6 +9,8 @@ import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 export default function HomeScreen() {
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { userProfile, profileLoading, isStudent, isTeacher, role } = useRole();
 
   const uploadImage = async (asset: any) => {
     if (!asset.uri) {
@@ -14,16 +18,28 @@ export default function HomeScreen() {
       Alert.alert('Error', 'No image selected.');
       return;
     }
+
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to upload images.');
+      return;
+    }
+
     try {
       console.log('Uploading image:', asset);
       const response = await fetch(asset.uri);
       const blob = await response.blob();
-      const filename = asset.fileName || `image_${Date.now()}`;
-      const storageRef = ref(storage, `images/${filename}`);
-      await uploadBytes(storageRef, blob);
-      const url = await getDownloadURL(storageRef);
-      setImageUrl(url);
-      console.log('Image uploaded successfully! URL:', url);
+      const filename = asset.fileName || `image_${Date.now()}.jpg`;
+
+      // Use the new UserImageService for user-specific uploads
+      const uploadedImage = await UserImageService.uploadUserImage({
+        userId: user.uid,
+        fileName: filename,
+        fileBlob: blob,
+        description: 'Essay submission', // Could be made configurable
+      });
+
+      setImageUrl(uploadedImage.imageUrl);
+      console.log('Image uploaded successfully!', uploadedImage);
       Alert.alert('Success', 'Image uploaded successfully!');
     } catch (error) {
       console.error('Upload Error:', error);
@@ -55,6 +71,8 @@ export default function HomeScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <AppHeader />
+      
       <View style={styles.hero}>
         <View style={styles.logoContainer}>
           <Image
@@ -67,6 +85,21 @@ export default function HomeScreen() {
         <Text style={styles.heroSubtitle}>
           Effortlessly record, upload, and grade student essays with AI-powered feedback and analytics. Start by exploring the tabs for scanning essays or recording readings.
         </Text>
+        
+        {/* {userProfile && !profileLoading && (
+          <View style={styles.roleFeatures}>
+            <Text style={styles.roleFeaturesTitle}>
+              {isTeacher() ? 'Teacher Dashboard' : 'Student Dashboard'}
+            </Text>
+            <Text style={styles.roleFeaturesText}>
+              {isTeacher() 
+                ? 'Grade essays, provide feedback, and manage student submissions.'
+                : 'Submit essays, view grades, and track your progress.'
+              }
+            </Text>
+            
+          </View>
+        )} */}
       </View>
       <View style={styles.partnerContainer}>
         <Text style={styles.partnerInfo}>Developed by Team Akura</Text>
@@ -87,8 +120,8 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-  padding: 0,
-  paddingHorizontal: 20,
+    padding: 0,
+    paddingHorizontal: 20,
     backgroundColor: '#181A20',
     minHeight: '100%',
   },
@@ -120,6 +153,41 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 500,
     lineHeight: 28,
+  },
+  roleFeatures: {
+    marginTop: 32,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    backgroundColor: '#1A1D24',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#333640',
+    maxWidth: 500,
+  },
+  roleFeaturesTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  roleFeaturesText: {
+    fontSize: 16,
+    color: '#B0B3C6',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  debugInfo: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#333640',
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#34C759',
+    textAlign: 'center',
+    fontFamily: 'monospace',
   },
   partnerContainer: {
     alignItems: 'center',
