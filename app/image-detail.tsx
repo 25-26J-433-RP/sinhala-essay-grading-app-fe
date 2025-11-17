@@ -191,11 +191,18 @@ export default function ImageDetailScreen() {
                   topic: essayTopic || undefined,
                 });
 
+                // UI update
                 setScoreData(result);
                 showToast("Score calculated!", { type: "success" });
+
+                // ✅ SAVE SCORE TO FIREBASE
+                await UserImageService.updateImageScore(imageData.id, result);
+
+                showToast("Score saved to database!", { type: "success" });
+
               } catch (err: any) {
                 console.error(err);
-                showToast("Failed to score essay", { type: "error" });
+                showToast("Failed to score or save", { type: "error" });
               } finally {
                 setIsScoring(false);
               }
@@ -207,6 +214,7 @@ export default function ImageDetailScreen() {
               <Text style={styles.scoreButtonText}>Score Essay</Text>
             )}
           </TouchableOpacity>
+
         </View>
 
         {/* SCORE DISPLAY */}
