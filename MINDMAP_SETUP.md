@@ -28,12 +28,35 @@ This React Native app includes a mindmap visualization feature for student essay
 
 ## API Integration
 
-### Endpoint
+### Generate Mindmap Endpoint
 ```
-GET {EXPO_PUBLIC_MINDMAP_API_URL}/mindmap/{essayId}
+POST {EXPO_PUBLIC_MINDMAP_API_URL}/api/mindmap/generate
 ```
 
-### Expected Response Format
+**Payload:**
+```json
+{
+  "essay_id": "string",
+  "text": "string"
+}
+```
+
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Mindmap generated successfully",
+  "essay_id": "string"
+}
+```
+
+### Fetch Mindmap Endpoint
+```
+GET {EXPO_PUBLIC_MINDMAP_API_URL}/api/mindmap/essay/{essayId}
+```
+
+**Response:**
 ```json
 {
   "success": true,
@@ -70,6 +93,13 @@ GET {EXPO_PUBLIC_MINDMAP_API_URL}/mindmap/{essayId}
   }
 }
 ```
+
+### Workflow
+1. User enters essay text and clicks "Score Essay"
+2. System scores the essay and saves to Firebase
+3. System calls `/api/mindmap/generate` with `essay_id` and `text`
+4. System fetches generated mindmap from `/api/mindmap/essay/{essayId}`
+5. Mindmap is displayed inline in the essay detail view
 
 ## Dependencies
 - `react-native-webview` - For rendering HTML/JS in React Native

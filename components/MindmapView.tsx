@@ -138,24 +138,44 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
   // Web: render Cytoscape.js directly
   useEffect(() => {
     if (Platform.OS === "web" && cyRef.current && data) {
+      console.log('🌐 Web platform detected, initializing Cytoscape...');
+      console.log('📊 Mindmap data:', data);
+      
       // Dynamically load cytoscape if not present
       if (!(window as any).cytoscape) {
+        console.log('📦 Loading Cytoscape library from CDN...');
         const script = document.createElement("script");
         script.src = "https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js";
         script.async = true;
-        script.onload = () => renderCytoscape();
+        script.onload = () => {
+          console.log('✅ Cytoscape loaded successfully');
+          renderCytoscape();
+        };
+        script.onerror = () => {
+          console.error('❌ Failed to load Cytoscape library');
+        };
         document.body.appendChild(script);
       } else {
+        console.log('✅ Cytoscape already loaded');
         renderCytoscape();
       }
     }
     function renderCytoscape() {
       const cytoscape = (window as any).cytoscape;
-      if (!cytoscape || !cyRef.current) return;
+      if (!cytoscape) {
+        console.error('❌ Cytoscape not available');
+        return;
+      }
+      if (!cyRef.current) {
+        console.error('❌ Container ref not available');
+        return;
+      }
+      
+      console.log('🎨 Rendering Cytoscape graph...');
       // Clear previous
       cyRef.current.innerHTML = "";
       const elements = {
-        nodes: data.nodes.map((node) => ({
+        nodes: data.nodes.map((node: any) => ({
           data: {
             id: node.id,
             label: node.label,
@@ -163,7 +183,7 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
             type: node.type,
           },
         })),
-        edges: data.edges.map((edge) => ({
+        edges: data.edges.map((edge: any) => ({
           data: {
             id: edge.id,
             source: edge.source,
@@ -171,85 +191,96 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
           },
         })),
       };
-      const cy = cytoscape({
-        container: cyRef.current,
-        elements: elements,
-        style: [
-          {
-            selector: 'node',
-            style: {
-              'label': 'data(label)',
-              'text-valign': 'center',
-              'text-halign': 'center',
-              'background-color': function(ele) {
-                const type = ele.data('type');
-                if (type === 'root') return '#4A90E2';
-                if (type === 'topic') return '#7ED321';
-                return '#F5A623';
-              },
-              'color': '#fff',
-              'text-outline-color': function(ele) {
-                const type = ele.data('type');
-                if (type === 'root') return '#4A90E2';
-                if (type === 'topic') return '#7ED321';
-                return '#F5A623';
-              },
-              'text-outline-width': 2,
-              'width': function(ele) {
-                const level = ele.data('level');
-                return level === 0 ? 80 : level === 1 ? 60 : 50;
-              },
-              'height': function(ele) {
-                const level = ele.data('level');
-                return level === 0 ? 80 : level === 1 ? 60 : 50;
-              },
-              'font-size': function(ele) {
-                const level = ele.data('level');
-                return level === 0 ? '16px' : level === 1 ? '14px' : '12px';
-              },
-              'text-wrap': 'wrap',
-              'text-max-width': '120px',
-              'shape': 'ellipse',
-              'border-width': 2,
-              'border-color': '#333'
+      
+      console.log(`📍 Rendering ${elements.nodes.length} nodes and ${elements.edges.length} edges`);
+      
+      try {
+        const cy = cytoscape({
+          container: cyRef.current,
+          elements: elements,
+          style: [
+            {
+              selector: 'node',
+              style: {
+                'label': 'data(label)',
+                'text-valign': 'center',
+                'text-halign': 'center',
+                'background-color': function(ele: any) {
+                  const type = ele.data('type');
+                  if (type === 'root') return '#4A90E2';
+                  if (type === 'topic') return '#7ED321';
+                  return '#F5A623';
+                },
+                'color': '#fff',
+                'text-outline-color': function(ele: any) {
+                  const type = ele.data('type');
+                  if (type === 'root') return '#4A90E2';
+                  if (type === 'topic') return '#7ED321';
+                  return '#F5A623';
+                },
+                'text-outline-width': 2,
+                'width': function(ele: any) {
+                  const level = ele.data('level');
+                  return level === 0 ? 80 : level === 1 ? 60 : 50;
+                },
+                'height': function(ele: any) {
+                  const level = ele.data('level');
+                  return level === 0 ? 80 : level === 1 ? 60 : 50;
+                },
+                'font-size': function(ele: any) {
+                  const level = ele.data('level');
+                  return level === 0 ? '16px' : level === 1 ? '14px' : '12px';
+                },
+                'text-wrap': 'wrap',
+                'text-max-width': '120px',
+                'shape': 'ellipse',
+                'border-width': 2,
+                'border-color': '#333'
+              }
+            },
+            {
+              selector: 'edge',
+              style: {
+                'width': 3,
+                'line-color': '#999',
+                'target-arrow-color': '#999',
+                'target-arrow-shape': 'triangle',
+                'curve-style': 'bezier',
+                'arrow-scale': 1.5
+              }
             }
+          ],
+          layout: {
+            name: 'breadthfirst',
+            directed: true,
+            spacingFactor: 1.5,
+            padding: 50,
+            animate: true,
+            animationDuration: 500,
+            fit: true,
+            roots: elements.nodes
+              .filter((n: any) => n.data.level === 0)
+              .map((n: any) => '#' + n.data.id)
           },
-          {
-            selector: 'edge',
-            style: {
-              'width': 3,
-              'line-color': '#999',
-              'target-arrow-color': '#999',
-              'target-arrow-shape': 'triangle',
-              'curve-style': 'bezier',
-              'arrow-scale': 1.5
-            }
-          }
-        ],
-        layout: {
-          name: 'breadthfirst',
-          directed: true,
-          spacingFactor: 1.5,
-          padding: 50,
-          animate: true,
-          animationDuration: 500,
-          fit: true,
-          roots: elements.nodes
-            .filter(n => n.data.level === 0)
-            .map(n => '#' + n.data.id)
-        },
-        minZoom: 0.5,
-        maxZoom: 3,
-        wheelSensitivity: 0.2
-      });
-      cy.userPanningEnabled(true);
-      cy.userZoomingEnabled(true);
-      cy.boxSelectionEnabled(false);
-      cy.on('tap', 'node', function(evt) {
-        const node = evt.target;
-        console.log('Tapped node:', node.data('label'));
-      });
-      setTimeout(() => { cy.fit(50); }, 100);
+          minZoom: 0.5,
+          maxZoom: 3,
+          wheelSensitivity: 0.2
+        });
+        
+        cy.userPanningEnabled(true);
+        cy.userZoomingEnabled(true);
+        cy.boxSelectionEnabled(false);
+        cy.on('tap', 'node', function(evt: any) {
+          const node = evt.target;
+          console.log('Tapped node:', node.data('label'));
+        });
+        setTimeout(() => { 
+          cy.fit(50); 
+          console.log('✅ Cytoscape graph rendered successfully');
+        }, 100);
+      } catch (error) {
+        console.error('❌ Error rendering Cytoscape:', error);
+      }
     }
     // eslint-disable-next-line
   }, [data]);
