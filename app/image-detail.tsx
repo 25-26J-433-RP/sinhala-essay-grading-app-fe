@@ -6,21 +6,21 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
-import { fetchMindmap, MindmapData } from "@/app/api/mindmap";
+import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
 import {
-  scoreSinhala,
-  SinhalaScoreResponse,
+    scoreSinhala,
+    SinhalaScoreResponse,
 } from "@/app/api/scoreSinhala"; // ✅ FIXED IMPORT
 import { MindmapView } from "@/components/MindmapView";
 
@@ -224,6 +224,26 @@ export default function ImageDetailScreen() {
                 await UserImageService.updateImageScore(imageData.id, result);
 
                 showToast("Score saved to database!", { type: "success" });
+
+                // ✅ GENERATE MINDMAP
+                try {
+                  console.log('🧠 Generating mindmap for essay:', imageData.id);
+                  await generateMindmap(imageData.id, inputText);
+                  console.log('✅ Mindmap generation triggered');
+                  
+                  // Fetch the generated mindmap
+                  setMindmapLoading(true);
+                  setMindmapError(null);
+                  const mindmap = await fetchMindmap(imageData.id);
+                  setMindmapData(mindmap);
+                  setMindmapLoading(false);
+                  showToast("Mindmap generated!", { type: "success" });
+                } catch (mindmapErr: any) {
+                  console.error('❌ Mindmap generation failed:', mindmapErr);
+                  setMindmapError(mindmapErr?.message || "Failed to generate mindmap");
+                  setMindmapLoading(false);
+                  // Don't block the main flow - mindmap is optional
+                }
 
               } catch (err: any) {
                 console.error(err);
