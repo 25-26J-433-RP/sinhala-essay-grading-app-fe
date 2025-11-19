@@ -31,6 +31,9 @@ export interface UserImageUpload {
   fileSize?: number;
   mimeType?: string;
   description?: string;
+  // Scoring fields (optional)
+  score?: number;
+  scoreDetails?: any;
 }
 
 export interface CreateImageUploadData {
