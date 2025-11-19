@@ -16,7 +16,9 @@
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
+    "@types/cytoscape": "^3.31.0",
     "axios": "^1.11.0",
+    "cytoscape": "^3.33.1",
     "expo": "~53.0.20",
     "expo-av": "^15.1.7",
     "expo-barcode-scanner": "^13.0.1",
@@ -45,7 +47,7 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-web": "~0.20.0",
-    "react-native-webview": "13.13.5",
+    "react-native-webview": "^13.13.5",
     "react-webcam": "^7.2.0"
   },
   "devDependencies": {
