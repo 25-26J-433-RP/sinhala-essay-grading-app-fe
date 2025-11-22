@@ -8,16 +8,40 @@ export interface SinhalaScorePayload {
 
 export interface SinhalaScoreResponse {
   score: number;
+
   details: {
-    strategy: string;
-    word_count: number;
-    unique_words: number;
-    avg_word_length: number;
+    model: string;
+    grade: number;
+    topic?: string;
+    dyslexic_flag: boolean;
+    error_tags: string[];
+    source: string;
+    [key: string]: any;
   };
-  fairness_report: null;
+
+  rubric: {
+    richness_5: number | null;
+    organization_6: number | null;
+    technical_3: number | null;
+    total_14: number | null;
+  };
+
+  fairness_report: {
+    spd: number;
+    dir: number;
+    eod: number;
+    mitigation_used: string;
+  };
 }
 
-export async function scoreSinhala(payload: SinhalaScorePayload): Promise<SinhalaScoreResponse> {
-  const res = await api.post("/score-sinhala", payload);
-  return res.data;
+export async function scoreSinhala(
+  payload: SinhalaScorePayload
+): Promise<SinhalaScoreResponse> {
+  try {
+    const res = await api.post("/score-sinhala-ml", payload);
+    return res.data as SinhalaScoreResponse;
+  } catch (err: any) {
+    console.log(" Sinhala ML API Error:", err.response?.data || err);
+    throw err;
+  }
 }

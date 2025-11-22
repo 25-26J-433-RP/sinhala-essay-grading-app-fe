@@ -20,7 +20,17 @@ import {
 import {
   scoreSinhala,
   SinhalaScoreResponse,
-} from "@/app/api/scoreSinhala"; // ✅ FIXED IMPORT
+} from "@/app/api/scoreSinhala";
+
+// 🔥 Prevent Firestore from rejecting undefined/null fields
+function cleanFirestore(obj: any) {
+  return JSON.parse(
+    JSON.stringify(obj, (key, value) =>
+      value === undefined ? null : value
+    )
+  );
+}
+
 
 export default function ImageDetailScreen() {
   const { imageData: imageDataParam } = useLocalSearchParams<{
@@ -195,18 +205,30 @@ export default function ImageDetailScreen() {
                 setScoreData(result);
                 showToast("Score calculated!", { type: "success" });
 
-                // ✅ SAVE SCORE TO FIREBASE
-                await UserImageService.updateImageScore(imageData.id, result);
+                // 🔥 SAVE TO FIRESTORE (with cleaning)
+                await UserImageService.updateImageScore(
+                  imageData.id,
+                  cleanFirestore(result)
+                );
 
                 showToast("Score saved to database!", { type: "success" });
 
               } catch (err: any) {
-                console.error(err);
+                console.log("🔥 FIREBASE ERROR (full):", JSON.stringify(err, null, 2));
+                console.log("🔥 FIREBASE ERROR MESSAGE:", err?.message);
+                console.log("🔥 FIREBASE ERROR CODE:", err?.code);
+
+                if (err?.message?.includes("Missing or insufficient permissions")) {
+                  showToast("❌ Firestore rules blocked the write", { type: "error" });
+                }
+
                 showToast("Failed to score or save", { type: "error" });
-              } finally {
+              }
+              finally {
                 setIsScoring(false);
               }
             }}
+
           >
             {isScoring ? (
               <ActivityIndicator color="#fff" />
@@ -226,16 +248,92 @@ export default function ImageDetailScreen() {
               <Text style={styles.scoreMain}>Score: {scoreData.score}</Text>
 
               <Text style={styles.scoreDetail}>
-                Word Count: {scoreData.details.word_count}
+                Model: {scoreData.details.model}
               </Text>
+
               <Text style={styles.scoreDetail}>
-                Unique Words: {scoreData.details.unique_words}
+                Dyslexic: {scoreData.details.dyslexic_flag ? "Yes" : "No"}
               </Text>
+
               <Text style={styles.scoreDetail}>
-                Avg Word Length: {scoreData.details.avg_word_length}
+                Topic: {scoreData.details.topic || "—"}
               </Text>
+
             </View>
           )}
+
+          {/* ==================== RUBRIC SECTION ==================== */}
+          {scoreData && (
+            <View style={styles.rubricCard}>
+              <Text style={styles.rubricTitle}>Rubric Breakdown</Text>
+
+              <View style={styles.rubricRow}>
+                <Text style={styles.rubricLabel}>Richness (5)</Text>
+                <Text style={styles.rubricValue}>
+                  {scoreData.rubric?.richness_5 ?? "—"}
+                </Text>
+              </View>
+
+              <View style={styles.rubricRow}>
+                <Text style={styles.rubricLabel}>Organization / Creativity (6)</Text>
+                <Text style={styles.rubricValue}>
+                  {scoreData.rubric?.organization_6 ?? "—"}
+                </Text>
+              </View>
+
+              <View style={styles.rubricRow}>
+                <Text style={styles.rubricLabel}>Technical Skills (3)</Text>
+                <Text style={styles.rubricValue}>
+                  {scoreData.rubric?.technical_3 ?? "—"}
+                </Text>
+              </View>
+
+              <View style={styles.rubricTotalRow}>
+                <Text style={[styles.rubricLabel, { fontSize: 16 }]}>Total (14)</Text>
+                <Text style={styles.rubricTotalValue}>
+                  {scoreData.rubric?.total_14 ?? "—"}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* ==================== FAIRNESS SECTION ==================== */}
+          {scoreData && (
+            <View style={styles.fairnessCard}>
+              <Text style={styles.rubricTitle}>Fairness Metrics</Text>
+
+              <View style={styles.rubricRow}>
+                <Text style={styles.rubricLabel}>SPD</Text>
+                <Text style={styles.rubricValue}>
+                  {scoreData.fairness_report?.spd ?? "—"}
+                </Text>
+              </View>
+
+              <View style={styles.rubricRow}>
+                <Text style={styles.rubricLabel}>DIR</Text>
+                <Text style={styles.rubricValue}>
+                  {scoreData.fairness_report?.dir ?? "—"}
+                </Text>
+              </View>
+
+              <View style={styles.rubricRow}>
+                <Text style={styles.rubricLabel}>EOD</Text>
+                <Text style={styles.rubricValue}>
+                  {scoreData.fairness_report?.eod ?? "—"}
+                </Text>
+              </View>
+
+              <View style={{ marginTop: 10 }}>
+                <Text style={styles.fairnessNote}>
+                  Mitigation Used:{" "}
+                  <Text style={{ color: "#60A5FA" }}>
+                    {scoreData.fairness_report?.mitigation_used ?? "—"}
+                  </Text>
+                </Text>
+              </View>
+            </View>
+          )}
+
 
           {/* FILE DETAILS */}
           <View style={styles.detailRow}>
@@ -507,4 +605,67 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   backButtonText: { color: "#fff", fontWeight: "bold" },
+
+  rubricCard: {
+    backgroundColor: "#1f2128",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#374151",
+    marginBottom: 20,
+  },
+
+  rubricTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 14,
+  },
+
+  rubricRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+
+  rubricLabel: {
+    color: "#9CA3AF",
+    fontSize: 14,
+  },
+
+  rubricValue: {
+    color: "#3B82F6",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
+  rubricTotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#374151",
+  },
+
+  rubricTotalValue: {
+    color: "#10B981",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+
+  fairnessCard: {
+    backgroundColor: "#1f2128",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#6D28D9",
+    marginBottom: 20,
+  },
+
+  fairnessNote: {
+    color: "#D1D5DB",
+    fontSize: 13,
+  },
+
 });
