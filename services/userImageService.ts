@@ -17,6 +17,15 @@ const DEBUG = __DEV__ === true;
 const dlog = (...args: any[]) => { if (DEBUG) console.log(...args); };
 const dwarn = (...args: any[]) => { if (DEBUG) console.warn(...args); };
 
+// 🔥 Clean object so Firestore does NOT reject undefined or nested unsupported values
+function cleanFirestore(obj: any) {
+  return JSON.parse(
+    JSON.stringify(obj, (key, value) =>
+      value === undefined ? null : value
+    )
+  );
+}
+
 export interface UserImageUpload {
   id: string;
   userId: string;
@@ -332,17 +341,23 @@ export class UserImageService {
  * Update score results in Firestore
  */
   static async updateImageScore(id: string, scoreData: any): Promise<void> {
-    if (!db) throw new Error("Firestore not initialized");
+  if (!db) throw new Error("Firestore not initialized");
 
-    const docRef = doc(db, this.COLLECTION, id);
+  const docRef = doc(db, this.COLLECTION, id);
 
-    await updateDoc(docRef, {
-      score: scoreData.score,
-      scoreDetails: scoreData.details,
-      updatedAt: new Date().toISOString(),
-    });
+  // 🔥 Clean data to avoid undefined/null Firestore crashes
+  const cleanedData = cleanFirestore({
+    score: scoreData.score,
+    scoreDetails: scoreData.details,
+    rubric: scoreData.rubric,
+    fairness_report: scoreData.fairness_report,
+    updatedAt: new Date().toISOString(),
+  });
 
-    dlog("✅ Score updated:", { id, scoreData });
-  }
+  await updateDoc(docRef, cleanedData);
+
+  dlog("✅ Score updated:", { id, cleanedData });
+}
+
 
 }

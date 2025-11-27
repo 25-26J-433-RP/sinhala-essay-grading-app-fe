@@ -85,10 +85,9 @@ export default function SinhalaScoreScreen() {
 
       {result && (
         <View style={styles.resultBox}>
-          <Text style={styles.score}>Score: {result.score}</Text>
-          <Text>Word Count: {result.details.word_count}</Text>
-          <Text>Unique Words: {result.details.unique_words}</Text>
-          <Text>Avg Word Length: {result.details.avg_word_length}</Text>
+          <Text>Model: {result.details.model}</Text>
+          <Text>Dyslexic: {result.details.dyslexic_flag ? "Yes" : "No"}</Text>
+          <Text>Topic: {result.details.topic || "—"}</Text>
         </View>
       )}
     </ScrollView>
