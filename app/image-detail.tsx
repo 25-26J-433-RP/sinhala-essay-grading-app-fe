@@ -6,21 +6,24 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
+import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
 import {
   scoreSinhala,
   SinhalaScoreResponse,
-} from "@/app/api/scoreSinhala";
+} from "@/app/api/scoreSinhala"; // ✅ FIXED IMPORT
+
+import { MindmapView } from "@/components/MindmapView";
 
 // 🔥 Prevent Firestore from rejecting undefined/null fields
 function cleanFirestore(obj: any) {
@@ -30,7 +33,6 @@ function cleanFirestore(obj: any) {
     )
   );
 }
-
 
 export default function ImageDetailScreen() {
   const { imageData: imageDataParam } = useLocalSearchParams<{
@@ -45,6 +47,9 @@ export default function ImageDetailScreen() {
 
   const [isScoring, setIsScoring] = useState(false);
   const [scoreData, setScoreData] = useState<SinhalaScoreResponse | null>(null);
+  const [mindmapData, setMindmapData] = useState<MindmapData | null>(null);
+  const [mindmapLoading, setMindmapLoading] = useState(false);
+  const [mindmapError, setMindmapError] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -69,6 +74,26 @@ export default function ImageDetailScreen() {
       initializedRef.current = true;
     }
   }, [imageDataParam]);
+
+  // Load mindmap once imageData is available (uses essay/image id)
+  useEffect(() => {
+    if (!imageData?.id) return;
+    let cancelled = false;
+    const load = async () => {
+      setMindmapLoading(true);
+      setMindmapError(null);
+      try {
+        const data = await fetchMindmap(imageData.id);
+        if (!cancelled) setMindmapData(data);
+      } catch (err: any) {
+        if (!cancelled) setMindmapError(err?.message || "Failed to load mindmap");
+      } finally {
+        if (!cancelled) setMindmapLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [imageData?.id]);
 
   const handleDeleteImage = async () => {
     const ok = await confirm({
@@ -213,6 +238,26 @@ export default function ImageDetailScreen() {
 
                 showToast("Score saved to database!", { type: "success" });
 
+                // ✅ GENERATE MINDMAP
+                try {
+                  console.log('🧠 Generating mindmap for essay:', imageData.id);
+                  await generateMindmap(imageData.id, inputText);
+                  console.log('✅ Mindmap generation triggered');
+                  
+                  // Fetch the generated mindmap
+                  setMindmapLoading(true);
+                  setMindmapError(null);
+                  const mindmap = await fetchMindmap(imageData.id);
+                  setMindmapData(mindmap);
+                  setMindmapLoading(false);
+                  showToast("Mindmap generated!", { type: "success" });
+                } catch (mindmapErr: any) {
+                  console.error('❌ Mindmap generation failed:', mindmapErr);
+                  setMindmapError(mindmapErr?.message || "Failed to generate mindmap");
+                  setMindmapLoading(false);
+                  // Don't block the main flow - mindmap is optional
+                }
+
               } catch (err: any) {
                 console.log("🔥 FIREBASE ERROR (full):", JSON.stringify(err, null, 2));
                 console.log("🔥 FIREBASE ERROR MESSAGE:", err?.message);
@@ -345,6 +390,14 @@ export default function ImageDetailScreen() {
           </View>
 
           <View style={styles.detailRow}>
+            <MaterialIcons name="fingerprint" size={20} color="#007AFF" />
+            <View style={styles.detailContent}>
+              <Text style={styles.detailLabel}>Essay ID</Text>
+              <Text style={styles.detailValue}>{imageData.id}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
             <MaterialIcons name="person" size={20} color="#007AFF" />
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Student ID</Text>
@@ -419,6 +472,48 @@ export default function ImageDetailScreen() {
             </View>
           )}
 
+        </View>
+
+        {/* MINDMAP SECTION */}
+        <View style={styles.detailsCard}>
+          <Text style={styles.cardTitle}>Essay Mindmap</Text>
+          {mindmapLoading && (
+            <View style={styles.mindmapStatusBox}>
+              <ActivityIndicator color="#007AFF" />
+              <Text style={styles.loadingText}>Loading mindmap...</Text>
+            </View>
+          )}
+          {mindmapError && (
+            <View style={styles.mindmapStatusBox}>
+              <MaterialIcons name="error-outline" size={32} color="#FF3B30" />
+              <Text style={styles.errorTitle}>Mindmap Error</Text>
+              <Text style={styles.errorTextSmall}>{mindmapError}</Text>
+              <TouchableOpacity
+                style={styles.reloadMindmapButton}
+                onPress={() => {
+                  if (!imageData?.id) return;
+                  setMindmapLoading(true);
+                  setMindmapError(null);
+                  fetchMindmap(imageData.id)
+                    .then(setMindmapData)
+                    .catch(e => setMindmapError(e.message || "Failed again"))
+                    .finally(() => setMindmapLoading(false));
+                }}
+              >
+                <MaterialIcons name="refresh" size={18} color="#fff" />
+                <Text style={styles.reloadMindmapText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {mindmapData && !mindmapLoading && !mindmapError && (
+            <View style={styles.mindmapContainer}>
+              <MindmapView data={mindmapData} />
+              <Text style={styles.mindmapMeta}>
+                Nodes: {mindmapData.metadata.total_nodes} • Edges: {mindmapData.metadata.total_edges}
+              </Text>
+              <Text style={styles.mindmapHint}>Pinch to zoom • Drag to pan</Text>
+            </View>
+          )}
         </View>
 
         {/* Action Buttons */}
@@ -605,8 +700,54 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   backButtonText: { color: "#fff", fontWeight: "bold" },
-
-  rubricCard: {
+   // Mindmap styles
+  mindmapStatusBox: {
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+  },
+  errorTextSmall: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  reloadMindmapButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignSelf: "center",
+  },
+  reloadMindmapText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  mindmapContainer: {
+    height: 400,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  mindmapMeta: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  mindmapHint: {
+    color: "#666",
+    fontSize: 11,
+    textAlign: "center",
+    marginTop: 4,
+    marginBottom: 4,
+  },
+   rubricCard: {
     backgroundColor: "#1f2128",
     padding: 16,
     borderRadius: 12,
@@ -667,5 +808,4 @@ const styles = StyleSheet.create({
     color: "#D1D5DB",
     fontSize: 13,
   },
-
 });

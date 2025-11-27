@@ -156,6 +156,23 @@ export default function StudentEssaysScreen() {
               {item.description}
             </Text>
           )}
+          {/* Mindmap Button */}
+          <TouchableOpacity
+            style={styles.mindmapButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              router.push({
+                pathname: '/essay-mindmap',
+                params: {
+                  essayId: item.id,
+                  essayTitle: encodeURIComponent(item.fileName),
+                },
+              });
+            }}
+          >
+            <MaterialIcons name="account-tree" size={16} color="#007AFF" />
+            <Text style={styles.mindmapButtonText}>View Mindmap</Text>
+          </TouchableOpacity>
         </View>
         <MaterialIcons name="chevron-right" size={24} color="#B0B3C6" />
       </TouchableOpacity>
@@ -399,6 +416,24 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 13,
     fontStyle: 'italic',
+  },
+  mindmapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    alignSelf: 'flex-start',
+    gap: 4,
+  },
+  mindmapButtonText: {
+    color: '#007AFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   backButton: {
     backgroundColor: '#007AFF',
