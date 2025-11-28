@@ -1,6 +1,7 @@
 import AppHeader from '@/components/AppHeader';
 import StudentListView from '@/components/StudentListView';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useRole } from '@/hooks/useRole';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
@@ -10,6 +11,7 @@ import { StyleSheet, Text, View } from 'react-native';
 export default function UploadedImagesScreen() {
   const { user } = useAuth();
   const { isStudent, isTeacher, userProfile, profileLoading } = useRole();
+  const { t } = useLanguage();
 
   // Debug logging
   console.log('📱 UploadedImagesScreen - Debug Info:', {
@@ -28,7 +30,7 @@ export default function UploadedImagesScreen() {
       <View style={styles.container}>
         <AppHeader />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Setting up your profile...</Text>
+          <Text style={styles.loadingText}>{t('uploadedImages.settingUpProfile')}</Text>
         </View>
       </View>
     );
@@ -68,15 +70,15 @@ export default function UploadedImagesScreen() {
       <AppHeader />
       <View style={styles.centerContent}>
         <MaterialIcons name="info" size={64} color="#007AFF" />
-        <Text style={styles.title}>Welcome!</Text>
+        <Text style={styles.title}>{t('uploadedImages.welcome')}</Text>
         <Text style={styles.description}>
-          Your profile is being set up. You should have access to upload and view your images shortly.
+          {t('uploadedImages.profileBeingSetup')}
         </Text>
         {userProfile && (
           <View style={styles.profileInfo}>
-            <Text style={styles.profileText}>Email: {userProfile.email}</Text>
-            <Text style={styles.profileText}>Role: {userProfile.role || 'Teacher'}</Text>
-            <Text style={styles.profileText}>Status: {userProfile.isActive ? 'Active' : 'Setting up...'}</Text>
+            <Text style={styles.profileText}>{t('uploadedImages.email')}: {userProfile.email}</Text>
+            <Text style={styles.profileText}>{t('uploadedImages.role')}: {userProfile.role || t('auth.teacher')}</Text>
+            <Text style={styles.profileText}>{t('uploadedImages.status')}: {userProfile.isActive ? t('uploadedImages.active') : t('uploadedImages.settingUp')}</Text>
           </View>
         )}
       </View>
