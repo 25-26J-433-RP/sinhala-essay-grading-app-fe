@@ -5,22 +5,24 @@ import { UserImageService } from '@/services/userImageService';
 import React, { useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function HomeScreen() {
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const { user } = useAuth();
   const { userProfile, profileLoading, isStudent, isTeacher, role } = useRole();
+  const { t } = useLanguage();
 
   const uploadImage = async (asset: any) => {
     if (!asset.uri) {
       setUploading(false);
-      Alert.alert('Error', 'No image selected.');
+      Alert.alert(t('common.error'), 'No image selected.');
       return;
     }
 
     if (!user) {
-      Alert.alert('Error', 'You must be logged in to upload images.');
+      Alert.alert(t('common.error'), 'You must be logged in to upload images.');
       return;
     }
 
@@ -40,7 +42,7 @@ export default function HomeScreen() {
 
       setImageUrl(uploadedImage.imageUrl);
       console.log('Image uploaded successfully!', uploadedImage);
-      Alert.alert('Success', 'Image uploaded successfully!');
+      Alert.alert(t('common.success'), 'Image uploaded successfully!');
     } catch (error) {
       console.error('Upload Error:', error);
       Alert.alert('Upload Error', (error as Error).message);
@@ -81,9 +83,9 @@ export default function HomeScreen() {
             resizeMode="contain"
           />
         </View>
-        <Text style={styles.heroTitle}>Welcome to the Essay Grading System</Text>
+        <Text style={styles.heroTitle}>{t('home.welcomeTitle')}</Text>
         <Text style={styles.heroSubtitle}>
-          Effortlessly record, upload, and grade student essays with AI-powered feedback and analytics. Start by exploring the tabs for scanning essays or recording readings.
+          {t('home.welcomeSubtitle')}
         </Text>
         
         {/* {userProfile && !profileLoading && (
@@ -102,7 +104,7 @@ export default function HomeScreen() {
         )} */}
       </View>
       <View style={styles.partnerContainer}>
-        <Text style={styles.partnerInfo}>Developed by Team Akura</Text>
+        <Text style={styles.partnerInfo}>{t('home.developedBy')}</Text>
       </View>
     </ScrollView>
   );
