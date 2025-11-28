@@ -1,19 +1,20 @@
 import AppHeader from '@/components/AppHeader';
 import { useConfirm } from '@/components/Confirm';
 import { useToast } from '@/components/Toast';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { UserImageService, UserImageUpload } from '@/services/userImageService';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 export default function StudentEssaysScreen() {
@@ -23,6 +24,7 @@ export default function StudentEssaysScreen() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const { t } = useLanguage();
   const DEBUG = __DEV__ === true;
   const initializedRef = useRef(false);
 
@@ -60,10 +62,10 @@ export default function StudentEssaysScreen() {
   const handleDeleteEssay = async (essay: UserImageUpload) => {
     if (DEBUG) console.log('🗑️ handleDeleteEssay called for:', { id: essay.id, fileName: essay.fileName, storagePath: essay.storagePath });
     const ok = await confirm({
-      title: 'Delete Essay',
-      message: `Are you sure you want to delete "${essay.fileName}"? This action cannot be undone.`,
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
+      title: t('studentEssays.deleteEssay'),
+      message: t('studentEssays.deleteConfirm', { fileName: essay.fileName }),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
     });
     if (!ok) {
       if (DEBUG) console.log('❌ Delete cancelled');
@@ -76,7 +78,7 @@ export default function StudentEssaysScreen() {
       if (DEBUG) console.log('📞 Calling UserImageService.deleteUserImage...');
       await UserImageService.deleteUserImage(essay.id, essay.storagePath);
       if (DEBUG) console.log('✅ Deletion successful');
-      showToast('Essay deleted successfully!', { type: 'success' });
+      showToast(t('studentEssays.essayDeleted'), { type: 'success' });
       // Remove from local state
       setStudentInfo((prev: any) => ({
         ...prev,
@@ -86,7 +88,7 @@ export default function StudentEssaysScreen() {
     } catch (error) {
       console.error('❌ Error deleting essay:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));
-      showToast('Failed to delete essay. Please try again.', { type: 'error' });
+      showToast(t('studentEssays.deleteFailed'), { type: 'error' });
     } finally {
       setDeletingId(null);
     }
@@ -98,7 +100,7 @@ export default function StudentEssaysScreen() {
         <AppHeader />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading essays...</Text>
+          <Text style={styles.loadingText}>{t('studentEssays.loadingEssays')}</Text>
         </View>
       </View>
     );
@@ -110,12 +112,12 @@ export default function StudentEssaysScreen() {
         <AppHeader />
         <View style={styles.centerContainer}>
           <MaterialIcons name="error-outline" size={64} color="#FF3B30" />
-          <Text style={styles.errorTitle}>Student Not Found</Text>
+          <Text style={styles.errorTitle}>{t('studentEssays.studentNotFound')}</Text>
           <TouchableOpacity 
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Text style={styles.backButtonText}>Go Back</Text>
+            <Text style={styles.backButtonText}>{t('studentEssays.goBack')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -171,7 +173,7 @@ export default function StudentEssaysScreen() {
             }}
           >
             <MaterialIcons name="account-tree" size={16} color="#007AFF" />
-            <Text style={styles.mindmapButtonText}>View Mindmap</Text>
+            <Text style={styles.mindmapButtonText}>{t('studentEssays.viewMindmap')}</Text>
           </TouchableOpacity>
         </View>
         <MaterialIcons name="chevron-right" size={24} color="#B0B3C6" />
@@ -201,7 +203,7 @@ export default function StudentEssaysScreen() {
           onPress={() => router.back()}
         >
           <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
-          <Text style={styles.backButtonTopText}>Back to Students</Text>
+          <Text style={styles.backButtonTopText}>{t('studentEssays.backToStudents')}</Text>
         </TouchableOpacity>
 
         {/* Student Info Card */}
@@ -214,7 +216,7 @@ export default function StudentEssaysScreen() {
               <Text style={styles.studentId}>{studentInfo.studentId}</Text>
               <View style={styles.detailsRow}>
                 {[
-                  studentInfo.studentAge && { icon: 'cake', text: `${studentInfo.studentAge} years` },
+                  studentInfo.studentAge && { icon: 'cake', text: `${studentInfo.studentAge} ${t('essay.years')}` },
                   studentInfo.studentGrade && { icon: 'school', text: studentInfo.studentGrade },
                   studentInfo.studentGender && { icon: 'wc', text: studentInfo.studentGender },
                 ].filter(Boolean).map((detail, index) => (
@@ -230,20 +232,20 @@ export default function StudentEssaysScreen() {
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{studentInfo.essayCount}</Text>
-              <Text style={styles.statLabel}>Essay{studentInfo.essayCount !== 1 ? 's' : ''}</Text>
+              <Text style={styles.statLabel}>{t('student.essayCount', { count: studentInfo.essayCount })}</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>
                 {formatDate(studentInfo.lastUploadDate).split(',')[0]}
               </Text>
-              <Text style={styles.statLabel}>Last Upload</Text>
+              <Text style={styles.statLabel}>{t('studentEssays.lastUpload')}</Text>
             </View>
           </View>
         </View>
 
         {/* Essays List */}
         <View style={styles.essaysSection}>
-          <Text style={styles.sectionTitle}>Submitted Essays</Text>
+          <Text style={styles.sectionTitle}>{t('studentEssays.title')}</Text>
           <FlatList
             data={studentInfo.essays}
             renderItem={renderEssayItem}

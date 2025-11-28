@@ -1,19 +1,20 @@
 import AppHeader from '@/components/AppHeader';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { router } from 'expo-router';
 import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function AddStudentScreen() {
@@ -26,35 +27,36 @@ export default function AddStudentScreen() {
   const [saving, setSaving] = useState(false);
 
   const { user } = useAuth();
+  const { t } = useLanguage();
   const gradeOptions = ['Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8'];
-  const genderOptions = ['Male', 'Female'];
+  const genderOptions = [t('addStudent.male'), t('addStudent.female')];
 
   const handleSaveStudent = async () => {
     // Validate all fields
     if (!studentId.trim()) {
-      Alert.alert('Validation', 'Please enter Student ID');
+      Alert.alert(t('addStudent.validation'), t('addStudent.enterIdRequired'));
       return;
     }
     if (!studentAge.trim()) {
-      Alert.alert('Validation', 'Please enter student age');
+      Alert.alert(t('addStudent.validation'), t('addStudent.enterAgeRequired'));
       return;
     }
     if (!studentGrade) {
-      Alert.alert('Validation', 'Please select student grade');
+      Alert.alert(t('addStudent.validation'), t('addStudent.selectGradeRequired'));
       return;
     }
     if (!studentGender) {
-      Alert.alert('Validation', 'Please select student gender');
+      Alert.alert(t('addStudent.validation'), t('addStudent.selectGenderRequired'));
       return;
     }
 
     if (!user) {
-      Alert.alert('Error', 'You must be logged in');
+      Alert.alert(t('common.error'), t('addStudent.mustBeLoggedIn'));
       return;
     }
 
     if (!db) {
-      Alert.alert('Error', 'Database not initialized');
+      Alert.alert(t('common.error'), t('addStudent.databaseNotInitialized'));
       return;
     }
 
@@ -71,7 +73,7 @@ export default function AddStudentScreen() {
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
-        Alert.alert('Duplicate', 'A student with this ID already exists');
+        Alert.alert(t('addStudent.duplicate'), t('addStudent.studentExists'));
         setSaving(false);
         return;
       }
@@ -86,7 +88,7 @@ export default function AddStudentScreen() {
         createdAt: new Date(),
       });
 
-      Alert.alert('Success', 'Student added successfully!', [
+      Alert.alert(t('common.success'), t('addStudent.studentAdded'), [
         {
           text: 'OK',
           onPress: () => router.back(),
@@ -100,7 +102,7 @@ export default function AddStudentScreen() {
       setStudentGender('');
     } catch (error) {
       console.error('Error adding student:', error);
-      Alert.alert('Error', 'Failed to add student. Please try again.');
+      Alert.alert(t('common.error'), t('addStudent.failedToAdd'));
     } finally {
       setSaving(false);
     }
@@ -117,24 +119,24 @@ export default function AddStudentScreen() {
           onPress={() => router.back()}
         >
           <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
-          <Text style={styles.backButtonText}>Back</Text>
+          <Text style={styles.backButtonText}>{t('common.back')}</Text>
         </TouchableOpacity>
 
         {/* Header */}
         <View style={styles.header}>
           <MaterialIcons name="person-add" size={48} color="#007AFF" />
-          <Text style={styles.title}>Add New Student</Text>
-          <Text style={styles.subtitle}>Enter student information below</Text>
+          <Text style={styles.title}>{t('addStudent.title')}</Text>
+          <Text style={styles.subtitle}>{t('addStudent.subtitle')}</Text>
         </View>
 
         {/* Form */}
         <View style={styles.formCard}>
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Student ID *</Text>
+            <Text style={styles.label}>{t('addStudent.studentId')} *</Text>
             <TextInput
               value={studentId}
               onChangeText={setStudentId}
-              placeholder="Enter student ID"
+              placeholder={t('addStudent.enterStudentId')}
               placeholderTextColor="#888"
               style={styles.input}
               autoCapitalize="none"
@@ -143,11 +145,11 @@ export default function AddStudentScreen() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Student Age *</Text>
+            <Text style={styles.label}>{t('addStudent.studentAge')} *</Text>
             <TextInput
               value={studentAge}
               onChangeText={setStudentAge}
-              placeholder="Enter student age"
+              placeholder={t('addStudent.enterStudentAge')}
               placeholderTextColor="#888"
               style={styles.input}
               keyboardType="numeric"
@@ -156,14 +158,14 @@ export default function AddStudentScreen() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Student Grade *</Text>
+            <Text style={styles.label}>{t('addStudent.studentGrade')} *</Text>
             <TouchableOpacity
               style={styles.dropdownButton}
               onPress={() => !saving && setShowGradeDropdown(!showGradeDropdown)}
               disabled={saving}
             >
               <Text style={[styles.dropdownButtonText, !studentGrade && styles.placeholderText]}>
-                {studentGrade || 'Select grade (3-8)'}
+                {studentGrade || t('addStudent.selectGrade')}
               </Text>
               <Text style={styles.dropdownArrow}>{showGradeDropdown ? '▲' : '▼'}</Text>
             </TouchableOpacity>
@@ -186,14 +188,14 @@ export default function AddStudentScreen() {
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Student Gender *</Text>
+            <Text style={styles.label}>{t('addStudent.studentGender')} *</Text>
             <TouchableOpacity
               style={styles.dropdownButton}
               onPress={() => !saving && setShowGenderDropdown(!showGenderDropdown)}
               disabled={saving}
             >
               <Text style={[styles.dropdownButtonText, !studentGender && styles.placeholderText]}>
-                {studentGender || 'Select gender'}
+                {studentGender || t('addStudent.selectGender')}
               </Text>
               <Text style={styles.dropdownArrow}>{showGenderDropdown ? '▲' : '▼'}</Text>
             </TouchableOpacity>
@@ -226,7 +228,7 @@ export default function AddStudentScreen() {
             ) : (
               <>
                 <MaterialIcons name="save" size={20} color="#fff" />
-                <Text style={styles.saveButtonText}>Save Student</Text>
+                <Text style={styles.saveButtonText}>{t('addStudent.saveStudent')}</Text>
               </>
             )}
           </TouchableOpacity>
