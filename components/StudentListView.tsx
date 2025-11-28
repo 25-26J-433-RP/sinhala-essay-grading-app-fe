@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { UserImageService, UserImageUpload } from '@/services/userImageService';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -35,6 +36,7 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const loadStudentData = useCallback(async () => {
     if (!user) return;
@@ -170,7 +172,7 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading students...</Text>
+        <Text style={styles.loadingText}>{t('student.loadingStudents')}</Text>
       </View>
     );
   }
@@ -179,9 +181,9 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
     return (
       <View style={styles.centerContainer}>
         <MaterialIcons name="school" size={64} color="#666" />
-        <Text style={styles.emptyTitle}>No Students Yet</Text>
+        <Text style={styles.emptyTitle}>{t('student.noStudentsYet')}</Text>
         <Text style={styles.emptyText}>
-          Student submissions will appear here once essays are uploaded.
+          {t('student.noStudentsText')}
         </Text>
       </View>
     );
@@ -190,8 +192,8 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Student Collection</Text>
-        <Text style={styles.headerSubtitle}>{students.length} Student{students.length !== 1 ? 's' : ''}</Text>
+        <Text style={styles.headerTitle}>{t('student.collection')}</Text>
+        <Text style={styles.headerSubtitle}>{students.length} {t('student.students')}</Text>
       </View>
       
       <FlatList
