@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import React, { useState } from 'react';
 import {
     Alert,
@@ -22,6 +23,7 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { t } = useLanguage();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -68,10 +70,10 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('auth.email')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your email"
+              placeholder={t('auth.email')}
               placeholderTextColor="#666"
               value={email}
               onChangeText={setEmail}
@@ -82,10 +84,10 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>{t('auth.password')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your password"
+              placeholder={t('auth.password')}
               placeholderTextColor="#666"
               value={password}
               onChangeText={setPassword}
@@ -100,14 +102,14 @@ export default function LoginScreen({ onSwitchToRegister }: LoginScreenProps) {
             disabled={loading}
           >
             <Text style={styles.loginButtonText}>
-              {loading ? 'Signing In...' : 'Sign In'}
+              {loading ? t('common.loading') : t('auth.login')}
             </Text>
           </TouchableOpacity>
 
           <View style={styles.registerPrompt}>
             <Text style={styles.registerText}>Don&apos;t have an account? </Text>
             <TouchableOpacity onPress={onSwitchToRegister}>
-              <Text style={styles.registerLink}>Sign Up</Text>
+              <Text style={styles.registerLink}>{t('auth.register')}</Text>
             </TouchableOpacity>
           </View>
         </View>
