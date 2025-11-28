@@ -7,6 +7,7 @@ Frontend for the Sinhala Essay Grading System that communicates with the grading
 - Grading results and feedback view
 - Essay Score UI
 - Visual Mindmap: Interactive mindmap visualization for essay structure analysis using Cytoscape.js
+- Persistent language preference (saved in AsyncStorage)
 
 ## Prerequisites
 - Node.js (v18+) and npm or yarn
