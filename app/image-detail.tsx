@@ -6,15 +6,15 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
@@ -233,8 +233,14 @@ export default function ImageDetailScreen() {
                 // 🔥 SAVE TO FIRESTORE (with cleaning)
                 await UserImageService.updateImageScore(
                   imageData.id,
-                  cleanFirestore(result)
+                  cleanFirestore({
+                    ...result,
+                    essay_text: inputText,          // SAVE ESSAY TEXT
+                    essay_topic: essayTopic || null // SAVE ESSAY TOPIC
+                  })
                 );
+
+
 
                 showToast("Score saved to database!", { type: "success" });
 
@@ -243,7 +249,7 @@ export default function ImageDetailScreen() {
                   console.log('🧠 Generating mindmap for essay:', imageData.id);
                   await generateMindmap(imageData.id, inputText);
                   console.log('✅ Mindmap generation triggered');
-                  
+
                   // Fetch the generated mindmap
                   setMindmapLoading(true);
                   setMindmapError(null);
@@ -700,7 +706,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   backButtonText: { color: "#fff", fontWeight: "bold" },
-   // Mindmap styles
+  // Mindmap styles
   mindmapStatusBox: {
     alignItems: "center",
     gap: 8,
@@ -747,7 +753,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 4,
   },
-   rubricCard: {
+  rubricCard: {
     backgroundColor: "#1f2128",
     padding: 16,
     borderRadius: 12,
