@@ -1,15 +1,15 @@
 import { db, storage } from '@/config/firebase';
 import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where
+    addDoc,
+    collection,
+    deleteDoc,
+    doc,
+    getDocs,
+    orderBy,
+    query,
+    serverTimestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 
@@ -43,6 +43,11 @@ export interface UserImageUpload {
   // Scoring fields (optional)
   score?: number;
   scoreDetails?: any;
+  essay_text?: string;
+  essay_topic?: string;
+  details?: any;
+  rubric?: any;
+  fairness_report?: any;
 }
 
 export interface CreateImageUploadData {
