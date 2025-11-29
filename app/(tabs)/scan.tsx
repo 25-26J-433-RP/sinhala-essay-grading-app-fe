@@ -2,6 +2,7 @@ import AppHeader from "@/components/AppHeader";
 import { useToast } from '@/components/Toast';
 import { db } from "@/config/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useRole } from "@/hooks/useRole";
 import { UserImageService } from "@/services/userImageService";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -48,6 +49,7 @@ export default function ScanScreen() {
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardTranslateY = useRef(new Animated.Value(16)).current;
   const DEBUG = __DEV__ === true;
+  const { t } = useLanguage();
 
   // Fetch students for the current user
   const fetchStudents = useCallback(async () => {
@@ -68,7 +70,7 @@ export default function ScanScreen() {
       if (DEBUG) console.log('📚 Loaded', studentList.length, 'students');
     } catch (error) {
       console.error('Error fetching students:', error);
-      Alert.alert('Error', 'Failed to load students');
+      Alert.alert(t('common.error'), t('scan.loadingStudents'));
     } finally {
       setLoadingStudents(false);
     }
@@ -111,9 +113,9 @@ export default function ScanScreen() {
       <View style={styles.container}>
         <AppHeader />
         <View style={styles.accessDeniedContainer}>
-          <Text style={styles.accessDeniedTitle}>Loading...</Text>
+          <Text style={styles.accessDeniedTitle}>{t('common.loading')}</Text>
           <Text style={styles.accessDeniedText}>
-            Setting up your profile...
+            {t('scan.settingUpProfile')}
           </Text>
         </View>
       </View>
@@ -122,13 +124,13 @@ export default function ScanScreen() {
 
   const uploadImage = async (asset: any) => {
     if (!user) {
-      Alert.alert('Error', 'You must be logged in to upload images.');
+      Alert.alert(t('common.error'), t('scan.mustBeLoggedIn'));
       return;
     }
 
     // Validate selected student
     if (!selectedStudent) {
-      Alert.alert('Validation', 'Please select a student before uploading.');
+      Alert.alert(t('scan.validation'), t('scan.selectStudentFirst'));
       return;
     }
 
@@ -149,7 +151,7 @@ export default function ScanScreen() {
       });
 
       // Cross-platform success toast (top)
-      showToast('Image uploaded successfully!', { type: 'success' });
+      showToast(t('scan.imageUploadSuccess'), { type: 'success' });
 
       // Navigate to student essays page
       const userImages = await UserImageService.getUserImages(user.uid);
@@ -176,7 +178,7 @@ export default function ScanScreen() {
       setSelectedStudent(null);
     } catch (error) {
       console.error("Upload Error:", error);
-      Alert.alert("Upload Error", (error as Error).message);
+      Alert.alert(t('scan.uploadError'), (error as Error).message);
     } finally {
       setUploading(false);
       setUploadingSource(null);
@@ -187,7 +189,7 @@ export default function ScanScreen() {
   const pickFromLibrary = async () => {
     // Validate selected student first
     if (!selectedStudent) {
-      Alert.alert('Validation', 'Please select a student before uploading.');
+      Alert.alert(t('scan.validation'), t('scan.selectStudentFirst'));
       return;
     }
     
@@ -211,7 +213,7 @@ export default function ScanScreen() {
     // Validate selected student first
     if (!selectedStudent) {
       console.log('❌ No student selected');
-      Alert.alert('Validation', 'Please select a student before scanning.');
+      Alert.alert(t('scan.validation'), t('scan.selectStudentFirst'));
       return;
     }
 
@@ -251,7 +253,7 @@ export default function ScanScreen() {
     if (!permission?.granted) {
       const { granted } = await requestPermission();
       if (!granted) {
-        Alert.alert("Permission denied", "Camera access is required!");
+        Alert.alert(t('scan.permissionDenied'), t('scan.cameraAccessRequired'));
         return;
       }
     }
@@ -294,20 +296,20 @@ export default function ScanScreen() {
             screenshotFormat="image/jpeg"
             style={styles.camera}
           />
-          <Button title="Capture" onPress={captureWebcamPhoto} />
-          <Button title="Cancel" onPress={() => setShowWebCamera(false)} />
+          <Button title={t('scan.capture')} onPress={captureWebcamPhoto} />
+          <Button title={t('common.cancel')} onPress={() => setShowWebCamera(false)} />
         </View>
       ) : showWebCamera ? (
         <View style={styles.cameraContainer}>
           <CameraView ref={cameraRef} style={styles.camera} facing={cameraFacing} />
-          <Button title="Capture" onPress={() => {}} />
+          <Button title={t('scan.capture')} onPress={() => {}} />
           <Button
-            title="Switch Camera"
+            title={t('scan.switchCamera')}
             onPress={() =>
               setCameraFacing((prev) => (prev === "back" ? "front" : "back"))
             }
           />
-          <Button title="Cancel" onPress={() => setShowWebCamera(false)} />
+          <Button title={t('common.cancel')} onPress={() => setShowWebCamera(false)} />
         </View>
       ) : (
         <View style={styles.section}>
@@ -320,21 +322,21 @@ export default function ScanScreen() {
                   <MaterialIcons name="school" size={28} color="#fff" />
                 </View>
               </View>
-              <Text style={styles.sectionTitle}>Upload Essays</Text>
+              <Text style={styles.sectionTitle}>{t('scan.uploadEssays')}</Text>
               {loadingStudents ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="small" color="#007AFF" />
-                  <Text style={styles.loadingText}>Loading students...</Text>
+                  <Text style={styles.loadingText}>{t('scan.loadingStudents')}</Text>
                 </View>
               ) : students.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <MaterialIcons name="school" size={48} color="#666" />
-                  <Text style={styles.emptyText}>No students found</Text>
-                  <Text style={styles.emptySubtext}>Add a student first to upload essays</Text>
+                  <Text style={styles.emptyText}>{t('scan.noStudentsFound')}</Text>
+                  <Text style={styles.emptySubtext}>{t('scan.addStudentFirst')}</Text>
                 </View>
               ) : (
                 <View style={styles.studentForm}>
-                  <Text style={styles.studentLabel}>Choose Student *</Text>
+                  <Text style={styles.studentLabel}>{t('scan.chooseStudent')} *</Text>
                   <Pressable
                     onPress={() => setShowStudentDropdown(!showStudentDropdown)}
                     style={({ hovered, pressed }) => [
@@ -344,7 +346,7 @@ export default function ScanScreen() {
                     ]}
                   >
                     <Text style={[styles.dropdownButtonText, !selectedStudent && styles.placeholderText]}>
-                      {selectedStudent ? `${selectedStudent.studentId} - ${selectedStudent.studentGrade}` : 'Select a student'}
+                      {selectedStudent ? `${selectedStudent.studentId} - ${selectedStudent.studentGrade}` : t('scan.selectStudent')}
                     </Text>
                     <MaterialIcons name={showStudentDropdown ? 'expand-less' : 'expand-more'} size={22} color="#fff" />
                   </Pressable>
@@ -389,7 +391,7 @@ export default function ScanScreen() {
                   >
                     <MaterialIcons name="photo-camera" size={22} color="#fff" />
                     <Text style={styles.buttonText}>
-                      {uploading && uploadingSource === 'camera' ? 'Uploading...' : 'Scan with Camera'}
+                      {uploading && uploadingSource === 'camera' ? t('scan.uploading') : t('scan.scanWithCamera')}
                     </Text>
                   </LinearGradient>
                 </Pressable>
@@ -404,7 +406,7 @@ export default function ScanScreen() {
                 >
                   <MaterialIcons name="photo-library" size={22} color="#fff" />
                   <Text style={styles.buttonText}>
-                    {uploading && uploadingSource === 'gallery' ? 'Uploading...' : 'Select from Gallery'}
+                    {uploading && uploadingSource === 'gallery' ? t('scan.uploading') : t('scan.selectFromGallery')}
                   </Text>
                 </Pressable>
               </View>

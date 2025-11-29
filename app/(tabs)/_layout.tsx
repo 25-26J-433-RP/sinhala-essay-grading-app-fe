@@ -2,6 +2,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Tabs } from "expo-router";
 import React from "react";
 import { Platform } from "react-native";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 import { HapticTab } from "@/components/HapticTab";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -13,6 +14,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { t } = useLanguage();
 
   return (
     <Tabs
@@ -38,7 +40,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: t('tabs.home'),
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="house.fill" color={color} />
           ),
@@ -47,7 +49,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="scan"
         options={{
-          title: "Scan",
+          title: t('tabs.scan'),
           tabBarIcon: ({ color }: { color: string }) => (
             <MaterialCommunityIcons
               name="camera-outline"
@@ -60,7 +62,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="score"
         options={{
-          title: "Score",
+          title: t('tabs.score'),
           tabBarIcon: ({ color }: { color: string }) => (
             <MaterialCommunityIcons
               name="file-document-edit-outline"
@@ -74,7 +76,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="sinhala-score"
         options={{
-          title: "Sinhala Score",
+          title: t('tabs.sinhalaScore'),
           tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="book-open-variant" size={26} color={color} />
           ),
@@ -85,7 +87,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="recording"
         options={{
-          title: "Recording",
+          title: t('tabs.recording'),
           tabBarIcon: ({ color }: { color: string }) => (
             <FontAwesome5 name="microphone-alt" size={24} color={color} />
           ),
@@ -94,7 +96,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="uploaded-images"
         options={{
-          title: "Collection",
+          title: t('tabs.collection'),
           tabBarIcon: ({ color }: { color: string }) => (
             <MaterialIcons name="photo-library" size={26} color={color} />
           ),

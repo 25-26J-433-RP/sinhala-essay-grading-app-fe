@@ -17,6 +17,15 @@ const DEBUG = __DEV__ === true;
 const dlog = (...args: any[]) => { if (DEBUG) console.log(...args); };
 const dwarn = (...args: any[]) => { if (DEBUG) console.warn(...args); };
 
+// 🔥 Clean object so Firestore does NOT reject undefined or nested unsupported values
+function cleanFirestore(obj: any) {
+  return JSON.parse(
+    JSON.stringify(obj, (key, value) =>
+      value === undefined ? null : value
+    )
+  );
+}
+
 export interface UserImageUpload {
   id: string;
   userId: string;
@@ -31,6 +40,14 @@ export interface UserImageUpload {
   fileSize?: number;
   mimeType?: string;
   description?: string;
+  // Scoring fields (optional)
+  score?: number;
+  scoreDetails?: any;
+  essay_text?: string;
+  essay_topic?: string;
+  details?: any;
+  rubric?: any;
+  fairness_report?: any;
 }
 
 export interface CreateImageUploadData {
@@ -101,7 +118,7 @@ export class UserImageService {
    */
   static async getUserImages(userId: string): Promise<UserImageUpload[]> {
     dlog('🔍 getUserImages called for userId:', userId);
-    
+
     if (!db) {
       throw new Error('Firestore not initialized. Check your Firebase configuration.');
     }
@@ -109,7 +126,7 @@ export class UserImageService {
     try {
       // Get images from new system (Firestore-tracked)
       dlog(`🔍 Querying collection '${this.COLLECTION}' for userId: ${userId}`);
-      
+
       // First try simple query without orderBy to avoid potential index issues
       let q = query(
         collection(db, this.COLLECTION),
@@ -119,7 +136,7 @@ export class UserImageService {
       dlog('📝 Executing Firestore query (without orderBy)...');
       let querySnapshot = await getDocs(q);
       dlog(`📄 Simple query completed, found ${querySnapshot.docs.length} documents`);
-      
+
       // If simple query works, try with orderBy
       if (querySnapshot.docs.length > 0) {
         try {
@@ -136,7 +153,7 @@ export class UserImageService {
           // Continue with simple query results
         }
       }
-      
+
       const firestoreImages = querySnapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -151,20 +168,20 @@ export class UserImageService {
       // Also check for old images in the legacy `images/` folder
       // Note: This is a temporary migration - in production you'd want to migrate these properly
       let legacyImages: UserImageUpload[] = [];
-      
+
       if (storage) {
         try {
           const legacyRef = ref(storage, 'images/');
           const legacyResult = await listAll(legacyRef);
-          
+
           dlog(`📁 Found ${legacyResult.items.length} legacy images in storage`);
-          
+
           // Create placeholder entries for legacy images
           legacyImages = await Promise.all(
             legacyResult.items.map(async (item, index) => {
               const url = await getDownloadURL(item);
               const fileName = item.name;
-              
+
               return {
                 id: `legacy_${fileName}`,
                 userId: userId, // Assume current user owns these for now
@@ -187,9 +204,9 @@ export class UserImageService {
       // Combine and sort all images
       const allImages = [...firestoreImages, ...legacyImages];
       dlog(`✅ Returning ${allImages.length} total images (${firestoreImages.length} new + ${legacyImages.length} legacy)`);
-      
+
       return allImages.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
-      
+
     } catch (error) {
       console.error('❌ Error getting user images:', error);
       return [];
@@ -201,7 +218,7 @@ export class UserImageService {
    */
   static async deleteUserImage(imageId: string, storagePath: string): Promise<void> {
     dlog('🗑️ deleteUserImage called:', { imageId, storagePath });
-    
+
     if (!db || !storage) {
       console.error('❌ Firebase not initialized');
       throw new Error('Firebase not initialized. Check your Firebase configuration.');
@@ -232,7 +249,7 @@ export class UserImageService {
       } else {
         dlog('⏭️ Skipping Firestore delete (legacy image)');
       }
-      
+
       dlog('✅ Image deletion complete');
     } catch (error) {
       console.error('❌ Error during deletion:', error);
@@ -267,7 +284,7 @@ export class UserImageService {
     lastUpload?: Date;
   }> {
     const images = await this.getUserImages(userId);
-    
+
     const totalSize = images.reduce((sum, img) => sum + (img.fileSize || 0), 0);
     const uploadDates = images
       .map(img => img.uploadedAt)
@@ -324,4 +341,26 @@ export class UserImageService {
       throw error;
     }
   }
+
+/**
+ * Update score results in Firestore
+ */
+static async updateImageScore(id: string, scoreData: any): Promise<void> {
+  if (!db) throw new Error("Firestore not initialized");
+
+  const docRef = doc(db, this.COLLECTION, id);
+
+  // 🔥 Save ALL fields from scoreData (including essay_text + essay_topic)
+  const cleanedData = cleanFirestore({
+    ...scoreData,                 // <-- spread EVERYTHING coming in
+    updatedAt: new Date().toISOString(),
+  });
+
+  await updateDoc(docRef, cleanedData);
+
+  dlog("✅ Score updated:", { id, cleanedData });
+}
+
+
+
 }

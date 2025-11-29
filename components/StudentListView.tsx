@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { UserImageService, UserImageUpload } from '@/services/userImageService';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,6 +23,8 @@ interface StudentInfo {
   essayCount: number;
   lastUploadDate: Date;
   essays: UserImageUpload[];
+  scoredCount: number;
+  averageScore: number | null;
 }
 
 interface StudentListViewProps {
@@ -33,6 +36,7 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const loadStudentData = useCallback(async () => {
     if (!user) return;
@@ -56,7 +60,18 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
           if (image.uploadedAt > existing.lastUploadDate) {
             existing.lastUploadDate = image.uploadedAt;
           }
+          if (typeof image.score === 'number') {
+            existing.scoredCount++;
+            const total = existing.averageScore !== null ? existing.averageScore * (existing.scoredCount - 1) + image.score : image.score;
+            existing.averageScore = total / existing.scoredCount;
+          }
         } else {
+          let scoredCount = 0;
+          let averageScore: number | null = null;
+          if (typeof image.score === 'number') {
+            scoredCount = 1;
+            averageScore = image.score;
+          }
           studentMap.set(image.studentId, {
             studentId: image.studentId,
             studentAge: image.studentAge,
@@ -65,6 +80,8 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
             essayCount: 1,
             lastUploadDate: image.uploadedAt,
             essays: [image],
+            scoredCount,
+            averageScore,
           });
         }
       });
@@ -73,6 +90,12 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
       const studentList = Array.from(studentMap.values()).sort(
         (a, b) => b.lastUploadDate.getTime() - a.lastUploadDate.getTime()
       );
+      // Round average scores to 2 decimals for display consistency
+      studentList.forEach(s => {
+        if (s.averageScore !== null) {
+          s.averageScore = Math.round(s.averageScore * 100) / 100;
+        }
+      });
 
       setStudents(studentList);
       if (__DEV__) console.log('👥 StudentListView: Found', studentList.length, 'unique students');
@@ -134,6 +157,10 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
           <Text style={styles.statText}>{item.essayCount} Essay{item.essayCount !== 1 ? 's' : ''}</Text>
         </View>
         <View style={styles.statItem}>
+          <MaterialIcons name="grade" size={16} color="#10B981" />
+          <Text style={styles.statText}>Avg: {item.averageScore !== null ? item.averageScore : '-'}</Text>
+        </View>
+        <View style={styles.statItem}>
           <MaterialIcons name="access-time" size={16} color="#B0B3C6" />
           <Text style={styles.statText}>Last: {formatDate(item.lastUploadDate)}</Text>
         </View>
@@ -145,7 +172,7 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading students...</Text>
+        <Text style={styles.loadingText}>{t('student.loadingStudents')}</Text>
       </View>
     );
   }
@@ -154,9 +181,9 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
     return (
       <View style={styles.centerContainer}>
         <MaterialIcons name="school" size={64} color="#666" />
-        <Text style={styles.emptyTitle}>No Students Yet</Text>
+        <Text style={styles.emptyTitle}>{t('student.noStudentsYet')}</Text>
         <Text style={styles.emptyText}>
-          Student submissions will appear here once essays are uploaded.
+          {t('student.noStudentsText')}
         </Text>
       </View>
     );
@@ -165,8 +192,8 @@ export default function StudentListView({ onStudentPress }: StudentListViewProps
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Student Collection</Text>
-        <Text style={styles.headerSubtitle}>{students.length} Student{students.length !== 1 ? 's' : ''}</Text>
+        <Text style={styles.headerTitle}>{t('student.collection')}</Text>
+        <Text style={styles.headerSubtitle}>{students.length} {t('student.students')}</Text>
       </View>
       
       <FlatList

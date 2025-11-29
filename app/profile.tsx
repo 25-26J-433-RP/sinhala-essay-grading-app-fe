@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useRole } from '@/hooks/useRole';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React from 'react';
@@ -14,15 +15,16 @@ import {
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { userProfile, profileLoading, isStudent, isTeacher, role } = useRole();
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      t('auth.logout'),
+      t('auth.logoutConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Logout',
+          text: t('auth.logout'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -48,7 +50,7 @@ export default function ProfileScreen() {
   if (profileLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading profile...</Text>
+        <Text style={styles.loadingText}>{t('profile.loadingProfile')}</Text>
       </View>
     );
   }
@@ -69,7 +71,7 @@ export default function ProfileScreen() {
             <View style={[styles.roleBadge, 
               role === 'teacher' ? styles.teacherBadge : styles.studentBadge]}>
               <Text style={styles.roleBadgeText}>
-                {role === 'teacher' ? '👨‍🏫 Teacher' : '👨‍🎓 Student'}
+                {role === 'teacher' ? `👨‍🏫 ${t('auth.teacher')}` : `👨‍🎓 ${t('auth.student')}`}
               </Text>
             </View>
           </View>
@@ -78,13 +80,13 @@ export default function ProfileScreen() {
 
       {/* Profile Information */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Profile Information</Text>
+        <Text style={styles.sectionTitle}>{t('profile.accountInfo')}</Text>
         
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <MaterialIcons name="email" size={20} color="#007AFF" />
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Email</Text>
+              <Text style={styles.infoLabel}>{t('profile.email')}</Text>
               <Text style={styles.infoValue}>{user?.email}</Text>
             </View>
           </View>
@@ -94,9 +96,9 @@ export default function ProfileScreen() {
               <View style={styles.infoRow}>
                 <MaterialIcons name="badge" size={20} color="#007AFF" />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Role</Text>
+                  <Text style={styles.infoLabel}>{t('profile.role')}</Text>
                   <Text style={styles.infoValue}>
-                    {role === 'teacher' ? 'Teacher' : 'Student'}
+                    {role === 'teacher' ? t('auth.teacher') : t('auth.student')}
                   </Text>
                 </View>
               </View>
@@ -134,7 +136,7 @@ export default function ProfileScreen() {
               <View style={styles.infoRow}>
                 <MaterialIcons name="calendar-today" size={20} color="#007AFF" />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Member Since</Text>
+                  <Text style={styles.infoLabel}>{t('profile.memberSince')}</Text>
                   <Text style={styles.infoValue}>
                     {formatDate(userProfile.createdAt)}
                   </Text>
