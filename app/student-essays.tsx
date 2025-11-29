@@ -195,10 +195,10 @@ export default function StudentEssaysScreen() {
   return (
     <ScrollView style={styles.container}>
       <AppHeader />
-      
+
       <View style={styles.content}>
         {/* Back Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButtonTop}
           onPress={() => router.back()}
         >
@@ -243,6 +243,14 @@ export default function StudentEssaysScreen() {
           </View>
         </View>
 
+        {/* Personalized Feedback Section */}
+        <View style={styles.feedbackSection}>
+          <Text style={styles.sectionTitle}>Personalized Feedback</Text>
+          <Text style={styles.feedbackText}>
+            {studentInfo.feedback ? studentInfo.feedback : 'No feedback available yet.'}
+          </Text>
+        </View>
+
         {/* Essays List */}
         <View style={styles.essaysSection}>
           <Text style={styles.sectionTitle}>{t('studentEssays.title')}</Text>
@@ -259,6 +267,18 @@ export default function StudentEssaysScreen() {
 }
 
 const styles = StyleSheet.create({
+  feedbackSection: {
+    backgroundColor: '#23262F',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+  },
+  feedbackText: {
+    color: '#B0B3C6',
+    fontSize: 15,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
   container: {
     flex: 1,
     backgroundColor: '#181A20',
