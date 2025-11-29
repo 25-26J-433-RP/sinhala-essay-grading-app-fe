@@ -337,20 +337,17 @@ export class UserImageService {
     }
   }
 
-  /**
+/**
  * Update score results in Firestore
  */
-  static async updateImageScore(id: string, scoreData: any): Promise<void> {
+static async updateImageScore(id: string, scoreData: any): Promise<void> {
   if (!db) throw new Error("Firestore not initialized");
 
   const docRef = doc(db, this.COLLECTION, id);
 
-  // 🔥 Clean data to avoid undefined/null Firestore crashes
+  // 🔥 Save ALL fields from scoreData (including essay_text + essay_topic)
   const cleanedData = cleanFirestore({
-    score: scoreData.score,
-    scoreDetails: scoreData.details,
-    rubric: scoreData.rubric,
-    fairness_report: scoreData.fairness_report,
+    ...scoreData,                 // <-- spread EVERYTHING coming in
     updatedAt: new Date().toISOString(),
   });
 
@@ -358,6 +355,7 @@ export class UserImageService {
 
   dlog("✅ Score updated:", { id, cleanedData });
 }
+
 
 
 }
