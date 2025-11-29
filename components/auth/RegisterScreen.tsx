@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import React, { useState } from 'react';
 import {
     Alert,
@@ -23,6 +24,7 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
+  const { t } = useLanguage();
 
   const handleRegister = async () => {
     if (!email || !password || !confirmPassword) {
@@ -87,10 +89,10 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('auth.email')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your email"
+              placeholder={t('auth.email')}
               placeholderTextColor="#666"
               value={email}
               onChangeText={setEmail}
@@ -101,10 +103,10 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>{t('auth.password')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your password"
+              placeholder={t('auth.password')}
               placeholderTextColor="#666"
               value={password}
               onChangeText={setPassword}
@@ -114,10 +116,10 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Confirm Password</Text>
+            <Text style={styles.label}>{t('auth.confirmPassword')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Confirm your password"
+              placeholder={t('auth.confirmPassword')}
               placeholderTextColor="#666"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -132,14 +134,14 @@ export default function RegisterScreen({ onSwitchToLogin }: RegisterScreenProps)
             disabled={loading}
           >
             <Text style={styles.registerButtonText}>
-              {loading ? 'Creating Account...' : 'Create Account'}
+              {loading ? t('common.loading') : t('auth.register')}
             </Text>
           </TouchableOpacity>
 
           <View style={styles.loginPrompt}>
             <Text style={styles.loginText}>Already have an account? </Text>
             <TouchableOpacity onPress={onSwitchToLogin}>
-              <Text style={styles.loginLink}>Sign In</Text>
+              <Text style={styles.loginLink}>{t('auth.login')}</Text>
             </TouchableOpacity>
           </View>
         </View>
