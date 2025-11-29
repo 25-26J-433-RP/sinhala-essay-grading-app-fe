@@ -245,10 +245,94 @@ export default function StudentEssaysScreen() {
 
         {/* Personalized Feedback Section */}
         <View style={styles.feedbackSection}>
-          <Text style={styles.sectionTitle}>Personalized Feedback</Text>
-          <Text style={styles.feedbackText}>
-            {studentInfo.feedback ? studentInfo.feedback : 'No feedback available yet.'}
-          </Text>
+          <View style={styles.feedbackHeader}>
+            <MaterialIcons name="feedback" size={24} color="#007AFF" />
+            <Text style={styles.sectionTitle}>Personalized Feedback</Text>
+          </View>
+          
+          {(() => {
+            // Collect all feedback from scored essays
+            const scoredEssays = studentInfo.essays.filter((essay: UserImageUpload) => essay.score);
+            
+            if (scoredEssays.length === 0) {
+              return (
+                <View style={styles.noFeedbackContainer}>
+                  <MaterialIcons name="assignment" size={48} color="#B0B3C6" />
+                  <Text style={styles.noFeedbackText}>
+                    No scored essays yet. Score essays to generate personalized feedback.
+                  </Text>
+                </View>
+              );
+            }
+            
+            // Calculate average score
+            const avgScore = (scoredEssays.reduce((sum: number, essay: UserImageUpload) => sum + (essay.score || 0), 0) / scoredEssays.length).toFixed(2);
+            
+            // Get latest essay feedback
+            const latestScoredEssay = scoredEssays[0];
+            
+            return (
+              <View>
+                <View style={styles.feedbackStats}>
+                  <View style={styles.feedbackStatItem}>
+                    <Text style={styles.feedbackStatLabel}>Essays Scored</Text>
+                    <Text style={styles.feedbackStatValue}>{scoredEssays.length}</Text>
+                  </View>
+                  <View style={styles.feedbackStatItem}>
+                    <Text style={styles.feedbackStatLabel}>Average Score</Text>
+                    <Text style={styles.feedbackStatValue}>{avgScore}</Text>
+                  </View>
+                </View>
+                
+                {latestScoredEssay.details && (
+                  <View style={styles.feedbackDetails}>
+                    <Text style={styles.feedbackSubtitle}>Latest Assessment Insights</Text>
+                    
+                    {latestScoredEssay.details.dyslexic_flag !== undefined && (
+                      <View style={styles.feedbackItem}>
+                        <MaterialIcons name="info-outline" size={18} color="#60A5FA" />
+                        <Text style={styles.feedbackItemText}>
+                          Dyslexic indicators: {latestScoredEssay.details.dyslexic_flag ? 'Detected' : 'Not detected'}
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {latestScoredEssay.rubric && (
+                      <>
+                        <View style={styles.feedbackItem}>
+                          <MaterialIcons name="star" size={18} color="#10B981" />
+                          <Text style={styles.feedbackItemText}>
+                            Richness: {latestScoredEssay.rubric.richness_5}/5
+                          </Text>
+                        </View>
+                        <View style={styles.feedbackItem}>
+                          <MaterialIcons name="auto-awesome" size={18} color="#F59E0B" />
+                          <Text style={styles.feedbackItemText}>
+                            Organization/Creativity: {latestScoredEssay.rubric.organization_6}/6
+                          </Text>
+                        </View>
+                        <View style={styles.feedbackItem}>
+                          <MaterialIcons name="build" size={18} color="#8B5CF6" />
+                          <Text style={styles.feedbackItemText}>
+                            Technical Skills: {latestScoredEssay.rubric.technical_3}/3
+                          </Text>
+                        </View>
+                      </>
+                    )}
+                    
+                    {latestScoredEssay.details.topic && (
+                      <View style={styles.feedbackItem}>
+                        <MaterialIcons name="topic" size={18} color="#EC4899" />
+                        <Text style={styles.feedbackItemText}>
+                          Topic: {latestScoredEssay.details.topic}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })()}
         </View>
 
         {/* Essays List */}
@@ -272,6 +356,67 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     marginBottom: 24,
+  },
+  feedbackHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  feedbackStats: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  feedbackStatItem: {
+    flex: 1,
+    backgroundColor: '#181A20',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  feedbackStatLabel: {
+    color: '#B0B3C6',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  feedbackStatValue: {
+    color: '#007AFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  feedbackDetails: {
+    backgroundColor: '#181A20',
+    padding: 16,
+    borderRadius: 8,
+  },
+  feedbackSubtitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  feedbackItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  feedbackItemText: {
+    color: '#B0B3C6',
+    fontSize: 14,
+    flex: 1,
+  },
+  noFeedbackContainer: {
+    alignItems: 'center',
+    padding: 24,
+  },
+  noFeedbackText: {
+    color: '#B0B3C6',
+    fontSize: 15,
+    marginTop: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   feedbackText: {
     color: '#B0B3C6',
