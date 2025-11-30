@@ -1,24 +1,24 @@
 import AppHeader from "@/components/AppHeader";
 import { useConfirm } from "@/components/Confirm";
 import { useToast } from "@/components/Toast";
+import { storage } from "@/config/firebase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
+import { getDownloadURL, ref as storageRef } from "firebase/storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Platform,
 } from "react-native";
-import { getDownloadURL, ref as storageRef } from "firebase/storage";
-import { storage } from "@/config/firebase";
 
 // Component to display essay thumbnail with fresh URL resolution (CORS bypass on web)
 interface EssayThumbnailProps {
@@ -28,15 +28,19 @@ interface EssayThumbnailProps {
 
 const EssayThumbnail: React.FC<EssayThumbnailProps> = ({ essay, style }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     const resolveUrl = async () => {
+      setLoading(true);
+      setError(false);
       try {
         const storagePath = essay.storagePath;
         if (!storagePath) {
           // Fallback to imageUrl if storagePath not available
           setImageUrl(essay.imageUrl || null);
+          setLoading(false);
           return;
         }
 
@@ -60,29 +64,64 @@ const EssayThumbnail: React.FC<EssayThumbnailProps> = ({ essay, style }) => {
             const reader = new FileReader();
             reader.onloadend = () => {
               setImageUrl(reader.result as string);
+              setLoading(false);
             };
-            reader.onerror = () => setError(true);
+            reader.onerror = () => {
+              setError(true);
+              setLoading(false);
+            };
             reader.readAsDataURL(blob);
           } catch {
             // Fallback to fresh URL on fetch error
             setImageUrl(freshUrl);
+            setLoading(false);
           }
         } else {
           // Native: use URL directly
           setImageUrl(freshUrl);
+          setLoading(false);
         }
       } catch (err) {
         console.error("Failed to resolve essay image URL:", err);
         setError(true);
+        setLoading(false);
       }
     };
 
     resolveUrl();
   }, [essay.storagePath, essay.imageUrl]);
 
+  if (loading) {
+    return (
+      <View
+        style={[
+          styles.thumbnail,
+          style,
+          {
+            backgroundColor: "#23262F",
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
+      >
+        <ActivityIndicator size="small" color="#007AFF" />
+      </View>
+    );
+  }
+
   if (error || !imageUrl) {
     return (
-      <View style={[styles.thumbnail, style, { backgroundColor: "#333640", justifyContent: "center", alignItems: "center" }]}>
+      <View
+        style={[
+          styles.thumbnail,
+          style,
+          {
+            backgroundColor: "#333640",
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
+      >
         <MaterialIcons name="image-not-supported" size={24} color="#B0B3C6" />
       </View>
     );

@@ -43,6 +43,7 @@ export default function ImageDetailScreen() {
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageUrlResolved, setImageUrlResolved] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(true);
   const [imageLoadingError, setImageLoadingError] = useState<string | null>(
     null
   );
@@ -97,6 +98,7 @@ export default function ImageDetailScreen() {
   useEffect(() => {
     const resolveUrl = async () => {
       if (!imageData) return;
+      setImageLoading(true);
       setImageLoadingError(null);
 
       // Priority: Always regenerate from storagePath to get a fresh token
@@ -137,10 +139,12 @@ export default function ImageDetailScreen() {
                 const dataUri = reader.result as string;
                 console.info("✅ Data URI created, image ready to load");
                 setImageUrlResolved(dataUri);
+                setImageLoading(false);
               };
               reader.onerror = () => {
                 console.error("❌ FileReader error:", reader.error);
                 setImageLoadingError("Failed to read image data");
+                setImageLoading(false);
               };
               reader.readAsDataURL(blob);
             } catch (corsErr) {
@@ -149,16 +153,18 @@ export default function ImageDetailScreen() {
                 corsErr
               );
               setImageUrlResolved(freshUrl); // Fallback to fresh URL, may still fail due to CORS
-              setImageLoadingError("CORS issue - trying direct URL");
+              setImageLoading(false);
             }
           } else {
             // Native: use URL directly
             setImageUrlResolved(freshUrl);
+            setImageLoading(false);
           }
         } catch (err) {
           console.error("❌ Failed to regenerate Firebase image URL:", err);
           setImageLoadingError("Failed to load image");
           setImageUrlResolved(null);
+          setImageLoading(false);
         }
       } else {
         // Fallback: Try stored imageUrl if storagePath not available
@@ -169,9 +175,11 @@ export default function ImageDetailScreen() {
             candidate
           );
           setImageUrlResolved(candidate);
+          setImageLoading(false);
         } else {
           setImageLoadingError("No image path available");
           setImageUrlResolved(null);
+          setImageLoading(false);
         }
       }
     };
@@ -284,7 +292,14 @@ export default function ImageDetailScreen() {
 
         {/* Image */}
         <View style={styles.imageContainer}>
-          {imageUrlResolved ? (
+          {imageLoading ? (
+            <View style={styles.imageFallback}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.imageFallbackText}>
+                {t("essay.loadingImage")}
+              </Text>
+            </View>
+          ) : imageUrlResolved ? (
             Platform.OS === "web" ? (
               <img
                 src={imageUrlResolved}
