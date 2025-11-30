@@ -25,7 +25,10 @@ import { getDownloadURL, ref as storageRef } from "firebase/storage";
 
 import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
 import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // ✅ FIXED IMPORT
-import { fetchTextFeedback, TextFeedbackResponse } from "@/app/api/textFeedback";
+import {
+  fetchTextFeedback,
+  TextFeedbackResponse,
+} from "@/app/api/textFeedback";
 
 import { MindmapView } from "@/components/MindmapView";
 
@@ -59,9 +62,13 @@ export default function ImageDetailScreen() {
   const [mindmapError, setMindmapError] = useState<string | null>(null);
 
   // Text feedback state
-  const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(null);
+  const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(
+    null
+  );
   const [textFeedbackLoading, setTextFeedbackLoading] = useState(false);
-  const [textFeedbackError, setTextFeedbackError] = useState<string | null>(null);
+  const [textFeedbackError, setTextFeedbackError] = useState<string | null>(
+    null
+  );
 
   // const [isSaving, setIsSaving] = useState(false); // not used currently
   const [isDeleting, setIsDeleting] = useState(false);
@@ -89,6 +96,11 @@ export default function ImageDetailScreen() {
             rubric: parsed.rubric || {},
             fairness_report: parsed.fairness_report || {},
           });
+        }
+        // Load saved text feedback if available
+        if (parsed.text_feedback) {
+          setTextFeedback(parsed.text_feedback);
+          console.log("✅ Loaded saved text feedback from Firestore");
         }
       }
     } catch (error) {
@@ -264,12 +276,15 @@ export default function ImageDetailScreen() {
       const response = await fetchTextFeedback(imageData.id, inputText);
       setTextFeedback(response);
       console.log("✅ Text feedback received:", response);
+
+      // Save feedback to Firestore
+      await UserImageService.updateImageTextFeedback(imageData.id, response);
+      console.log("💾 Feedback saved to Firestore");
+
       showToast("Feedback generated successfully", { type: "success" });
     } catch (error: any) {
       console.error("❌ Failed to fetch text feedback:", error);
-      setTextFeedbackError(
-        error.message || "Failed to fetch feedback"
-      );
+      setTextFeedbackError(error.message || "Failed to fetch feedback");
       showToast("Failed to generate feedback", { type: "error" });
     } finally {
       setTextFeedbackLoading(false);
@@ -489,13 +504,22 @@ export default function ImageDetailScreen() {
 
                 // ✅ FETCH TEXT FEEDBACK
                 try {
-                  console.log("📤 Fetching text feedback for essay:", imageData.id);
-                  const feedback = await fetchTextFeedback(imageData.id, inputText);
+                  console.log(
+                    "📤 Fetching text feedback for essay:",
+                    imageData.id
+                  );
+                  const feedback = await fetchTextFeedback(
+                    imageData.id,
+                    inputText
+                  );
                   setTextFeedback(feedback);
                   console.log("✅ Text feedback received:", feedback);
                   showToast("Text feedback generated!", { type: "success" });
                 } catch (feedbackErr: any) {
-                  console.error("❌ Text feedback generation failed:", feedbackErr);
+                  console.error(
+                    "❌ Text feedback generation failed:",
+                    feedbackErr
+                  );
                   setTextFeedbackError(
                     feedbackErr?.message || "Failed to generate text feedback"
                   );
@@ -560,7 +584,9 @@ export default function ImageDetailScreen() {
           {/* ==================== RUBRIC SECTION ==================== */}
           {scoreData && (
             <View style={styles.rubricCard}>
-              <Text style={styles.rubricTitle}>{t('essay.rubricBreakdown')}</Text>
+              <Text style={styles.rubricTitle}>
+                {t("essay.rubricBreakdown")}
+              </Text>
 
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>Richness (5)</Text>
@@ -599,7 +625,9 @@ export default function ImageDetailScreen() {
           {/* ==================== FAIRNESS SECTION ==================== */}
           {scoreData && (
             <View style={styles.fairnessCard}>
-              <Text style={styles.rubricTitle}>{t('essay.fairnessMetrics')}</Text>
+              <Text style={styles.rubricTitle}>
+                {t("essay.fairnessMetrics")}
+              </Text>
 
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>SPD</Text>
@@ -624,7 +652,7 @@ export default function ImageDetailScreen() {
 
               <View style={{ marginTop: 10 }}>
                 <Text style={styles.fairnessNote}>
-                  {t('essay.mitigation')}: 
+                  {t("essay.mitigation")}:
                   <Text style={{ color: "#60A5FA" }}>
                     {scoreData.fairness_report?.mitigation_used ?? "—"}
                   </Text>
@@ -637,9 +665,14 @@ export default function ImageDetailScreen() {
           {scoreData && (
             <View style={styles.feedbackCard}>
               <View style={styles.feedbackHeader}>
-                <Text style={styles.rubricTitle}>{t('essay.personalizedFeedback')}</Text>
+                <Text style={styles.rubricTitle}>
+                  {t("essay.personalizedFeedback")}
+                </Text>
                 <TouchableOpacity
-                  style={[styles.feedbackRefreshButton, textFeedbackLoading && { opacity: 0.6 }]}
+                  style={[
+                    styles.feedbackRefreshButton,
+                    textFeedbackLoading && { opacity: 0.6 },
+                  ]}
                   onPress={handleFetchTextFeedback}
                   disabled={textFeedbackLoading}
                 >
@@ -654,14 +687,22 @@ export default function ImageDetailScreen() {
               {textFeedbackLoading && (
                 <View style={styles.feedbackStatusBox}>
                   <ActivityIndicator color="#3B82F6" />
-                  <Text style={styles.feedbackStatusText}>Generating feedback...</Text>
+                  <Text style={styles.feedbackStatusText}>
+                    Generating feedback...
+                  </Text>
                 </View>
               )}
 
               {textFeedbackError && (
                 <View style={styles.feedbackErrorBox}>
-                  <MaterialIcons name="error-outline" size={20} color="#EF4444" />
-                  <Text style={styles.feedbackErrorText}>{textFeedbackError}</Text>
+                  <MaterialIcons
+                    name="error-outline"
+                    size={20}
+                    color="#EF4444"
+                  />
+                  <Text style={styles.feedbackErrorText}>
+                    {textFeedbackError}
+                  </Text>
                 </View>
               )}
 
@@ -677,51 +718,85 @@ export default function ImageDetailScreen() {
                     />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.feedbackLabel}>General Feedback</Text>
-                      <Text style={styles.feedbackText}>{textFeedback.feedback}</Text>
+                      <Text style={styles.feedbackText}>
+                        {textFeedback.feedback}
+                      </Text>
                     </View>
                   </View>
 
                   {/* Suggestions */}
-                  {textFeedback.suggestions && textFeedback.suggestions.length > 0 && (
-                    <View style={styles.suggestionsBox}>
-                      <Text style={styles.suggestionsTitle}>Suggestions for Improvement:</Text>
-                      {textFeedback.suggestions.map((suggestion, idx) => (
-                        <View key={idx} style={styles.suggestionItem}>
-                          <Text style={styles.suggestionBullet}>•</Text>
-                          <Text style={styles.suggestionText}>{suggestion}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
+                  {textFeedback.suggestions &&
+                    textFeedback.suggestions.length > 0 && (
+                      <View style={styles.suggestionsBox}>
+                        <Text style={styles.suggestionsTitle}>
+                          Suggestions for Improvement:
+                        </Text>
+                        {textFeedback.suggestions.map((suggestion, idx) => (
+                          <View key={idx} style={styles.suggestionItem}>
+                            <Text style={styles.suggestionBullet}>•</Text>
+                            <Text style={styles.suggestionText}>
+                              {suggestion}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
 
                   {/* Text Metrics */}
                   {textFeedback.metrics && (
                     <View style={styles.metricsBox}>
-                      <Text style={styles.metricsTitle}>Text Metrics Analysis</Text>
+                      <Text style={styles.metricsTitle}>
+                        Text Metrics Analysis
+                      </Text>
                       <View style={styles.metricsGrid}>
                         <View style={styles.metricItem}>
                           <Text style={styles.metricLabel}>Words</Text>
-                          <Text style={styles.metricValue}>{Math.round(textFeedback.metrics.word_count)}</Text>
+                          <Text style={styles.metricValue}>
+                            {Math.round(textFeedback.metrics.word_count)}
+                          </Text>
                         </View>
                         <View style={styles.metricItem}>
                           <Text style={styles.metricLabel}>Sentences</Text>
-                          <Text style={styles.metricValue}>{Math.round(textFeedback.metrics.sentence_count)}</Text>
+                          <Text style={styles.metricValue}>
+                            {Math.round(textFeedback.metrics.sentence_count)}
+                          </Text>
                         </View>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>Avg Words/Sentence</Text>
-                          <Text style={styles.metricValue}>{textFeedback.metrics.avg_sentence_length.toFixed(1)}</Text>
+                          <Text style={styles.metricLabel}>
+                            Avg Words/Sentence
+                          </Text>
+                          <Text style={styles.metricValue}>
+                            {textFeedback.metrics.avg_sentence_length.toFixed(
+                              1
+                            )}
+                          </Text>
                         </View>
                         <View style={styles.metricItem}>
                           <Text style={styles.metricLabel}>Characters</Text>
-                          <Text style={styles.metricValue}>{Math.round(textFeedback.metrics.char_length)}</Text>
+                          <Text style={styles.metricValue}>
+                            {Math.round(textFeedback.metrics.char_length)}
+                          </Text>
                         </View>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>Repetition Ratio</Text>
-                          <Text style={styles.metricValue}>{(textFeedback.metrics.repetition_ratio * 100).toFixed(1)}%</Text>
+                          <Text style={styles.metricLabel}>
+                            Repetition Ratio
+                          </Text>
+                          <Text style={styles.metricValue}>
+                            {(
+                              textFeedback.metrics.repetition_ratio * 100
+                            ).toFixed(1)}
+                            %
+                          </Text>
                         </View>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>Duplicate Words</Text>
-                          <Text style={styles.metricValue}>{Math.round(textFeedback.metrics.duplicate_word_count)}</Text>
+                          <Text style={styles.metricLabel}>
+                            Duplicate Words
+                          </Text>
+                          <Text style={styles.metricValue}>
+                            {Math.round(
+                              textFeedback.metrics.duplicate_word_count
+                            )}
+                          </Text>
                         </View>
                       </View>
                     </View>
