@@ -59,8 +59,8 @@
   },
   "essay": {
     "title": "Essay Details",
-    "enterSinhalaEssay": "Enter Sinhala Essay",
-    "topic": "Topic (optional)",
+    "enterSinhalaEssay": "Extracted Sinhala Essay",
+    "topic": "Topic",
     "topicPlaceholder": "e.g. මගේ පාසල",
     "essayRequired": "Essay *",
     "essayPlaceholder": "Paste Sinhala essay here",
@@ -173,7 +173,7 @@
   },
   "studentEssays": {
     "title": "Submitted Essays",
-    "backToStudents": "Back to Students",
+    "backToStudents": "Back to Students Collection",
     "loadingEssays": "Loading essays...",
     "studentNotFound": "Student Not Found",
     "goBack": "Go Back",
