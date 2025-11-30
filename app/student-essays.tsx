@@ -15,7 +15,88 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
+import { getDownloadURL, ref as storageRef } from "firebase/storage";
+import { storage } from "@/config/firebase";
+
+// Component to display essay thumbnail with fresh URL resolution (CORS bypass on web)
+interface EssayThumbnailProps {
+  essay: UserImageUpload;
+  style?: any;
+}
+
+const EssayThumbnail: React.FC<EssayThumbnailProps> = ({ essay, style }) => {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const resolveUrl = async () => {
+      try {
+        const storagePath = essay.storagePath;
+        if (!storagePath) {
+          // Fallback to imageUrl if storagePath not available
+          setImageUrl(essay.imageUrl || null);
+          return;
+        }
+
+        // Extract plain path from gs:// URL if needed
+        let normalizedPath = storagePath;
+        if (storagePath.startsWith("gs://")) {
+          const parts = storagePath.replace("gs://", "").split("/");
+          normalizedPath = parts.slice(1).join("/");
+        }
+
+        // Get fresh download URL
+        const ref = storageRef(storage, normalizedPath);
+        const freshUrl = await getDownloadURL(ref);
+
+        // On web, convert to data URI to bypass CORS
+        if (Platform.OS === "web") {
+          try {
+            const response = await fetch(freshUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const blob = await response.blob();
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setImageUrl(reader.result as string);
+            };
+            reader.onerror = () => setError(true);
+            reader.readAsDataURL(blob);
+          } catch {
+            // Fallback to fresh URL on fetch error
+            setImageUrl(freshUrl);
+          }
+        } else {
+          // Native: use URL directly
+          setImageUrl(freshUrl);
+        }
+      } catch (err) {
+        console.error("Failed to resolve essay image URL:", err);
+        setError(true);
+      }
+    };
+
+    resolveUrl();
+  }, [essay.storagePath, essay.imageUrl]);
+
+  if (error || !imageUrl) {
+    return (
+      <View style={[styles.thumbnail, style, { backgroundColor: "#333640", justifyContent: "center", alignItems: "center" }]}>
+        <MaterialIcons name="image-not-supported" size={24} color="#B0B3C6" />
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: imageUrl }}
+      style={[styles.thumbnail, style]}
+      resizeMode="cover"
+      onError={() => setError(true)}
+    />
+  );
+};
 
 export default function StudentEssaysScreen() {
   const { studentData } = useLocalSearchParams<{ studentData?: string }>();
@@ -270,11 +351,7 @@ export default function StudentEssaysScreen() {
           }}
           activeOpacity={0.8}
         >
-          <Image
-            source={{ uri: item.imageUrl }}
-            style={styles.thumbnail}
-            resizeMode="cover"
-          />
+          <EssayThumbnail essay={item} />
           <View style={styles.essayInfo}>
             <Text style={styles.fileName} numberOfLines={1}>
               {item.fileName}
