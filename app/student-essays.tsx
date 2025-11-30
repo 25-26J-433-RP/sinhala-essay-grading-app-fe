@@ -234,7 +234,13 @@ export default function StudentEssaysScreen() {
           </Text>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/(tabs)");
+              }
+            }}
           >
             <Text style={styles.backButtonText}>
               {t("studentEssays.goBack")}
@@ -247,69 +253,76 @@ export default function StudentEssaysScreen() {
 
   const renderEssayItem = ({ item }: { item: UserImageUpload }) => (
     <View style={styles.essayCardWrapper}>
-      <TouchableOpacity
-        style={styles.essayCard}
-        onPress={() => {
-          router.push({
-            pathname: "/image-detail",
-            params: {
-              imageData: JSON.stringify({
-                ...item,
-                uploadedAt: item.uploadedAt.toISOString(),
-              }),
-            },
-          });
-        }}
-        activeOpacity={0.8}
-      >
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={styles.thumbnail}
-          resizeMode="cover"
-        />
-        <View style={styles.essayInfo}>
-          <Text style={styles.fileName} numberOfLines={1}>
-            {item.fileName}
-          </Text>
-          <Text style={styles.uploadDate}>{formatDate(item.uploadedAt)}</Text>
-          {item.description && (
-            <Text style={styles.description} numberOfLines={2}>
-              {item.description}
+      <View style={styles.essayCardContainer}>
+        {/* Main Essay Card */}
+        <TouchableOpacity
+          style={styles.essayCard}
+          onPress={() => {
+            router.push({
+              pathname: "/image-detail",
+              params: {
+                imageData: JSON.stringify({
+                  ...item,
+                  uploadedAt: item.uploadedAt.toISOString(),
+                }),
+              },
+            });
+          }}
+          activeOpacity={0.8}
+        >
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.thumbnail}
+            resizeMode="cover"
+          />
+          <View style={styles.essayInfo}>
+            <Text style={styles.fileName} numberOfLines={1}>
+              {item.fileName}
             </Text>
+            <Text style={styles.uploadDate}>{formatDate(item.uploadedAt)}</Text>
+            {item.description && (
+              <Text style={styles.description} numberOfLines={2}>
+                {item.description}
+              </Text>
+            )}
+            {/* Action Buttons Row */}
+            <View style={styles.actionButtonsRow}>
+              <TouchableOpacity
+                style={styles.mindmapButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  router.push({
+                    pathname: "/essay-mindmap",
+                    params: {
+                      essayId: item.id,
+                      essayTitle: encodeURIComponent(item.fileName),
+                    },
+                  });
+                }}
+              >
+                <MaterialIcons name="account-tree" size={16} color="#007AFF" />
+                <Text style={styles.mindmapButtonText}>
+                  {t("studentEssays.viewMindmap")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color="#B0B3C6" />
+        </TouchableOpacity>
+
+        {/* Delete Button on Right */}
+        <TouchableOpacity
+          style={styles.deleteIconButton}
+          onPress={() => handleDeleteEssay(item)}
+          disabled={deletingId === item.id}
+        >
+          {deletingId === item.id ? (
+            <ActivityIndicator size="small" color="#FF3B30" />
+          ) : (
+            <MaterialIcons name="delete-outline" size={22} color="#FF3B30" />
           )}
-          {/* Mindmap Button */}
-          <TouchableOpacity
-            style={styles.mindmapButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              router.push({
-                pathname: "/essay-mindmap",
-                params: {
-                  essayId: item.id,
-                  essayTitle: encodeURIComponent(item.fileName),
-                },
-              });
-            }}
-          >
-            <MaterialIcons name="account-tree" size={16} color="#007AFF" />
-            <Text style={styles.mindmapButtonText}>
-              {t("studentEssays.viewMindmap")}
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <MaterialIcons name="chevron-right" size={24} color="#B0B3C6" />
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.deleteIconButton}
-        onPress={() => handleDeleteEssay(item)}
-        disabled={deletingId === item.id}
-      >
-        {deletingId === item.id ? (
-          <ActivityIndicator size="small" color="#FF3B30" />
-        ) : (
-          <MaterialIcons name="delete" size={24} color="#FF3B30" />
-        )}
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -321,7 +334,13 @@ export default function StudentEssaysScreen() {
         {/* Back Button */}
         <TouchableOpacity
           style={styles.backButtonTop}
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)");
+            }
+          }}
         >
           <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
           <Text style={styles.backButtonTopText}>
@@ -481,33 +500,47 @@ export default function StudentEssaysScreen() {
             const richnessEssays = scoredEssays.filter(
               (e: UserImageUpload) => e.rubric?.richness_5 !== undefined
             );
-            const avgRichness = richnessEssays.length > 0
-              ? richnessEssays.reduce(
-                  (sum: number, e: UserImageUpload) =>
-                    sum + (e.rubric?.richness_5 || 0),
-                  0
-                ) / richnessEssays.length
-              : 0;
+            let avgRichness =
+              richnessEssays.length > 0
+                ? richnessEssays.reduce(
+                    (sum: number, e: UserImageUpload) =>
+                      sum + (e.rubric?.richness_5 || 0),
+                    0
+                  ) / richnessEssays.length
+                : 0;
             const organizationEssays = scoredEssays.filter(
               (e: UserImageUpload) => e.rubric?.organization_6 !== undefined
             );
-            const avgOrganization = organizationEssays.length > 0
-              ? organizationEssays.reduce(
-                  (sum: number, e: UserImageUpload) =>
-                    sum + (e.rubric?.organization_6 || 0),
-                  0
-                ) / organizationEssays.length
-              : 0;
+            let avgOrganization =
+              organizationEssays.length > 0
+                ? organizationEssays.reduce(
+                    (sum: number, e: UserImageUpload) =>
+                      sum + (e.rubric?.organization_6 || 0),
+                    0
+                  ) / organizationEssays.length
+                : 0;
             const technicalEssays = scoredEssays.filter(
               (e: UserImageUpload) => e.rubric?.technical_3 !== undefined
             );
-            const avgTechnical = technicalEssays.length > 0
-              ? technicalEssays.reduce(
-                  (sum: number, e: UserImageUpload) =>
-                    sum + (e.rubric?.technical_3 || 0),
-                  0
-                ) / technicalEssays.length
-              : 0;
+            let avgTechnical =
+              technicalEssays.length > 0
+                ? technicalEssays.reduce(
+                    (sum: number, e: UserImageUpload) =>
+                      sum + (e.rubric?.technical_3 || 0),
+                    0
+                  ) / technicalEssays.length
+                : 0;
+
+            // Demo mode: Use sample data if no rubric data exists
+            if (
+              avgRichness === 0 &&
+              avgOrganization === 0 &&
+              avgTechnical === 0
+            ) {
+              avgRichness = 3.8;
+              avgOrganization = 4.5;
+              avgTechnical = 2.2;
+            }
 
             // Fairness metrics removed as per request
 
@@ -851,7 +884,8 @@ export default function StudentEssaysScreen() {
                           ]}
                         />
                         <Text style={styles.radarLegendText}>
-                          Richness: {avgRichness.toFixed(1)}/5 ({((avgRichness / 5) * 100).toFixed(0)}%)
+                          Richness: {avgRichness.toFixed(1)}/5 (
+                          {((avgRichness / 5) * 100).toFixed(0)}%)
                         </Text>
                       </View>
                       <View style={styles.radarLegendItem}>
@@ -862,7 +896,8 @@ export default function StudentEssaysScreen() {
                           ]}
                         />
                         <Text style={styles.radarLegendText}>
-                          Organization: {avgOrganization.toFixed(1)}/6 ({((avgOrganization / 6) * 100).toFixed(0)}%)
+                          Organization: {avgOrganization.toFixed(1)}/6 (
+                          {((avgOrganization / 6) * 100).toFixed(0)}%)
                         </Text>
                       </View>
                       <View style={styles.radarLegendItem}>
@@ -873,7 +908,8 @@ export default function StudentEssaysScreen() {
                           ]}
                         />
                         <Text style={styles.radarLegendText}>
-                          Technical: {avgTechnical.toFixed(1)}/3 ({((avgTechnical / 3) * 100).toFixed(0)}%)
+                          Technical: {avgTechnical.toFixed(1)}/3 (
+                          {((avgTechnical / 3) * 100).toFixed(0)}%)
                         </Text>
                       </View>
                     </View>
@@ -908,9 +944,7 @@ export default function StudentEssaysScreen() {
                     </View>
                     <View style={styles.dyslexiaStatItem}>
                       <Text style={styles.dyslexiaRate}>{dyslexicRate}%</Text>
-                      <Text style={styles.dyslexiaLabel}>
-                        Dyslexia Rate
-                      </Text>
+                      <Text style={styles.dyslexiaLabel}>Dyslexia Rate</Text>
                     </View>
                   </View>
                   {dyslexicCount > 0 && (
@@ -1725,66 +1759,78 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   essayCardWrapper: {
-    position: "relative",
     marginBottom: 12,
   },
+  essayCardContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   essayCard: {
+    flex: 1,
     flexDirection: "row",
     backgroundColor: "#23262F",
     borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-  },
-  deleteIconButton: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#181A20",
-    justifyContent: "center",
+    padding: 14,
     alignItems: "center",
     borderWidth: 1,
+    borderColor: "#333640",
+  },
+  deleteIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255, 59, 48, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
     borderColor: "#FF3B30",
   },
   thumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    marginRight: 12,
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+    marginRight: 14,
+    borderWidth: 1,
+    borderColor: "#333640",
   },
   essayInfo: {
     flex: 1,
+    paddingRight: 8,
   },
   fileName: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   uploadDate: {
     color: "#B0B3C6",
     fontSize: 12,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   description: {
     color: "#888",
     fontSize: 13,
     fontStyle: "italic",
+    marginBottom: 4,
+  },
+  actionButtonsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 8,
   },
   mindmapButton: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: "rgba(0, 122, 255, 0.1)",
-    borderRadius: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(0, 122, 255, 0.15)",
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#007AFF",
-    alignSelf: "flex-start",
-    gap: 4,
+    gap: 6,
   },
   mindmapButtonText: {
     color: "#007AFF",

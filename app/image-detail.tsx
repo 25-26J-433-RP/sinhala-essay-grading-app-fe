@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,6 +18,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+// Resolve Firebase Storage download URLs when a gs:// path or storagePath is provided
+import { storage } from "@/config/firebase";
+import { getDownloadURL, ref as storageRef } from "firebase/storage";
 
 import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
 import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // ✅ FIXED IMPORT
@@ -37,6 +42,10 @@ export default function ImageDetailScreen() {
 
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [imageUrlResolved, setImageUrlResolved] = useState<string | null>(null);
+  const [imageLoadingError, setImageLoadingError] = useState<string | null>(
+    null
+  );
 
   const [essayTopic, setEssayTopic] = useState("");
   const [inputText, setInputText] = useState("");
@@ -47,13 +56,13 @@ export default function ImageDetailScreen() {
   const [mindmapLoading, setMindmapLoading] = useState(false);
   const [mindmapError, setMindmapError] = useState<string | null>(null);
 
-  const [isSaving, setIsSaving] = useState(false);
+  // const [isSaving, setIsSaving] = useState(false); // not used currently
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { t } = useLanguage();
-  const DEBUG = __DEV__ === true;
+  // const DEBUG = __DEV__ === true; // not used currently
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -82,6 +91,92 @@ export default function ImageDetailScreen() {
       initializedRef.current = true;
     }
   }, [imageDataParam]);
+
+  // Resolve a valid HTTPS image URL for Firebase Storage if needed
+  // ALWAYS regenerate from storagePath to ensure token is fresh, not using potentially stale imageUrl
+  useEffect(() => {
+    const resolveUrl = async () => {
+      if (!imageData) return;
+      setImageLoadingError(null);
+
+      // Priority: Always regenerate from storagePath to get a fresh token
+      const storagePath = imageData.storagePath;
+
+      if (storagePath) {
+        try {
+          // Extract plain path from gs:// URL if needed
+          let normalizedPath = storagePath;
+          if (storagePath.startsWith("gs://")) {
+            // gs://bucket-name/path/to/file → path/to/file
+            const parts = storagePath.replace("gs://", "").split("/");
+            normalizedPath = parts.slice(1).join("/");
+            console.info("📦 Extracted path from gs:// URL:", normalizedPath);
+          }
+
+          console.info(
+            "🔄 Regenerating fresh download URL for:",
+            normalizedPath
+          );
+          const ref = storageRef(storage, normalizedPath);
+          const freshUrl = await getDownloadURL(ref);
+          console.info("✅ Fresh URL generated successfully:", freshUrl);
+
+          // On web, fetch as blob and convert to data URI to bypass CORS
+          if (Platform.OS === "web") {
+            try {
+              console.info("🌐 Converting to data URI (web CORS bypass)...");
+              const response = await fetch(freshUrl);
+              if (!response.ok) {
+                throw new Error(
+                  `HTTP ${response.status}: ${response.statusText}`
+                );
+              }
+              const blob = await response.blob();
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const dataUri = reader.result as string;
+                console.info("✅ Data URI created, image ready to load");
+                setImageUrlResolved(dataUri);
+              };
+              reader.onerror = () => {
+                console.error("❌ FileReader error:", reader.error);
+                setImageLoadingError("Failed to read image data");
+              };
+              reader.readAsDataURL(blob);
+            } catch (corsErr) {
+              console.error(
+                "⚠️ Web CORS bypass failed, trying direct URL:",
+                corsErr
+              );
+              setImageUrlResolved(freshUrl); // Fallback to fresh URL, may still fail due to CORS
+              setImageLoadingError("CORS issue - trying direct URL");
+            }
+          } else {
+            // Native: use URL directly
+            setImageUrlResolved(freshUrl);
+          }
+        } catch (err) {
+          console.error("❌ Failed to regenerate Firebase image URL:", err);
+          setImageLoadingError("Failed to load image");
+          setImageUrlResolved(null);
+        }
+      } else {
+        // Fallback: Try stored imageUrl if storagePath not available
+        const candidate = imageData.imageUrl || "";
+        if (candidate.startsWith("http")) {
+          console.warn(
+            "⚠️ Using stored imageUrl (may have expired token):",
+            candidate
+          );
+          setImageUrlResolved(candidate);
+        } else {
+          setImageLoadingError("No image path available");
+          setImageUrlResolved(null);
+        }
+      }
+    };
+    resolveUrl();
+  }, [imageData]);
 
   // Load mindmap once imageData is available (uses essay/image id)
   useEffect(() => {
@@ -135,6 +230,7 @@ export default function ImageDetailScreen() {
         router.push("/(tabs)/uploaded-images");
       }, 300);
     } catch (err) {
+      console.error("Delete image failed", err);
       showToast(t("essay.failedToDelete"), { type: "error" });
       setIsDeleting(false);
     }
@@ -188,11 +284,89 @@ export default function ImageDetailScreen() {
 
         {/* Image */}
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: imageData.imageUrl }}
-            style={styles.image}
-            resizeMode="contain"
-          />
+          {imageUrlResolved ? (
+            Platform.OS === "web" ? (
+              <img
+                src={imageUrlResolved}
+                style={{
+                  width: "100%",
+                  height: 300,
+                  borderRadius: 8,
+                  objectFit: "contain",
+                }}
+                onError={(e) => {
+                  console.error("Web img failed to load", {
+                    resolvedUrl: imageUrlResolved,
+                    errorEvent: e,
+                  });
+                  setImageUrlResolved(null);
+                }}
+                onLoad={() => console.info("✅ Web img loaded successfully")}
+              />
+            ) : (
+              <Image
+                source={{ uri: imageUrlResolved }}
+                style={styles.image}
+                resizeMode="contain"
+                onError={(e) => {
+                  console.error("Native Image failed to load", {
+                    error: e.nativeEvent?.error,
+                    resolvedUrl: imageUrlResolved,
+                    originalUrl: imageData?.imageUrl,
+                    storagePath: imageData?.storagePath,
+                  });
+                  setImageUrlResolved(null);
+                }}
+              />
+            )
+          ) : (
+            <View style={styles.imageFallback}>
+              <MaterialIcons
+                name="image-not-supported"
+                size={28}
+                color="#B0B3C6"
+              />
+              <Text style={styles.imageFallbackText}>
+                {imageLoadingError || "Image not available"}
+              </Text>
+              <TouchableOpacity
+                style={styles.reloadMindmapButton}
+                onPress={async () => {
+                  // Try resolving again and log details
+                  console.info("Retrying image URL resolution", {
+                    originalUrl: imageData?.imageUrl,
+                    storagePath: imageData?.storagePath,
+                  });
+                  try {
+                    const candidate =
+                      imageData?.imageUrl || imageData?.storagePath || "";
+                    if (candidate && candidate.startsWith("http")) {
+                      setImageUrlResolved(candidate);
+                      return;
+                    }
+                    if (candidate) {
+                      let normalizedPath = candidate;
+                      if (candidate.startsWith("gs://")) {
+                        const parts = candidate.replace("gs://", "").split("/");
+                        normalizedPath = parts.slice(1).join("/");
+                      }
+                      const ref = storageRef(storage, normalizedPath);
+                      const url = await getDownloadURL(ref);
+                      console.info("✅ Resolved download URL", { url });
+                      setImageUrlResolved(url);
+                    }
+                  } catch (err) {
+                    console.error("❌ Retry resolution failed", err);
+                  }
+                }}
+              >
+                <MaterialIcons name="refresh" size={18} color="#fff" />
+                <Text style={styles.reloadMindmapText}>
+                  {t("common.retry")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* SCORING INPUT CARD */}
@@ -607,6 +781,21 @@ const styles = StyleSheet.create({
   },
 
   image: { width: "100%", height: 300, borderRadius: 8 },
+  imageFallback: {
+    width: "100%",
+    height: 300,
+    borderRadius: 8,
+    backgroundColor: "#1f2128",
+    borderWidth: 1,
+    borderColor: "#333",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  imageFallbackText: {
+    color: "#9CA3AF",
+    fontSize: 13,
+  },
 
   cardTitle: {
     color: "#fff",

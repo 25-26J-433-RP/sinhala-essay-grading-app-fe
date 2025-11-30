@@ -1,15 +1,15 @@
 import { db, storage } from '@/config/firebase';
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDocs,
-    orderBy,
-    query,
-    serverTimestamp,
-    updateDoc,
-    where
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 
@@ -154,14 +154,32 @@ export class UserImageService {
         }
       }
 
-      const firestoreImages = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...(data as any),
-          uploadedAt: (data as any).uploadedAt?.toDate() || new Date(),
-        } as UserImageUpload;
-      });
+      const firestoreImages = await Promise.all(
+        querySnapshot.docs.map(async (doc) => {
+          const data = doc.data();
+          const storagePath = (data as any).storagePath;
+          
+          // Regenerate download URL on-the-fly to ensure token is always fresh
+          let imageUrl = (data as any).imageUrl;
+          if (storagePath && storage) {
+            try {
+              const storageRef = ref(storage, storagePath);
+              imageUrl = await getDownloadURL(storageRef);
+              dlog(`✅ Regenerated fresh download URL for ${storagePath}`);
+            } catch (err) {
+              dwarn(`⚠️ Failed to regenerate URL for ${storagePath}, using stored URL:`, err);
+              // Fall back to stored URL if regeneration fails
+            }
+          }
+          
+          return {
+            id: doc.id,
+            ...(data as any),
+            imageUrl, // Use freshly generated or fallback URL
+            uploadedAt: (data as any).uploadedAt?.toDate() || new Date(),
+          } as UserImageUpload;
+        })
+      );
 
       dlog(`📊 Found ${firestoreImages.length} images in Firestore for user ${userId}`);
 
