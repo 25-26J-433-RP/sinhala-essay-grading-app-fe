@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,20 +19,19 @@ import {
   View,
 } from "react-native";
 
+// Resolve Firebase Storage download URLs when a gs:// path or storagePath is provided
+import { storage } from "@/config/firebase";
+import { getDownloadURL, ref as storageRef } from "firebase/storage";
+
 import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
-import {
-  scoreSinhala,
-  SinhalaScoreResponse,
-} from "@/app/api/scoreSinhala"; // ✅ FIXED IMPORT
+import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // ✅ FIXED IMPORT
 
 import { MindmapView } from "@/components/MindmapView";
 
 // 🔥 Prevent Firestore from rejecting undefined/null fields
 function cleanFirestore(obj: any) {
   return JSON.parse(
-    JSON.stringify(obj, (key, value) =>
-      value === undefined ? null : value
-    )
+    JSON.stringify(obj, (key, value) => (value === undefined ? null : value))
   );
 }
 
@@ -42,6 +42,11 @@ export default function ImageDetailScreen() {
 
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [imageUrlResolved, setImageUrlResolved] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageLoadingError, setImageLoadingError] = useState<string | null>(
+    null
+  );
 
   const [essayTopic, setEssayTopic] = useState("");
   const [inputText, setInputText] = useState("");
@@ -52,13 +57,13 @@ export default function ImageDetailScreen() {
   const [mindmapLoading, setMindmapLoading] = useState(false);
   const [mindmapError, setMindmapError] = useState<string | null>(null);
 
-  const [isSaving, setIsSaving] = useState(false);
+  // const [isSaving, setIsSaving] = useState(false); // not used currently
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { t } = useLanguage();
-  const DEBUG = __DEV__ === true;
+  // const DEBUG = __DEV__ === true; // not used currently
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -67,7 +72,18 @@ export default function ImageDetailScreen() {
       if (typeof imageDataParam === "string") {
         const parsed = JSON.parse(imageDataParam);
         setImageData(parsed);
-        setInputText(parsed.description || "");
+        // Load saved essay text and topic from database
+        setInputText(parsed.essay_text || parsed.description || "");
+        setEssayTopic(parsed.essay_topic || "");
+        // Load saved score data if available
+        if (parsed.score) {
+          setScoreData({
+            score: parsed.score,
+            details: parsed.details || {},
+            rubric: parsed.rubric || {},
+            fairness_report: parsed.fairness_report || {},
+          });
+        }
       }
     } catch (error) {
       console.error("Error parsing image data:", error);
@@ -76,6 +92,99 @@ export default function ImageDetailScreen() {
       initializedRef.current = true;
     }
   }, [imageDataParam]);
+
+  // Resolve a valid HTTPS image URL for Firebase Storage if needed
+  // ALWAYS regenerate from storagePath to ensure token is fresh, not using potentially stale imageUrl
+  useEffect(() => {
+    const resolveUrl = async () => {
+      if (!imageData) return;
+      setImageLoading(true);
+      setImageLoadingError(null);
+
+      // Priority: Always regenerate from storagePath to get a fresh token
+      const storagePath = imageData.storagePath;
+
+      if (storagePath) {
+        try {
+          // Extract plain path from gs:// URL if needed
+          let normalizedPath = storagePath;
+          if (storagePath.startsWith("gs://")) {
+            // gs://bucket-name/path/to/file → path/to/file
+            const parts = storagePath.replace("gs://", "").split("/");
+            normalizedPath = parts.slice(1).join("/");
+            console.info("📦 Extracted path from gs:// URL:", normalizedPath);
+          }
+
+          console.info(
+            "🔄 Regenerating fresh download URL for:",
+            normalizedPath
+          );
+          const ref = storageRef(storage, normalizedPath);
+          const freshUrl = await getDownloadURL(ref);
+          console.info("✅ Fresh URL generated successfully:", freshUrl);
+
+          // On web, fetch as blob and convert to data URI to bypass CORS
+          if (Platform.OS === "web") {
+            try {
+              console.info("🌐 Converting to data URI (web CORS bypass)...");
+              const response = await fetch(freshUrl);
+              if (!response.ok) {
+                throw new Error(
+                  `HTTP ${response.status}: ${response.statusText}`
+                );
+              }
+              const blob = await response.blob();
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const dataUri = reader.result as string;
+                console.info("✅ Data URI created, image ready to load");
+                setImageUrlResolved(dataUri);
+                setImageLoading(false);
+              };
+              reader.onerror = () => {
+                console.error("❌ FileReader error:", reader.error);
+                setImageLoadingError("Failed to read image data");
+                setImageLoading(false);
+              };
+              reader.readAsDataURL(blob);
+            } catch (corsErr) {
+              console.error(
+                "⚠️ Web CORS bypass failed, trying direct URL:",
+                corsErr
+              );
+              setImageUrlResolved(freshUrl); // Fallback to fresh URL, may still fail due to CORS
+              setImageLoading(false);
+            }
+          } else {
+            // Native: use URL directly
+            setImageUrlResolved(freshUrl);
+            setImageLoading(false);
+          }
+        } catch (err) {
+          console.error("❌ Failed to regenerate Firebase image URL:", err);
+          setImageLoadingError("Failed to load image");
+          setImageUrlResolved(null);
+          setImageLoading(false);
+        }
+      } else {
+        // Fallback: Try stored imageUrl if storagePath not available
+        const candidate = imageData.imageUrl || "";
+        if (candidate.startsWith("http")) {
+          console.warn(
+            "⚠️ Using stored imageUrl (may have expired token):",
+            candidate
+          );
+          setImageUrlResolved(candidate);
+          setImageLoading(false);
+        } else {
+          setImageLoadingError("No image path available");
+          setImageUrlResolved(null);
+          setImageLoading(false);
+        }
+      }
+    };
+    resolveUrl();
+  }, [imageData]);
 
   // Load mindmap once imageData is available (uses essay/image id)
   useEffect(() => {
@@ -88,21 +197,24 @@ export default function ImageDetailScreen() {
         const data = await fetchMindmap(imageData.id);
         if (!cancelled) setMindmapData(data);
       } catch (err: any) {
-        if (!cancelled) setMindmapError(err?.message || "Failed to load mindmap");
+        if (!cancelled)
+          setMindmapError(err?.message || "Failed to load mindmap");
       } finally {
         if (!cancelled) setMindmapLoading(false);
       }
     };
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [imageData?.id]);
 
   const handleDeleteImage = async () => {
     const ok = await confirm({
-      title: t('essay.deleteEssay'),
-      message: t('essay.deleteConfirm'),
-      confirmText: t('common.delete'),
-      cancelText: t('common.cancel'),
+      title: t("essay.deleteEssay"),
+      message: t("essay.deleteConfirm"),
+      confirmText: t("common.delete"),
+      cancelText: t("common.cancel"),
     });
 
     if (!ok) return;
@@ -120,13 +232,14 @@ export default function ImageDetailScreen() {
         imageData.storagePath
       );
 
-      showToast(t('essay.essayDeleted'), { type: "success" });
+      showToast(t("essay.essayDeleted"), { type: "success" });
 
       setTimeout(() => {
         router.push("/(tabs)/uploaded-images");
       }, 300);
     } catch (err) {
-      showToast(t('essay.failedToDelete'), { type: "error" });
+      console.error("Delete image failed", err);
+      showToast(t("essay.failedToDelete"), { type: "error" });
       setIsDeleting(false);
     }
   };
@@ -134,10 +247,10 @@ export default function ImageDetailScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <AppHeader />
+        <AppHeader hideRightSection />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>{t('essay.loadingImage')}</Text>
+          <Text style={styles.loadingText}>{t("essay.loadingImage")}</Text>
         </View>
       </View>
     );
@@ -146,15 +259,15 @@ export default function ImageDetailScreen() {
   if (!imageData) {
     return (
       <View style={styles.container}>
-        <AppHeader />
+        <AppHeader hideRightSection />
         <View style={styles.centerContainer}>
           <MaterialIcons name="error-outline" size={64} color="#FF3B30" />
-          <Text style={styles.errorTitle}>{t('essay.imageNotFound')}</Text>
+          <Text style={styles.errorTitle}>{t("essay.imageNotFound")}</Text>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.push("/(tabs)/uploaded-images")}
           >
-            <Text style={styles.backButtonText}>{t('common.back')}</Text>
+            <Text style={styles.backButtonText}>{t("common.back")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -163,46 +276,122 @@ export default function ImageDetailScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <AppHeader />
+      <AppHeader hideRightSection />
 
       <View style={styles.content}>
-        {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backButtonTop}
-          onPress={() => router.push("/(tabs)/uploaded-images")}
-        >
-          <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
-          <Text style={styles.backButtonTopText}>{t('essay.backToCollection')}</Text>
-        </TouchableOpacity>
-
         {/* Image */}
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: imageData.imageUrl }}
-            style={styles.image}
-            resizeMode="contain"
-          />
+          {imageLoading ? (
+            <View style={styles.imageFallback}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.imageFallbackText}>
+                {t("essay.loadingImage")}
+              </Text>
+            </View>
+          ) : imageUrlResolved ? (
+            Platform.OS === "web" ? (
+              <img
+                src={imageUrlResolved}
+                style={{
+                  width: "100%",
+                  height: 300,
+                  borderRadius: 8,
+                  objectFit: "contain",
+                }}
+                onError={(e) => {
+                  console.error("Web img failed to load", {
+                    resolvedUrl: imageUrlResolved,
+                    errorEvent: e,
+                  });
+                  setImageUrlResolved(null);
+                }}
+                onLoad={() => console.info("✅ Web img loaded successfully")}
+              />
+            ) : (
+              <Image
+                source={{ uri: imageUrlResolved }}
+                style={styles.image}
+                resizeMode="contain"
+                onError={(e) => {
+                  console.error("Native Image failed to load", {
+                    error: e.nativeEvent?.error,
+                    resolvedUrl: imageUrlResolved,
+                    originalUrl: imageData?.imageUrl,
+                    storagePath: imageData?.storagePath,
+                  });
+                  setImageUrlResolved(null);
+                }}
+              />
+            )
+          ) : (
+            <View style={styles.imageFallback}>
+              <MaterialIcons
+                name="image-not-supported"
+                size={28}
+                color="#B0B3C6"
+              />
+              <Text style={styles.imageFallbackText}>
+                {imageLoadingError || "Image not available"}
+              </Text>
+              <TouchableOpacity
+                style={styles.reloadMindmapButton}
+                onPress={async () => {
+                  // Try resolving again and log details
+                  console.info("Retrying image URL resolution", {
+                    originalUrl: imageData?.imageUrl,
+                    storagePath: imageData?.storagePath,
+                  });
+                  try {
+                    const candidate =
+                      imageData?.imageUrl || imageData?.storagePath || "";
+                    if (candidate && candidate.startsWith("http")) {
+                      setImageUrlResolved(candidate);
+                      return;
+                    }
+                    if (candidate) {
+                      let normalizedPath = candidate;
+                      if (candidate.startsWith("gs://")) {
+                        const parts = candidate.replace("gs://", "").split("/");
+                        normalizedPath = parts.slice(1).join("/");
+                      }
+                      const ref = storageRef(storage, normalizedPath);
+                      const url = await getDownloadURL(ref);
+                      console.info("✅ Resolved download URL", { url });
+                      setImageUrlResolved(url);
+                    }
+                  } catch (err) {
+                    console.error("❌ Retry resolution failed", err);
+                  }
+                }}
+              >
+                <MaterialIcons name="refresh" size={18} color="#fff" />
+                <Text style={styles.reloadMindmapText}>
+                  {t("common.retry")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* SCORING INPUT CARD */}
         <View style={styles.inputCard}>
-          <Text style={styles.cardTitle}>{t('essay.enterSinhalaEssay')}</Text>
+          <Text style={styles.cardTitle}>{t("essay.enterSinhalaEssay")}</Text>
 
           {/* Topic */}
-          <Text style={styles.detailLabel}>{t('essay.topic')}</Text>
+          <Text style={styles.detailLabel}>{t("essay.topic")}</Text>
           <TextInput
             value={essayTopic}
             onChangeText={setEssayTopic}
-            placeholder={t('essay.topicPlaceholder')}
+            placeholder={t("essay.topicPlaceholder")}
             style={styles.textInput}
           />
 
           {/* Essay */}
-          <Text style={styles.detailLabel}>{t('essay.essayRequired')}</Text>
+          <Text style={styles.detailLabel}>{t("essay.essayRequired")}</Text>
           <TextInput
             value={inputText}
             onChangeText={setInputText}
-            placeholder={t('essay.essayPlaceholder')}
+            placeholder={t("essay.essayPlaceholder")}
             multiline
             numberOfLines={8}
             textAlignVertical="top"
@@ -215,7 +404,7 @@ export default function ImageDetailScreen() {
             disabled={isScoring}
             onPress={async () => {
               if (!inputText.trim()) {
-                Alert.alert(t('essay.validation'), t('essay.pleaseEnterEssay'));
+                Alert.alert(t("essay.validation"), t("essay.pleaseEnterEssay"));
                 return;
               }
 
@@ -230,69 +419,82 @@ export default function ImageDetailScreen() {
 
                 // UI update
                 setScoreData(result);
-                showToast(t('essay.scoreCalculated'), { type: "success" });
+                showToast(t("essay.scoreCalculated"), { type: "success" });
 
                 // 🔥 SAVE TO FIRESTORE (with cleaning)
                 await UserImageService.updateImageScore(
                   imageData.id,
-                  cleanFirestore(result)
+                  cleanFirestore({
+                    ...result,
+                    essay_text: inputText, // SAVE ESSAY TEXT
+                    essay_topic: essayTopic || null, // SAVE ESSAY TOPIC
+                  })
                 );
 
-                showToast(t('essay.scoreSaved'), { type: "success" });
+                showToast(t("essay.scoreSaved"), { type: "success" });
 
                 // ✅ GENERATE MINDMAP
                 try {
-                  console.log('🧠 Generating mindmap for essay:', imageData.id);
+                  console.log("🧠 Generating mindmap for essay:", imageData.id);
                   await generateMindmap(imageData.id, inputText);
-                  console.log('✅ Mindmap generation triggered');
-                  
+                  console.log("✅ Mindmap generation triggered");
+
                   // Fetch the generated mindmap
                   setMindmapLoading(true);
                   setMindmapError(null);
                   const mindmap = await fetchMindmap(imageData.id);
                   setMindmapData(mindmap);
                   setMindmapLoading(false);
-                  showToast(t('essay.mindmapGenerated'), { type: "success" });
+                  showToast(t("essay.mindmapGenerated"), { type: "success" });
                 } catch (mindmapErr: any) {
-                  console.error('❌ Mindmap generation failed:', mindmapErr);
-                  setMindmapError(mindmapErr?.message || t('mindmap.generationFailed'));
+                  console.error("❌ Mindmap generation failed:", mindmapErr);
+                  setMindmapError(
+                    mindmapErr?.message || t("mindmap.generationFailed")
+                  );
                   setMindmapLoading(false);
                   // Don't block the main flow - mindmap is optional
                 }
-
               } catch (err: any) {
-                console.log("🔥 FIREBASE ERROR (full):", JSON.stringify(err, null, 2));
+                console.log(
+                  "🔥 FIREBASE ERROR (full):",
+                  JSON.stringify(err, null, 2)
+                );
                 console.log("🔥 FIREBASE ERROR MESSAGE:", err?.message);
                 console.log("🔥 FIREBASE ERROR CODE:", err?.code);
 
-                if (err?.message?.includes("Missing or insufficient permissions")) {
-                  showToast("❌ Firestore rules blocked the write", { type: "error" });
+                if (
+                  err?.message?.includes("Missing or insufficient permissions")
+                ) {
+                  showToast("❌ Firestore rules blocked the write", {
+                    type: "error",
+                  });
                 }
 
-                showToast(t('essay.failedToScore'), { type: "error" });
-              }
-              finally {
+                showToast(t("essay.failedToScore"), { type: "error" });
+              } finally {
                 setIsScoring(false);
               }
             }}
-
           >
             {isScoring ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.scoreButtonText}>{t('essay.scoreEssay')}</Text>
+              <Text style={styles.scoreButtonText}>
+                {t("essay.scoreEssay")}
+              </Text>
             )}
           </TouchableOpacity>
-
         </View>
 
         {/* SCORE DISPLAY */}
         <View style={styles.detailsCard}>
-          <Text style={styles.cardTitle}>{t('essay.essayDetails')}</Text>
+          <Text style={styles.cardTitle}>{t("essay.essayDetails")}</Text>
 
           {scoreData && (
             <View style={styles.scoreBox}>
-              <Text style={styles.scoreMain}>{t('essay.score')}: {scoreData.score}</Text>
+              <Text style={styles.scoreMain}>
+                {t("essay.score")}: {scoreData.score}
+              </Text>
 
               <Text style={styles.scoreDetail}>
                 Model: {scoreData.details.model}
@@ -305,7 +507,6 @@ export default function ImageDetailScreen() {
               <Text style={styles.scoreDetail}>
                 Topic: {scoreData.details.topic || "—"}
               </Text>
-
             </View>
           )}
 
@@ -322,7 +523,9 @@ export default function ImageDetailScreen() {
               </View>
 
               <View style={styles.rubricRow}>
-                <Text style={styles.rubricLabel}>Organization / Creativity (6)</Text>
+                <Text style={styles.rubricLabel}>
+                  Organization / Creativity (6)
+                </Text>
                 <Text style={styles.rubricValue}>
                   {scoreData.rubric?.organization_6 ?? "—"}
                 </Text>
@@ -336,7 +539,9 @@ export default function ImageDetailScreen() {
               </View>
 
               <View style={styles.rubricTotalRow}>
-                <Text style={[styles.rubricLabel, { fontSize: 16 }]}>Total (14)</Text>
+                <Text style={[styles.rubricLabel, { fontSize: 16 }]}>
+                  Total (14)
+                </Text>
                 <Text style={styles.rubricTotalValue}>
                   {scoreData.rubric?.total_14 ?? "—"}
                 </Text>
@@ -381,12 +586,11 @@ export default function ImageDetailScreen() {
             </View>
           )}
 
-
           {/* FILE DETAILS */}
           <View style={styles.detailRow}>
             <MaterialIcons name="insert-drive-file" size={20} color="#007AFF" />
             <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t('essay.fileName')}</Text>
+              <Text style={styles.detailLabel}>{t("essay.fileName")}</Text>
               <Text style={styles.detailValue}>{imageData.fileName}</Text>
             </View>
           </View>
@@ -394,7 +598,7 @@ export default function ImageDetailScreen() {
           <View style={styles.detailRow}>
             <MaterialIcons name="fingerprint" size={20} color="#007AFF" />
             <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t('essay.essayId')}</Text>
+              <Text style={styles.detailLabel}>{t("essay.essayId")}</Text>
               <Text style={styles.detailValue}>{imageData.id}</Text>
             </View>
           </View>
@@ -402,7 +606,7 @@ export default function ImageDetailScreen() {
           <View style={styles.detailRow}>
             <MaterialIcons name="person" size={20} color="#007AFF" />
             <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t('essay.studentId')}</Text>
+              <Text style={styles.detailLabel}>{t("essay.studentId")}</Text>
               <Text style={styles.detailValue}>{imageData.studentId}</Text>
             </View>
           </View>
@@ -411,8 +615,10 @@ export default function ImageDetailScreen() {
             <View style={styles.detailRow}>
               <MaterialIcons name="cake" size={20} color="#007AFF" />
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>{t('essay.studentAge')}</Text>
-                <Text style={styles.detailValue}>{imageData.studentAge} {t('essay.years')}</Text>
+                <Text style={styles.detailLabel}>{t("essay.studentAge")}</Text>
+                <Text style={styles.detailValue}>
+                  {imageData.studentAge} {t("essay.years")}
+                </Text>
               </View>
             </View>
           )}
@@ -422,7 +628,9 @@ export default function ImageDetailScreen() {
             <View style={styles.detailRow}>
               <MaterialIcons name="school" size={20} color="#007AFF" />
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>{t('essay.studentGrade')}</Text>
+                <Text style={styles.detailLabel}>
+                  {t("essay.studentGrade")}
+                </Text>
                 <Text style={styles.detailValue}>{imageData.studentGrade}</Text>
               </View>
             </View>
@@ -433,8 +641,12 @@ export default function ImageDetailScreen() {
             <View style={styles.detailRow}>
               <MaterialIcons name="wc" size={20} color="#007AFF" />
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>{t('essay.studentGender')}</Text>
-                <Text style={styles.detailValue}>{imageData.studentGender}</Text>
+                <Text style={styles.detailLabel}>
+                  {t("essay.studentGender")}
+                </Text>
+                <Text style={styles.detailValue}>
+                  {imageData.studentGender}
+                </Text>
               </View>
             </View>
           )}
@@ -443,7 +655,7 @@ export default function ImageDetailScreen() {
           <View style={styles.detailRow}>
             <MaterialIcons name="access-time" size={20} color="#007AFF" />
             <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t('essay.uploadedAt')}</Text>
+              <Text style={styles.detailLabel}>{t("essay.uploadedAt")}</Text>
               <Text style={styles.detailValue}>
                 {new Date(imageData.uploadedAt).toLocaleString()}
               </Text>
@@ -454,7 +666,7 @@ export default function ImageDetailScreen() {
           <View style={styles.detailRow}>
             <MaterialIcons name="storage" size={20} color="#007AFF" />
             <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t('essay.fileSize')}</Text>
+              <Text style={styles.detailLabel}>{t("essay.fileSize")}</Text>
               <Text style={styles.detailValue}>
                 {imageData.fileSize
                   ? (imageData.fileSize / 1024).toFixed(2) + " KB"
@@ -468,27 +680,26 @@ export default function ImageDetailScreen() {
             <View style={styles.detailRow}>
               <MaterialIcons name="image" size={20} color="#007AFF" />
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>{t('essay.type')}</Text>
+                <Text style={styles.detailLabel}>{t("essay.type")}</Text>
                 <Text style={styles.detailValue}>{imageData.mimeType}</Text>
               </View>
             </View>
           )}
-
         </View>
 
         {/* MINDMAP SECTION */}
         <View style={styles.detailsCard}>
-          <Text style={styles.cardTitle}>{t('mindmap.title')}</Text>
+          <Text style={styles.cardTitle}>{t("mindmap.title")}</Text>
           {mindmapLoading && (
             <View style={styles.mindmapStatusBox}>
               <ActivityIndicator color="#007AFF" />
-              <Text style={styles.loadingText}>{t('mindmap.loading')}</Text>
+              <Text style={styles.loadingText}>{t("mindmap.loading")}</Text>
             </View>
           )}
           {mindmapError && (
             <View style={styles.mindmapStatusBox}>
               <MaterialIcons name="error-outline" size={32} color="#FF3B30" />
-              <Text style={styles.errorTitle}>{t('mindmap.error')}</Text>
+              <Text style={styles.errorTitle}>{t("mindmap.error")}</Text>
               <Text style={styles.errorTextSmall}>{mindmapError}</Text>
               <TouchableOpacity
                 style={styles.reloadMindmapButton}
@@ -498,12 +709,16 @@ export default function ImageDetailScreen() {
                   setMindmapError(null);
                   fetchMindmap(imageData.id)
                     .then(setMindmapData)
-                    .catch(e => setMindmapError(e.message || t('mindmap.failed')))
+                    .catch((e) =>
+                      setMindmapError(e.message || t("mindmap.failed"))
+                    )
                     .finally(() => setMindmapLoading(false));
                 }}
               >
                 <MaterialIcons name="refresh" size={18} color="#fff" />
-                <Text style={styles.reloadMindmapText}>{t('common.retry')}</Text>
+                <Text style={styles.reloadMindmapText}>
+                  {t("common.retry")}
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -511,9 +726,10 @@ export default function ImageDetailScreen() {
             <View style={styles.mindmapContainer}>
               <MindmapView data={mindmapData} />
               <Text style={styles.mindmapMeta}>
-                {t('mindmap.nodes')}: {mindmapData.metadata.total_nodes} • {t('mindmap.edges')}: {mindmapData.metadata.total_edges}
+                {t("mindmap.nodes")}: {mindmapData.metadata.total_nodes} •{" "}
+                {t("mindmap.edges")}: {mindmapData.metadata.total_edges}
               </Text>
-              <Text style={styles.mindmapHint}>{t('mindmap.hint')}</Text>
+              <Text style={styles.mindmapHint}>{t("mindmap.hint")}</Text>
             </View>
           )}
         </View>
@@ -522,12 +738,12 @@ export default function ImageDetailScreen() {
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.actionButton}>
             <MaterialIcons name="download" size={24} color="#fff" />
-            <Text style={styles.actionButtonText}>{t('essay.download')}</Text>
+            <Text style={styles.actionButtonText}>{t("essay.download")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.actionButton, styles.shareButton]}>
             <MaterialIcons name="share" size={24} color="#fff" />
-            <Text style={styles.actionButtonText}>{t('essay.share')}</Text>
+            <Text style={styles.actionButtonText}>{t("essay.share")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -539,7 +755,9 @@ export default function ImageDetailScreen() {
             ) : (
               <>
                 <MaterialIcons name="delete" size={24} color="#fff" />
-                <Text style={styles.actionButtonText}>{t('common.delete')}</Text>
+                <Text style={styles.actionButtonText}>
+                  {t("common.delete")}
+                </Text>
               </>
             )}
           </TouchableOpacity>
@@ -567,6 +785,21 @@ const styles = StyleSheet.create({
   },
 
   image: { width: "100%", height: 300, borderRadius: 8 },
+  imageFallback: {
+    width: "100%",
+    height: 300,
+    borderRadius: 8,
+    backgroundColor: "#1f2128",
+    borderWidth: 1,
+    borderColor: "#333",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  imageFallbackText: {
+    color: "#9CA3AF",
+    fontSize: 13,
+  },
 
   cardTitle: {
     color: "#fff",
@@ -692,8 +925,11 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
 
-
-  backButtonTop: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  backButtonTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
   backButtonTopText: { color: "#007AFF", marginLeft: 8 },
   backButton: {
     backgroundColor: "#007AFF",
@@ -702,7 +938,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   backButtonText: { color: "#fff", fontWeight: "bold" },
-   // Mindmap styles
+  // Mindmap styles
   mindmapStatusBox: {
     alignItems: "center",
     gap: 8,
@@ -749,7 +985,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 4,
   },
-   rubricCard: {
+  rubricCard: {
     backgroundColor: "#1f2128",
     padding: 16,
     borderRadius: 12,

@@ -43,6 +43,11 @@ export interface UserImageUpload {
   // Scoring fields (optional)
   score?: number;
   scoreDetails?: any;
+  essay_text?: string;
+  essay_topic?: string;
+  details?: any;
+  rubric?: any;
+  fairness_report?: any;
 }
 
 export interface CreateImageUploadData {
@@ -149,14 +154,32 @@ export class UserImageService {
         }
       }
 
-      const firestoreImages = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...(data as any),
-          uploadedAt: (data as any).uploadedAt?.toDate() || new Date(),
-        } as UserImageUpload;
-      });
+      const firestoreImages = await Promise.all(
+        querySnapshot.docs.map(async (doc) => {
+          const data = doc.data();
+          const storagePath = (data as any).storagePath;
+          
+          // Regenerate download URL on-the-fly to ensure token is always fresh
+          let imageUrl = (data as any).imageUrl;
+          if (storagePath && storage) {
+            try {
+              const storageRef = ref(storage, storagePath);
+              imageUrl = await getDownloadURL(storageRef);
+              dlog(`✅ Regenerated fresh download URL for ${storagePath}`);
+            } catch (err) {
+              dwarn(`⚠️ Failed to regenerate URL for ${storagePath}, using stored URL:`, err);
+              // Fall back to stored URL if regeneration fails
+            }
+          }
+          
+          return {
+            id: doc.id,
+            ...(data as any),
+            imageUrl, // Use freshly generated or fallback URL
+            uploadedAt: (data as any).uploadedAt?.toDate() || new Date(),
+          } as UserImageUpload;
+        })
+      );
 
       dlog(`📊 Found ${firestoreImages.length} images in Firestore for user ${userId}`);
 
@@ -337,20 +360,17 @@ export class UserImageService {
     }
   }
 
-  /**
+/**
  * Update score results in Firestore
  */
-  static async updateImageScore(id: string, scoreData: any): Promise<void> {
+static async updateImageScore(id: string, scoreData: any): Promise<void> {
   if (!db) throw new Error("Firestore not initialized");
 
   const docRef = doc(db, this.COLLECTION, id);
 
-  // 🔥 Clean data to avoid undefined/null Firestore crashes
+  // 🔥 Save ALL fields from scoreData (including essay_text + essay_topic)
   const cleanedData = cleanFirestore({
-    score: scoreData.score,
-    scoreDetails: scoreData.details,
-    rubric: scoreData.rubric,
-    fairness_report: scoreData.fairness_report,
+    ...scoreData,                 // <-- spread EVERYTHING coming in
     updatedAt: new Date().toISOString(),
   });
 
@@ -358,6 +378,7 @@ export class UserImageService {
 
   dlog("✅ Score updated:", { id, cleanedData });
 }
+
 
 
 }
