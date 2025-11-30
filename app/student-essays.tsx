@@ -22,11 +22,111 @@ export default function StudentEssaysScreen() {
   const [studentInfo, setStudentInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { t } = useLanguage();
   const DEBUG = __DEV__ === true;
   const initializedRef = useRef(false);
+  const PAGE_SIZE = 3;
+
+  // SVG Pie chart (uses dynamic import for react-native-svg with graceful fallback)
+  const PieChart: React.FC<{
+    segments: { label: string; short: string; color: string; value: number }[];
+  }> = ({ segments }) => {
+    const [SvgLib, setSvgLib] = useState<any | null>(null);
+    useEffect(() => {
+      let mounted = true;
+      import("react-native-svg")
+        .then((mod) => {
+          if (mounted) setSvgLib(mod as any);
+        })
+        .catch(() => setSvgLib(null));
+      return () => {
+        mounted = false;
+      };
+    }, []);
+
+    const total = segments.reduce((s, v) => s + v.value, 0) || 1;
+    if (!SvgLib) {
+      return (
+        <View style={styles.pieFallback}>
+          <Text style={styles.pieFallbackText}>
+            Install react-native-svg to enable the pie chart
+          </Text>
+        </View>
+      );
+    }
+
+    const { Svg, G, Path, Circle } = SvgLib;
+    const size = 180;
+    const r = 70;
+    const cx = size / 2;
+    const cy = size / 2;
+
+    function polarToCartesian(
+      cx: number,
+      cy: number,
+      radius: number,
+      angleDeg: number
+    ) {
+      const rad = ((angleDeg - 90) * Math.PI) / 180;
+      return {
+        x: cx + radius * Math.cos(rad),
+        y: cy + radius * Math.sin(rad),
+      };
+    }
+
+    let startAngle = 0;
+    const arcsWithLabels: React.ReactElement[] = [];
+    segments.forEach((seg, idx) => {
+      const angle = (seg.value / total) * 360;
+      const endAngle = startAngle + angle;
+      const largeArc = angle > 180 ? 1 : 0;
+      const start = polarToCartesian(cx, cy, r, endAngle);
+      const end = polarToCartesian(cx, cy, r, startAngle);
+      const d = [
+        `M ${cx} ${cy}`,
+        `L ${end.x} ${end.y}`,
+        `A ${r} ${r} 0 ${largeArc} 1 ${start.x} ${start.y}`,
+        "Z",
+      ].join(" ");
+      const path = <Path key={`arc-${idx}`} d={d} fill={seg.color} />;
+      arcsWithLabels.push(path);
+
+      // Add percentage label at midpoint of arc
+      const midAngle = startAngle + angle / 2;
+      const labelRadius = r * 0.75;
+      const labelPos = polarToCartesian(cx, cy, labelRadius, midAngle);
+      const percentage = ((seg.value / total) * 100).toFixed(0);
+      if (Number(percentage) > 5) {
+        // Only show label if segment is big enough
+        arcsWithLabels.push(
+          <View
+            key={`label-${idx}`}
+            style={{
+              position: "absolute",
+              left: labelPos.x - 15,
+              top: labelPos.y - 10,
+            }}
+          >
+            <Text style={styles.pieLabel}>{percentage}%</Text>
+          </View>
+        );
+      }
+      startAngle = endAngle;
+    });
+
+    return (
+      <View style={styles.pieChartWrapper}>
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <G>{arcsWithLabels.filter((el) => el.type !== View)}</G>
+          <Circle cx={cx} cy={cy} r={r * 0.55} fill="#181A20" />
+        </Svg>
+        {arcsWithLabels.filter((el) => el.type === View)}
+      </View>
+    );
+  };
 
   useEffect(() => {
     if (initializedRef.current) return;
@@ -48,6 +148,16 @@ export default function StudentEssaysScreen() {
       initializedRef.current = true;
     }
   }, [studentData]);
+
+  // Clamp current page when essays length changes (e.g., after deletion)
+  useEffect(() => {
+    if (!studentInfo?.essays) return;
+    const totalPages = Math.max(
+      1,
+      Math.ceil(studentInfo.essays.length / PAGE_SIZE)
+    );
+    setCurrentPage((prev) => Math.min(prev, totalPages));
+  }, [studentInfo]);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
@@ -256,9 +366,75 @@ export default function StudentEssaysScreen() {
               </View>
             </View>
           </View>
-
-      
         </View>
+
+        {/* Submitted Essays (Top with Pagination) */}
+        {(() => {
+          const totalEssays = studentInfo.essays.length;
+          const totalPages = Math.max(1, Math.ceil(totalEssays / PAGE_SIZE));
+          const startIndex = (currentPage - 1) * PAGE_SIZE;
+          const endIndex = Math.min(startIndex + PAGE_SIZE, totalEssays);
+          const pagedEssays = studentInfo.essays.slice(startIndex, endIndex);
+          return (
+            <View style={styles.essaysSection}>
+              <View style={styles.essaysHeaderRow}>
+                <Text style={styles.sectionTitle}>
+                  {t("studentEssays.title")}
+                </Text>
+                {totalPages > 1 && (
+                  <View style={styles.pagination}>
+                    <TouchableOpacity
+                      style={[
+                        styles.pageButton,
+                        currentPage === 1 && styles.pageButtonDisabled,
+                      ]}
+                      disabled={currentPage === 1}
+                      onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    >
+                      <MaterialIcons
+                        name="chevron-left"
+                        size={20}
+                        color={currentPage === 1 ? "#555" : "#fff"}
+                      />
+                    </TouchableOpacity>
+                    <Text style={styles.pageInfo}>
+                      {currentPage}/{totalPages}
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.pageButton,
+                        currentPage === totalPages && styles.pageButtonDisabled,
+                      ]}
+                      disabled={currentPage === totalPages}
+                      onPress={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
+                    >
+                      <MaterialIcons
+                        name="chevron-right"
+                        size={20}
+                        color={currentPage === totalPages ? "#555" : "#fff"}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              <FlatList
+                data={pagedEssays}
+                renderItem={renderEssayItem}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+              />
+
+              {totalPages > 1 && (
+                <Text style={styles.rangeInfo}>
+                  Showing {startIndex + 1}-{endIndex} of {totalEssays}
+                </Text>
+              )}
+            </View>
+          );
+        })()}
 
         {/* Analytics Dashboard */}
         <View style={styles.feedbackSection}>
@@ -302,45 +478,38 @@ export default function StudentEssaysScreen() {
             );
 
             // Rubric averages
-            const avgRichness =
-              scoredEssays
-                .filter((e) => e.rubric?.richness_5)
-                .reduce((sum, e) => sum + (e.rubric?.richness_5 || 0), 0) /
-              totalScored;
-            const avgOrganization =
-              scoredEssays
-                .filter((e) => e.rubric?.organization_6)
-                .reduce((sum, e) => sum + (e.rubric?.organization_6 || 0), 0) /
-              totalScored;
-            const avgTechnical =
-              scoredEssays
-                .filter((e) => e.rubric?.technical_3)
-                .reduce((sum, e) => sum + (e.rubric?.technical_3 || 0), 0) /
-              totalScored;
+            const richnessEssays = scoredEssays.filter(
+              (e: UserImageUpload) => e.rubric?.richness_5 !== undefined
+            );
+            const avgRichness = richnessEssays.length > 0
+              ? richnessEssays.reduce(
+                  (sum: number, e: UserImageUpload) =>
+                    sum + (e.rubric?.richness_5 || 0),
+                  0
+                ) / richnessEssays.length
+              : 0;
+            const organizationEssays = scoredEssays.filter(
+              (e: UserImageUpload) => e.rubric?.organization_6 !== undefined
+            );
+            const avgOrganization = organizationEssays.length > 0
+              ? organizationEssays.reduce(
+                  (sum: number, e: UserImageUpload) =>
+                    sum + (e.rubric?.organization_6 || 0),
+                  0
+                ) / organizationEssays.length
+              : 0;
+            const technicalEssays = scoredEssays.filter(
+              (e: UserImageUpload) => e.rubric?.technical_3 !== undefined
+            );
+            const avgTechnical = technicalEssays.length > 0
+              ? technicalEssays.reduce(
+                  (sum: number, e: UserImageUpload) =>
+                    sum + (e.rubric?.technical_3 || 0),
+                  0
+                ) / technicalEssays.length
+              : 0;
 
-            // Fairness metrics aggregation
-            const fairnessData = scoredEssays.filter((e) => e.fairness_report);
-            const avgSPD =
-              fairnessData.length > 0
-                ? fairnessData.reduce(
-                    (sum, e) => sum + (parseFloat(e.fairness_report?.spd) || 0),
-                    0
-                  ) / fairnessData.length
-                : 0;
-            const avgDIR =
-              fairnessData.length > 0
-                ? fairnessData.reduce(
-                    (sum, e) => sum + (parseFloat(e.fairness_report?.dir) || 0),
-                    0
-                  ) / fairnessData.length
-                : 0;
-            const avgEOD =
-              fairnessData.length > 0
-                ? fairnessData.reduce(
-                    (sum, e) => sum + (parseFloat(e.fairness_report?.eod) || 0),
-                    0
-                  ) / fairnessData.length
-                : 0;
+            // Fairness metrics removed as per request
 
             // Trend analysis (last 3 vs first 3)
             const recentEssays = scoredEssays.slice(
@@ -351,18 +520,22 @@ export default function StudentEssaysScreen() {
               -Math.min(3, scoredEssays.length)
             );
             const recentAvg =
-              recentEssays.reduce((sum, e) => sum + (e.score || 0), 0) /
-              recentEssays.length;
+              recentEssays.reduce(
+                (sum: number, e: UserImageUpload) => sum + (e.score || 0),
+                0
+              ) / recentEssays.length;
             const oldAvg =
-              oldEssays.reduce((sum, e) => sum + (e.score || 0), 0) /
-              oldEssays.length;
+              oldEssays.reduce(
+                (sum: number, e: UserImageUpload) => sum + (e.score || 0),
+                0
+              ) / oldEssays.length;
             const trend = recentAvg - oldAvg;
             const trendPercentage =
               oldAvg > 0 ? ((trend / oldAvg) * 100).toFixed(1) : "0.0";
 
             // Dyslexia detection stats
             const dyslexicCount = scoredEssays.filter(
-              (e) => e.details?.dyslexic_flag
+              (e: UserImageUpload) => e.details?.dyslexic_flag
             ).length;
             const dyslexicRate = ((dyslexicCount / totalScored) * 100).toFixed(
               0
@@ -443,10 +616,10 @@ export default function StudentEssaysScreen() {
 
                       {/* Data points and line */}
                       <View style={styles.chartDataContainer}>
-                        {scoredEssays
+                        {(scoredEssays as UserImageUpload[])
                           .slice(0, Math.min(10, scoredEssays.length))
                           .reverse()
-                          .map((essay, index) => {
+                          .map((essay: UserImageUpload, index: number) => {
                             const heightPercent =
                               ((essay.score || 0) / 14) * 100;
                             return (
@@ -639,55 +812,36 @@ export default function StudentEssaysScreen() {
                     </View>
                   </View>
 
-                  {/* Radar-style visualization */}
+                  {/* Pie chart visualization */}
                   <View style={styles.radarContainer}>
-                    <Text style={styles.radarTitle}>Skill Distribution</Text>
-                    <View style={styles.radarChart}>
-                      {/* Center point */}
-                      <View style={styles.radarCenter}>
-                        <Text style={styles.radarCenterText}>
-                          {avgScore.toFixed(1)}
-                        </Text>
-                        <Text style={styles.radarCenterLabel}>Total</Text>
-                      </View>
+                    <Text style={styles.radarTitle}>
+                      Skill Distribution (Pie)
+                    </Text>
+                    {(() => {
+                      // Use actual scores (not normalized) for proper pie chart proportions
+                      const segments = [
+                        {
+                          short: "R",
+                          label: "Richness",
+                          color: "#10B981",
+                          value: Math.max(0.1, avgRichness), // minimum 0.1 to show segment
+                        },
+                        {
+                          short: "O",
+                          label: "Organization",
+                          color: "#F59E0B",
+                          value: Math.max(0.1, avgOrganization),
+                        },
+                        {
+                          short: "T",
+                          label: "Technical",
+                          color: "#8B5CF6",
+                          value: Math.max(0.1, avgTechnical),
+                        },
+                      ];
+                      return <PieChart segments={segments} />;
+                    })()}
 
-                      {/* Skill segments */}
-                      <View style={styles.radarSegments}>
-                        <View
-                          style={[
-                            styles.radarSegment,
-                            {
-                              width: `${(avgRichness / 5) * 100}%`,
-                              backgroundColor: "#10B981",
-                            },
-                          ]}
-                        >
-                          <Text style={styles.radarSegmentLabel}>R</Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.radarSegment,
-                            {
-                              width: `${(avgOrganization / 6) * 100}%`,
-                              backgroundColor: "#F59E0B",
-                            },
-                          ]}
-                        >
-                          <Text style={styles.radarSegmentLabel}>O</Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.radarSegment,
-                            {
-                              width: `${(avgTechnical / 3) * 100}%`,
-                              backgroundColor: "#8B5CF6",
-                            },
-                          ]}
-                        >
-                          <Text style={styles.radarSegmentLabel}>T</Text>
-                        </View>
-                      </View>
-                    </View>
                     <View style={styles.radarLegend}>
                       <View style={styles.radarLegendItem}>
                         <View
@@ -696,7 +850,9 @@ export default function StudentEssaysScreen() {
                             { backgroundColor: "#10B981" },
                           ]}
                         />
-                        <Text style={styles.radarLegendText}>R = Richness</Text>
+                        <Text style={styles.radarLegendText}>
+                          Richness: {avgRichness.toFixed(1)}/5 ({((avgRichness / 5) * 100).toFixed(0)}%)
+                        </Text>
                       </View>
                       <View style={styles.radarLegendItem}>
                         <View
@@ -706,7 +862,7 @@ export default function StudentEssaysScreen() {
                           ]}
                         />
                         <Text style={styles.radarLegendText}>
-                          O = Organization
+                          Organization: {avgOrganization.toFixed(1)}/6 ({((avgOrganization / 6) * 100).toFixed(0)}%)
                         </Text>
                       </View>
                       <View style={styles.radarLegendItem}>
@@ -717,213 +873,14 @@ export default function StudentEssaysScreen() {
                           ]}
                         />
                         <Text style={styles.radarLegendText}>
-                          T = Technical
+                          Technical: {avgTechnical.toFixed(1)}/3 ({((avgTechnical / 3) * 100).toFixed(0)}%)
                         </Text>
                       </View>
                     </View>
                   </View>
                 </View>
 
-                {/* Score Distribution Pie Chart */}
-                <View style={styles.dashboardCard}>
-                  <View style={styles.cardHeader}>
-                    <MaterialIcons name="pie-chart" size={20} color="#EC4899" />
-                    <Text style={styles.cardTitle}>Score Distribution</Text>
-                  </View>
-
-                  {(() => {
-                    // Calculate score ranges
-                    const excellent = scoredEssays.filter(
-                      (e) => (e.score || 0) >= 12
-                    ).length;
-                    const good = scoredEssays.filter(
-                      (e) => (e.score || 0) >= 9 && (e.score || 0) < 12
-                    ).length;
-                    const average = scoredEssays.filter(
-                      (e) => (e.score || 0) >= 6 && (e.score || 0) < 9
-                    ).length;
-                    const needsWork = scoredEssays.filter(
-                      (e) => (e.score || 0) < 6
-                    ).length;
-
-                    const excellentPct = (excellent / totalScored) * 100;
-                    const goodPct = (good / totalScored) * 100;
-                    const avgPct = (average / totalScored) * 100;
-                    const needsWorkPct = (needsWork / totalScored) * 100;
-
-                    return (
-                      <View>
-                        {/* Stacked bar representation */}
-                        <View style={styles.stackedBar}>
-                          {excellent > 0 && (
-                            <View
-                              style={[
-                                styles.stackedSegment,
-                                {
-                                  width: `${excellentPct}%`,
-                                  backgroundColor: "#10B981",
-                                },
-                              ]}
-                            />
-                          )}
-                          {good > 0 && (
-                            <View
-                              style={[
-                                styles.stackedSegment,
-                                {
-                                  width: `${goodPct}%`,
-                                  backgroundColor: "#60A5FA",
-                                },
-                              ]}
-                            />
-                          )}
-                          {average > 0 && (
-                            <View
-                              style={[
-                                styles.stackedSegment,
-                                {
-                                  width: `${avgPct}%`,
-                                  backgroundColor: "#F59E0B",
-                                },
-                              ]}
-                            />
-                          )}
-                          {needsWork > 0 && (
-                            <View
-                              style={[
-                                styles.stackedSegment,
-                                {
-                                  width: `${needsWorkPct}%`,
-                                  backgroundColor: "#EF4444",
-                                },
-                              ]}
-                            />
-                          )}
-                        </View>
-
-                        {/* Legend with stats */}
-                        <View style={styles.distributionLegend}>
-                          <View style={styles.distributionItem}>
-                            <View
-                              style={[
-                                styles.distributionDot,
-                                { backgroundColor: "#10B981" },
-                              ]}
-                            />
-                            <Text style={styles.distributionLabel}>
-                              Excellent (12-14)
-                            </Text>
-                            <Text style={styles.distributionValue}>
-                              {excellent} ({excellentPct.toFixed(0)}%)
-                            </Text>
-                          </View>
-                          <View style={styles.distributionItem}>
-                            <View
-                              style={[
-                                styles.distributionDot,
-                                { backgroundColor: "#60A5FA" },
-                              ]}
-                            />
-                            <Text style={styles.distributionLabel}>
-                              Good (9-11)
-                            </Text>
-                            <Text style={styles.distributionValue}>
-                              {good} ({goodPct.toFixed(0)}%)
-                            </Text>
-                          </View>
-                          <View style={styles.distributionItem}>
-                            <View
-                              style={[
-                                styles.distributionDot,
-                                { backgroundColor: "#F59E0B" },
-                              ]}
-                            />
-                            <Text style={styles.distributionLabel}>
-                              Average (6-8)
-                            </Text>
-                            <Text style={styles.distributionValue}>
-                              {average} ({avgPct.toFixed(0)}%)
-                            </Text>
-                          </View>
-                          <View style={styles.distributionItem}>
-                            <View
-                              style={[
-                                styles.distributionDot,
-                                { backgroundColor: "#EF4444" },
-                              ]}
-                            />
-                            <Text style={styles.distributionLabel}>
-                              Needs Work (0-5)
-                            </Text>
-                            <Text style={styles.distributionValue}>
-                              {needsWork} ({needsWorkPct.toFixed(0)}%)
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  })()}
-                </View>
-
-                {/* Fairness Metrics Dashboard */}
-                {fairnessData.length > 0 && (
-                  <View style={styles.dashboardCard}>
-                    <View style={styles.cardHeader}>
-                      <MaterialIcons name="balance" size={20} color="#EC4899" />
-                      <Text style={styles.cardTitle}>
-                        Fairness & Bias Metrics
-                      </Text>
-                    </View>
-                    <Text style={styles.fairnessDescription}>
-                      AI fairness indicators ensure unbiased assessment across
-                      all students
-                    </Text>
-
-                    <View style={styles.fairnessMetricsGrid}>
-                      <View style={styles.fairnessMetric}>
-                        <Text style={styles.fairnessMetricLabel}>SPD</Text>
-                        <Text style={styles.fairnessMetricValue}>
-                          {avgSPD.toFixed(3)}
-                        </Text>
-                        <Text style={styles.fairnessMetricDesc}>
-                          Statistical Parity
-                        </Text>
-                      </View>
-                      <View style={styles.fairnessMetric}>
-                        <Text style={styles.fairnessMetricLabel}>DIR</Text>
-                        <Text style={styles.fairnessMetricValue}>
-                          {avgDIR.toFixed(3)}
-                        </Text>
-                        <Text style={styles.fairnessMetricDesc}>
-                          Disparate Impact
-                        </Text>
-                      </View>
-                      <View style={styles.fairnessMetric}>
-                        <Text style={styles.fairnessMetricLabel}>EOD</Text>
-                        <Text style={styles.fairnessMetricValue}>
-                          {avgEOD.toFixed(3)}
-                        </Text>
-                        <Text style={styles.fairnessMetricDesc}>
-                          Equal Opportunity
-                        </Text>
-                      </View>
-                    </View>
-
-                    {latestEssay.fairness_report?.mitigation_used && (
-                      <View style={styles.mitigationBadge}>
-                        <MaterialIcons
-                          name="verified-user"
-                          size={16}
-                          color="#10B981"
-                        />
-                        <Text style={styles.mitigationText}>
-                          Bias Mitigation:{" "}
-                          {latestEssay.fairness_report.mitigation_used}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                )}
+                {/* Fairness Metrics Dashboard removed as requested */}
 
                 {/* Special Needs Detection */}
                 <View style={styles.dashboardCard}>
@@ -951,7 +908,9 @@ export default function StudentEssaysScreen() {
                     </View>
                     <View style={styles.dyslexiaStatItem}>
                       <Text style={styles.dyslexiaRate}>{dyslexicRate}%</Text>
-                      <Text style={styles.dyslexiaLabel}>Average Dyslexia Rate</Text>
+                      <Text style={styles.dyslexiaLabel}>
+                        Dyslexia Rate
+                      </Text>
                     </View>
                   </View>
                   {dyslexicCount > 0 && (
@@ -1067,16 +1026,7 @@ export default function StudentEssaysScreen() {
           })()}
         </View>
 
-        {/* Essays List */}
-        <View style={styles.essaysSection}>
-          <Text style={styles.sectionTitle}>{t("studentEssays.title")}</Text>
-          <FlatList
-            data={studentInfo.essays}
-            renderItem={renderEssayItem}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-          />
-        </View>
+        {/* Essays List moved to top with pagination */}
       </View>
     </ScrollView>
   );
@@ -1371,6 +1321,33 @@ const styles = StyleSheet.create({
   radarLegendText: {
     color: "#B0B3C6",
     fontSize: 11,
+  },
+  pieChartWrapper: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    position: "relative",
+  },
+  pieLabel: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
+    textShadowColor: "rgba(0, 0, 0, 0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  pieFallback: {
+    backgroundColor: "#23262F",
+    borderWidth: 1,
+    borderColor: "#333640",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  pieFallbackText: {
+    color: "#B0B3C6",
+    fontSize: 12,
+    textAlign: "center",
   },
   // Score Distribution (Pie/Stacked Bar) Styles
   stackedBar: {
@@ -1706,6 +1683,40 @@ const styles = StyleSheet.create({
   },
   essaysSection: {
     marginBottom: 20,
+  },
+  essaysHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  pagination: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  pageButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#23262F",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#333640",
+  },
+  pageButtonDisabled: {
+    opacity: 0.5,
+  },
+  pageInfo: {
+    color: "#B0B3C6",
+    fontSize: 12,
+  },
+  rangeInfo: {
+    color: "#B0B3C6",
+    fontSize: 12,
+    textAlign: "right",
+    marginTop: 8,
   },
   sectionTitle: {
     color: "#fff",
