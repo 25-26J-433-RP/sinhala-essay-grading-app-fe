@@ -193,5 +193,43 @@
     "status": "තත්ත්වය",
     "active": "ක්‍රියාත්මක",
     "settingUp": "සකසමින්..."
+  },
+  "screenTitles": {
+    "profile": "පැතිකඩ",
+    "addStudent": "නව ශිෂ්‍යයා එක් කරන්න",
+    "studentEssays": "ශිෂ්‍ය රචනා",
+    "imageDetail": "රචනා විස්තර",
+    "essayMindmap": "රචනා මනස් සිතියම",
+    "mindmapDemo": "මනස් සිතියම සාධක"
+  },
+  "analytics": {
+    "dashboard": "ක්‍රියාකාරිතා විශ්ලේෂණ ඩ්‍රැෂ්බෝර්ඩ්",
+    "noAnalyticsYet": "විශ්ලේෂණ තවම ලබා ගත නොහැක. ක්‍රියාකාරිතා බිඳතැබීම සඳහා රචනා ලකුණු කරන්න.",
+    "essaysScored": "රචනා ලකුණු කෙරුණු",
+    "avgScore": "සාමාන්‍ය ලකුණු",
+    "bestScore": "හොඳම ලකුණු",
+    "lowestScore": "අඩුතම ලකුණු",
+    "scoreProgression": "ලකුණු ප්‍රගතිය කාලයතුරුවෙන්",
+    "lastEssays": "අවසන් {{count}} රචනා (පැරණිම සිට නවතම)",
+    "performanceTrend": "ක්‍රියාකාරිතා ප්‍රවණතා විශ්ලේෂණ",
+    "recentAverage": "සම්ප්‍රතික සාමාන්‍ය (අවසන් 3)",
+    "earlierAverage": "පෙර සාමාන්‍ය",
+    "improvement": "ඉහළගමනය",
+    "decline": "පහත්බිම",
+    "skillBreakdown": "කුසලතා බිඳවැටීම් විශ්ලේෂණ",
+    "skillDistribution": "කුසලතා බිතිකරණය (පයි)",
+    "learningSupport": "ඉගෙනුම් සහාය දර්ශක",
+    "essaysFlagged": "රචනා සැඟවිණු",
+    "dyslexiaRate": "වචනවිකාරතා අනුපාතය",
+    "personalizedRecommendations": "පුද්ගලාරෝපිත නිර්දේශ",
+    "latestEssaySnapshot": "අවසන්ම රචනාව",
+    "vocabEnrichment": "වචන ඉතිරි කිරීම් නිර්දේශ - වර්තමාන සාමාන්‍ය {{avg}}/5",
+    "essayStructure": "අවරණ ව්‍යුහ සහ නිර්මාණාත්මක ප්‍රකාශනය ක්‍රියා කරන්න - වර්තමාන සාමාන්‍ය {{avg}}/6",
+    "grammarSkills": "ව්‍යාකරණ සහ තාක්ෂණික ලිවීම කුසලතා ශක්තිමත් කරන්න - වර්තමාන සාමාන්‍ය {{avg}}/3",
+    "performanceDecline": "ක්‍රියාකාරිතා පහත්ගිය - එකින් එක උපදේශන සැසිය සලකා බලන්න",
+    "excellentPerformance": "විශිෂ්ට ක්‍රියාකාරිතා! අසාමාන්‍ය ලිවීම අවස්තා දිරිමත් කරන්න",
+    "specializedSupport": "මෙම ශිෂ්‍යයා සඳහා විශේෂිත සහාය හෝ සුවිධාන සලකා බලන්න",
+    "topic": "මාතෘකාව",
+    "score": "ලකුණු"
   }
 }
