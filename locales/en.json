@@ -59,8 +59,8 @@
   },
   "essay": {
     "title": "Essay Details",
-    "enterSinhalaEssay": "Extracted Sinhala Essay",
-    "topic": "Topic",
+    "enterSinhalaEssay": "Enter Sinhala Essay",
+    "topic": "Topic (optional)",
     "topicPlaceholder": "e.g. මගේ පාසල",
     "essayRequired": "Essay *",
     "essayPlaceholder": "Paste Sinhala essay here",
@@ -173,7 +173,7 @@
   },
   "studentEssays": {
     "title": "Submitted Essays",
-    "backToStudents": "Back to Students Collection",
+    "backToStudents": "Back to Students",
     "loadingEssays": "Loading essays...",
     "studentNotFound": "Student Not Found",
     "goBack": "Go Back",
@@ -193,5 +193,43 @@
     "status": "Status",
     "active": "Active",
     "settingUp": "Setting up..."
+  },
+  "screenTitles": {
+    "profile": "Profile",
+    "addStudent": "Add Student",
+    "studentEssays": "Student Essays",
+    "imageDetail": "Essay Details",
+    "essayMindmap": "Essay Mindmap",
+    "mindmapDemo": "Mindmap Demo"
+  },
+  "analytics": {
+    "dashboard": "Performance Analytics Dashboard",
+    "noAnalyticsYet": "No analytics available yet. Score essays to unlock detailed performance insights.",
+    "essaysScored": "Essays Scored",
+    "avgScore": "Avg Score",
+    "bestScore": "Best Score",
+    "lowestScore": "Lowest Score",
+    "scoreProgression": "Score Progression Over Time",
+    "lastEssays": "Last {{count}} essays (oldest to newest)",
+    "performanceTrend": "Performance Trend Analysis",
+    "recentAverage": "Recent Average (Last 3)",
+    "earlierAverage": "Earlier Average",
+    "improvement": "Improvement",
+    "decline": "Decline",
+    "skillBreakdown": "Skill Breakdown Analysis",
+    "skillDistribution": "Skill Distribution (Pie)",
+    "learningSupport": "Learning Support Indicators",
+    "essaysFlagged": "Essays flagged",
+    "dyslexiaRate": "Dyslexia Rate",
+    "personalizedRecommendations": "Personalized Recommendations",
+    "latestEssaySnapshot": "Latest Essay Snapshot",
+    "vocabEnrichment": "Focus on vocabulary enrichment - current average {{avg}}/5",
+    "essayStructure": "Work on essay structure and creative expression - current average {{avg}}/6",
+    "grammarSkills": "Strengthen grammar and technical writing skills - current average {{avg}}/3",
+    "performanceDecline": "Performance declining - consider one-on-one tutoring session",
+    "excellentPerformance": "Excellent performance! Encourage advanced writing challenges",
+    "specializedSupport": "Consider specialized support or accommodations for this student",
+    "topic": "Topic",
+    "score": "Score"
   }
 }

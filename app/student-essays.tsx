@@ -558,9 +558,7 @@ export default function StudentEssaysScreen() {
         <View style={styles.feedbackSection}>
           <View style={styles.feedbackHeader}>
             <MaterialIcons name="analytics" size={24} color="#007AFF" />
-            <Text style={styles.sectionTitle}>
-              Performance Analytics Dashboard
-            </Text>
+            <Text style={styles.sectionTitle}>{t("analytics.dashboard")}</Text>
           </View>
 
           {(() => {
@@ -574,8 +572,7 @@ export default function StudentEssaysScreen() {
                 <View style={styles.noFeedbackContainer}>
                   <MaterialIcons name="assessment" size={64} color="#B0B3C6" />
                   <Text style={styles.noFeedbackText}>
-                    No analytics available yet. Score essays to unlock detailed
-                    performance insights.
+                    {t("analytics.noAnalyticsYet")}
                   </Text>
                 </View>
               );
@@ -686,7 +683,9 @@ export default function StudentEssaysScreen() {
                       color="#007AFF"
                     />
                     <Text style={styles.statCardValue}>{totalScored}</Text>
-                    <Text style={styles.statCardLabel}>Essays Scored</Text>
+                    <Text style={styles.statCardLabel}>
+                      {t("analytics.essaysScored")}
+                    </Text>
                   </View>
                   <View style={styles.statCard}>
                     <MaterialIcons
@@ -697,7 +696,9 @@ export default function StudentEssaysScreen() {
                     <Text style={styles.statCardValue}>
                       {avgScore.toFixed(1)}
                     </Text>
-                    <Text style={styles.statCardLabel}>Avg Score</Text>
+                    <Text style={styles.statCardLabel}>
+                      {t("analytics.avgScore")}
+                    </Text>
                   </View>
                   <View style={styles.statCard}>
                     <MaterialIcons
@@ -706,7 +707,9 @@ export default function StudentEssaysScreen() {
                       color="#F59E0B"
                     />
                     <Text style={styles.statCardValue}>{maxScore}</Text>
-                    <Text style={styles.statCardLabel}>Best Score</Text>
+                    <Text style={styles.statCardLabel}>
+                      {t("analytics.bestScore")}
+                    </Text>
                   </View>
                   <View style={styles.statCard}>
                     <MaterialIcons
@@ -715,7 +718,9 @@ export default function StudentEssaysScreen() {
                       color="#EF4444"
                     />
                     <Text style={styles.statCardValue}>{minScore}</Text>
-                    <Text style={styles.statCardLabel}>Lowest Score</Text>
+                    <Text style={styles.statCardLabel}>
+                      {t("analytics.lowestScore")}
+                    </Text>
                   </View>
                 </View>
 
@@ -724,7 +729,7 @@ export default function StudentEssaysScreen() {
                   <View style={styles.cardHeader}>
                     <MaterialIcons name="timeline" size={20} color="#007AFF" />
                     <Text style={styles.cardTitle}>
-                      Score Progression Over Time
+                      {t("analytics.scoreProgression")}
                     </Text>
                   </View>
                   <View style={styles.chartContainer}>
@@ -786,8 +791,9 @@ export default function StudentEssaysScreen() {
                     </View>
                   </View>
                   <Text style={styles.chartCaption}>
-                    Last {Math.min(10, scoredEssays.length)} essays (oldest to
-                    newest)
+                    {t("analytics.lastEssays", {
+                      count: Math.min(10, scoredEssays.length),
+                    })}
                   </Text>
                 </View>
 
@@ -800,13 +806,13 @@ export default function StudentEssaysScreen() {
                       color="#007AFF"
                     />
                     <Text style={styles.cardTitle}>
-                      Performance Trend Analysis
+                      {t("analytics.performanceTrend")}
                     </Text>
                   </View>
                   <View style={styles.trendContainer}>
                     <View style={styles.trendItem}>
                       <Text style={styles.trendLabel}>
-                        Recent Average (Last 3)
+                        {t("analytics.recentAverage")}
                       </Text>
                       <Text style={styles.trendValue}>
                         {recentAvg.toFixed(2)}
@@ -818,7 +824,9 @@ export default function StudentEssaysScreen() {
                       color={trend >= 0 ? "#10B981" : "#EF4444"}
                     />
                     <View style={styles.trendItem}>
-                      <Text style={styles.trendLabel}>Earlier Average</Text>
+                      <Text style={styles.trendLabel}>
+                        {t("analytics.earlierAverage")}
+                      </Text>
                       <Text style={styles.trendValue}>{oldAvg.toFixed(2)}</Text>
                     </View>
                   </View>
@@ -846,7 +854,9 @@ export default function StudentEssaysScreen() {
                     >
                       {trend >= 0 ? "+" : ""}
                       {trendPercentage}%{" "}
-                      {trend >= 0 ? "Improvement" : "Decline"}
+                      {trend >= 0
+                        ? t("analytics.improvement")
+                        : t("analytics.decline")}
                     </Text>
                   </View>
                 </View>
@@ -856,7 +866,7 @@ export default function StudentEssaysScreen() {
                   <View style={styles.cardHeader}>
                     <MaterialIcons name="bar-chart" size={20} color="#8B5CF6" />
                     <Text style={styles.cardTitle}>
-                      Skill Breakdown Analysis
+                      {t("analytics.skillBreakdown")}
                     </Text>
                   </View>
 
@@ -947,7 +957,7 @@ export default function StudentEssaysScreen() {
                   {/* Pie chart visualization */}
                   <View style={styles.radarContainer}>
                     <Text style={styles.radarTitle}>
-                      Skill Distribution (Pie)
+                      {t("analytics.skillDistribution")}
                     </Text>
                     {(() => {
                       // Use actual scores (not normalized) for proper pie chart proportions
@@ -1026,7 +1036,7 @@ export default function StudentEssaysScreen() {
                       color="#60A5FA"
                     />
                     <Text style={styles.cardTitle}>
-                      Learning Support Indicators
+                      {t("analytics.learningSupport")}
                     </Text>
                   </View>
                   <View style={styles.dyslexiaStats}>
@@ -1039,11 +1049,15 @@ export default function StudentEssaysScreen() {
                       <Text style={styles.dyslexiaCount}>
                         {dyslexicCount}/{totalScored}
                       </Text>
-                      <Text style={styles.dyslexiaLabel}>Essays flagged</Text>
+                      <Text style={styles.dyslexiaLabel}>
+                        {t("analytics.essaysFlagged")}
+                      </Text>
                     </View>
                     <View style={styles.dyslexiaStatItem}>
                       <Text style={styles.dyslexiaRate}>{dyslexicRate}%</Text>
-                      <Text style={styles.dyslexiaLabel}>Dyslexia Rate</Text>
+                      <Text style={styles.dyslexiaLabel}>
+                        {t("analytics.dyslexiaRate")}
+                      </Text>
                     </View>
                   </View>
                   {dyslexicCount > 0 && (
@@ -1054,8 +1068,7 @@ export default function StudentEssaysScreen() {
                         color="#F59E0B"
                       />
                       <Text style={styles.recommendationText}>
-                        Consider specialized support or accommodations for this
-                        student
+                        {t("analytics.specializedSupport")}
                       </Text>
                     </View>
                   )}
@@ -1070,7 +1083,7 @@ export default function StudentEssaysScreen() {
                       color="#10B981"
                     />
                     <Text style={styles.cardTitle}>
-                      Personalized Recommendations
+                      {t("analytics.personalizedRecommendations")}
                     </Text>
                   </View>
 
@@ -1079,8 +1092,9 @@ export default function StudentEssaysScreen() {
                     <View style={styles.recommendationItem}>
                       <MaterialIcons name="flag" size={16} color="#EF4444" />
                       <Text style={styles.recommendationItemText}>
-                        Focus on vocabulary enrichment - current average{" "}
-                        {avgRichness.toFixed(1)}/5
+                        {t("analytics.vocabEnrichment", {
+                          avg: avgRichness.toFixed(1),
+                        })}
                       </Text>
                     </View>
                   )}
@@ -1088,8 +1102,9 @@ export default function StudentEssaysScreen() {
                     <View style={styles.recommendationItem}>
                       <MaterialIcons name="flag" size={16} color="#F59E0B" />
                       <Text style={styles.recommendationItemText}>
-                        Work on essay structure and creative expression -
-                        current average {avgOrganization.toFixed(1)}/6
+                        {t("analytics.essayStructure", {
+                          avg: avgOrganization.toFixed(1),
+                        })}
                       </Text>
                     </View>
                   )}
@@ -1097,8 +1112,9 @@ export default function StudentEssaysScreen() {
                     <View style={styles.recommendationItem}>
                       <MaterialIcons name="flag" size={16} color="#EF4444" />
                       <Text style={styles.recommendationItemText}>
-                        Strengthen grammar and technical writing skills -
-                        current average {avgTechnical.toFixed(1)}/3
+                        {t("analytics.grammarSkills", {
+                          avg: avgTechnical.toFixed(1),
+                        })}
                       </Text>
                     </View>
                   )}
@@ -1110,8 +1126,7 @@ export default function StudentEssaysScreen() {
                         color="#EF4444"
                       />
                       <Text style={styles.recommendationItemText}>
-                        Performance declining - consider one-on-one tutoring
-                        session
+                        {t("analytics.performanceDecline")}
                       </Text>
                     </View>
                   )}
@@ -1123,8 +1138,7 @@ export default function StudentEssaysScreen() {
                         color="#10B981"
                       />
                       <Text style={styles.recommendationItemText}>
-                        Excellent performance! Encourage advanced writing
-                        challenges
+                        {t("analytics.excellentPerformance")}
                       </Text>
                     </View>
                   )}
@@ -1138,7 +1152,9 @@ export default function StudentEssaysScreen() {
                       size={20}
                       color="#EC4899"
                     />
-                    <Text style={styles.cardTitle}>Latest Essay Snapshot</Text>
+                    <Text style={styles.cardTitle}>
+                      {t("analytics.latestEssaySnapshot")}
+                    </Text>
                   </View>
                   <View style={styles.latestEssayInfo}>
                     <Text style={styles.latestEssayScore}>
