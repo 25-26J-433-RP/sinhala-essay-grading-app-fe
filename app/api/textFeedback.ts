@@ -24,7 +24,7 @@ export interface TextFeedbackResponse {
 }
 
 const FEEDBACK_API_BASE_URL =
-  "https://sinhala-text-feedback-service-651457725719.europe-west1.run.app";
+  process.env.EXPO_PUBLIC_FEEDBACK_API_BASE_URL;
 
 /**
  * Fetch personalized text feedback from the feedback service
