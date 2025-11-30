@@ -247,7 +247,7 @@ export default function ImageDetailScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <AppHeader />
+        <AppHeader hideRightSection />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>{t("essay.loadingImage")}</Text>
@@ -259,7 +259,7 @@ export default function ImageDetailScreen() {
   if (!imageData) {
     return (
       <View style={styles.container}>
-        <AppHeader />
+        <AppHeader hideRightSection />
         <View style={styles.centerContainer}>
           <MaterialIcons name="error-outline" size={64} color="#FF3B30" />
           <Text style={styles.errorTitle}>{t("essay.imageNotFound")}</Text>
@@ -276,20 +276,9 @@ export default function ImageDetailScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <AppHeader />
+      <AppHeader hideRightSection />
 
       <View style={styles.content}>
-        {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backButtonTop}
-          onPress={() => router.push("/(tabs)/uploaded-images")}
-        >
-          <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
-          <Text style={styles.backButtonTopText}>
-            {t("essay.backToCollection")}
-          </Text>
-        </TouchableOpacity>
-
         {/* Image */}
         <View style={styles.imageContainer}>
           {imageLoading ? (

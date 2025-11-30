@@ -332,7 +332,7 @@ export default function StudentEssaysScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <AppHeader />
+        <AppHeader hideRightSection />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>
@@ -346,7 +346,7 @@ export default function StudentEssaysScreen() {
   if (!studentInfo) {
     return (
       <View style={styles.container}>
-        <AppHeader />
+        <AppHeader hideRightSection />
         <View style={styles.centerContainer}>
           <MaterialIcons name="error-outline" size={64} color="#FF3B30" />
           <Text style={styles.errorTitle}>
@@ -444,26 +444,9 @@ export default function StudentEssaysScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <AppHeader />
+      <AppHeader hideRightSection />
 
       <View style={styles.content}>
-        {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backButtonTop}
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/(tabs)");
-            }
-          }}
-        >
-          <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
-          <Text style={styles.backButtonTopText}>
-            {t("studentEssays.backToStudents")}
-          </Text>
-        </TouchableOpacity>
-
         {/* Student Info Card */}
         <View style={styles.studentInfoCard}>
           <View style={styles.studentHeader}>
