@@ -25,6 +25,7 @@ import { getDownloadURL, ref as storageRef } from "firebase/storage";
 
 import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
 import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // ✅ FIXED IMPORT
+import { fetchTextFeedback, TextFeedbackResponse } from "@/app/api/textFeedback";
 
 import { MindmapView } from "@/components/MindmapView";
 
@@ -56,6 +57,11 @@ export default function ImageDetailScreen() {
   const [mindmapData, setMindmapData] = useState<MindmapData | null>(null);
   const [mindmapLoading, setMindmapLoading] = useState(false);
   const [mindmapError, setMindmapError] = useState<string | null>(null);
+
+  // Text feedback state
+  const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(null);
+  const [textFeedbackLoading, setTextFeedbackLoading] = useState(false);
+  const [textFeedbackError, setTextFeedbackError] = useState<string | null>(null);
 
   // const [isSaving, setIsSaving] = useState(false); // not used currently
   const [isDeleting, setIsDeleting] = useState(false);
@@ -241,6 +247,32 @@ export default function ImageDetailScreen() {
       console.error("Delete image failed", err);
       showToast(t("essay.failedToDelete"), { type: "error" });
       setIsDeleting(false);
+    }
+  };
+
+  const handleFetchTextFeedback = async () => {
+    if (!imageData?.id || !inputText.trim()) {
+      showToast("Missing essay data for feedback", { type: "error" });
+      return;
+    }
+
+    setTextFeedbackLoading(true);
+    setTextFeedbackError(null);
+
+    try {
+      console.log("🔄 Fetching text feedback...");
+      const response = await fetchTextFeedback(imageData.id, inputText);
+      setTextFeedback(response);
+      console.log("✅ Text feedback received:", response);
+      showToast("Feedback generated successfully", { type: "success" });
+    } catch (error: any) {
+      console.error("❌ Failed to fetch text feedback:", error);
+      setTextFeedbackError(
+        error.message || "Failed to fetch feedback"
+      );
+      showToast("Failed to generate feedback", { type: "error" });
+    } finally {
+      setTextFeedbackLoading(false);
     }
   };
 
@@ -454,6 +486,21 @@ export default function ImageDetailScreen() {
                   setMindmapLoading(false);
                   // Don't block the main flow - mindmap is optional
                 }
+
+                // ✅ FETCH TEXT FEEDBACK
+                try {
+                  console.log("📤 Fetching text feedback for essay:", imageData.id);
+                  const feedback = await fetchTextFeedback(imageData.id, inputText);
+                  setTextFeedback(feedback);
+                  console.log("✅ Text feedback received:", feedback);
+                  showToast("Text feedback generated!", { type: "success" });
+                } catch (feedbackErr: any) {
+                  console.error("❌ Text feedback generation failed:", feedbackErr);
+                  setTextFeedbackError(
+                    feedbackErr?.message || "Failed to generate text feedback"
+                  );
+                  // Don't block the main flow - text feedback is optional
+                }
               } catch (err: any) {
                 console.log(
                   "🔥 FIREBASE ERROR (full):",
@@ -513,7 +560,7 @@ export default function ImageDetailScreen() {
           {/* ==================== RUBRIC SECTION ==================== */}
           {scoreData && (
             <View style={styles.rubricCard}>
-              <Text style={styles.rubricTitle}>Rubric Breakdown</Text>
+              <Text style={styles.rubricTitle}>{t('essay.rubricBreakdown')}</Text>
 
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>Richness (5)</Text>
@@ -552,7 +599,7 @@ export default function ImageDetailScreen() {
           {/* ==================== FAIRNESS SECTION ==================== */}
           {scoreData && (
             <View style={styles.fairnessCard}>
-              <Text style={styles.rubricTitle}>Fairness Metrics</Text>
+              <Text style={styles.rubricTitle}>{t('essay.fairnessMetrics')}</Text>
 
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>SPD</Text>
@@ -577,12 +624,114 @@ export default function ImageDetailScreen() {
 
               <View style={{ marginTop: 10 }}>
                 <Text style={styles.fairnessNote}>
-                  Mitigation Used:{" "}
+                  {t('essay.mitigation')}: 
                   <Text style={{ color: "#60A5FA" }}>
                     {scoreData.fairness_report?.mitigation_used ?? "—"}
                   </Text>
                 </Text>
               </View>
+            </View>
+          )}
+
+          {/* PERSONALIZED FEEDBACK SECTION - DYNAMIC API RESPONSE */}
+          {scoreData && (
+            <View style={styles.feedbackCard}>
+              <View style={styles.feedbackHeader}>
+                <Text style={styles.rubricTitle}>{t('essay.personalizedFeedback')}</Text>
+                <TouchableOpacity
+                  style={[styles.feedbackRefreshButton, textFeedbackLoading && { opacity: 0.6 }]}
+                  onPress={handleFetchTextFeedback}
+                  disabled={textFeedbackLoading}
+                >
+                  {textFeedbackLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <MaterialIcons name="refresh" size={18} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {textFeedbackLoading && (
+                <View style={styles.feedbackStatusBox}>
+                  <ActivityIndicator color="#3B82F6" />
+                  <Text style={styles.feedbackStatusText}>Generating feedback...</Text>
+                </View>
+              )}
+
+              {textFeedbackError && (
+                <View style={styles.feedbackErrorBox}>
+                  <MaterialIcons name="error-outline" size={20} color="#EF4444" />
+                  <Text style={styles.feedbackErrorText}>{textFeedbackError}</Text>
+                </View>
+              )}
+
+              {textFeedback ? (
+                <View style={styles.feedbackContent}>
+                  {/* Main Feedback */}
+                  <View style={styles.feedbackMainBox}>
+                    <MaterialIcons
+                      name="lightbulb"
+                      size={20}
+                      color="#F59E0B"
+                      style={styles.feedbackIcon}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.feedbackLabel}>General Feedback</Text>
+                      <Text style={styles.feedbackText}>{textFeedback.feedback}</Text>
+                    </View>
+                  </View>
+
+                  {/* Suggestions */}
+                  {textFeedback.suggestions && textFeedback.suggestions.length > 0 && (
+                    <View style={styles.suggestionsBox}>
+                      <Text style={styles.suggestionsTitle}>Suggestions for Improvement:</Text>
+                      {textFeedback.suggestions.map((suggestion, idx) => (
+                        <View key={idx} style={styles.suggestionItem}>
+                          <Text style={styles.suggestionBullet}>•</Text>
+                          <Text style={styles.suggestionText}>{suggestion}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Text Metrics */}
+                  {textFeedback.metrics && (
+                    <View style={styles.metricsBox}>
+                      <Text style={styles.metricsTitle}>Text Metrics Analysis</Text>
+                      <View style={styles.metricsGrid}>
+                        <View style={styles.metricItem}>
+                          <Text style={styles.metricLabel}>Words</Text>
+                          <Text style={styles.metricValue}>{Math.round(textFeedback.metrics.word_count)}</Text>
+                        </View>
+                        <View style={styles.metricItem}>
+                          <Text style={styles.metricLabel}>Sentences</Text>
+                          <Text style={styles.metricValue}>{Math.round(textFeedback.metrics.sentence_count)}</Text>
+                        </View>
+                        <View style={styles.metricItem}>
+                          <Text style={styles.metricLabel}>Avg Words/Sentence</Text>
+                          <Text style={styles.metricValue}>{textFeedback.metrics.avg_sentence_length.toFixed(1)}</Text>
+                        </View>
+                        <View style={styles.metricItem}>
+                          <Text style={styles.metricLabel}>Characters</Text>
+                          <Text style={styles.metricValue}>{Math.round(textFeedback.metrics.char_length)}</Text>
+                        </View>
+                        <View style={styles.metricItem}>
+                          <Text style={styles.metricLabel}>Repetition Ratio</Text>
+                          <Text style={styles.metricValue}>{(textFeedback.metrics.repetition_ratio * 100).toFixed(1)}%</Text>
+                        </View>
+                        <View style={styles.metricItem}>
+                          <Text style={styles.metricLabel}>Duplicate Words</Text>
+                          <Text style={styles.metricValue}>{Math.round(textFeedback.metrics.duplicate_word_count)}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <Text style={styles.feedbackPlaceholder}>
+                  Click refresh to generate AI-powered feedback
+                </Text>
+              )}
             </View>
           )}
 
@@ -1045,5 +1194,209 @@ const styles = StyleSheet.create({
   fairnessNote: {
     color: "#D1D5DB",
     fontSize: 13,
+  },
+
+  feedbackCard: {
+    backgroundColor: "#1f2128",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#10B981",
+    marginBottom: 20,
+  },
+
+  feedbackItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+
+  feedbackIcon: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+
+  feedbackText: {
+    color: "#E5E7EB",
+    fontSize: 14,
+    flex: 1,
+    lineHeight: 20,
+  },
+
+  feedbackHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  feedbackRefreshButton: {
+    backgroundColor: "#3B82F6",
+    padding: 8,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  feedbackStatusBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    backgroundColor: "#111827",
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+
+  feedbackStatusText: {
+    color: "#3B82F6",
+    fontSize: 13,
+  },
+
+  feedbackErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    backgroundColor: "#7F1D1D",
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+
+  feedbackErrorText: {
+    color: "#FCA5A5",
+    fontSize: 13,
+    flex: 1,
+  },
+
+  feedbackContent: {
+    gap: 12,
+  },
+
+  feedbackMainBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#111827",
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#F59E0B",
+  },
+
+  feedbackLabel: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    marginBottom: 4,
+  },
+
+  suggestionsBox: {
+    backgroundColor: "#111827",
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#10B981",
+  },
+
+  suggestionsTitle: {
+    color: "#10B981",
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 10,
+  },
+
+  suggestionItem: {
+    flexDirection: "row",
+    marginBottom: 8,
+    alignItems: "flex-start",
+  },
+
+  suggestionBullet: {
+    color: "#10B981",
+    fontSize: 16,
+    marginRight: 8,
+    fontWeight: "bold",
+  },
+
+  suggestionText: {
+    color: "#D1D5DB",
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+
+  feedbackPlaceholder: {
+    color: "#6B7280",
+    fontSize: 13,
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 12,
+  },
+
+  apiScoreBox: {
+    backgroundColor: "#111827",
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#3B82F6",
+    marginBottom: 12,
+    alignItems: "center",
+  },
+
+  apiScoreLabel: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    marginBottom: 4,
+  },
+
+  apiScoreValue: {
+    color: "#3B82F6",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+
+  metricsBox: {
+    backgroundColor: "#111827",
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#8B5CF6",
+    marginTop: 12,
+  },
+
+  metricsTitle: {
+    color: "#8B5CF6",
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 10,
+  },
+
+  metricsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  metricItem: {
+    flex: 1,
+    minWidth: "48%",
+    backgroundColor: "#1f2128",
+    padding: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#374151",
+    alignItems: "center",
+  },
+
+  metricLabel: {
+    color: "#9CA3AF",
+    fontSize: 11,
+    marginBottom: 4,
+  },
+
+  metricValue: {
+    color: "#E5E7EB",
+    fontSize: 14,
+    fontWeight: "bold",
   },
 });
