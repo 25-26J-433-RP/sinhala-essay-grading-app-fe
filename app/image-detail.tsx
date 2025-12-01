@@ -23,6 +23,7 @@ import {
 import { storage } from "@/config/firebase";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 
+import { generateAudioFeedback } from "@/app/api/audioFeedback";
 import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
 import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // ✅ FIXED IMPORT
 import {
@@ -31,6 +32,7 @@ import {
 } from "@/app/api/textFeedback";
 
 import { MindmapView } from "@/components/MindmapView";
+import { Audio } from "expo-av";
 
 // 🔥 Prevent Firestore from rejecting undefined/null fields
 function cleanFirestore(obj: any) {
@@ -69,6 +71,15 @@ export default function ImageDetailScreen() {
   const [textFeedbackError, setTextFeedbackError] = useState<string | null>(
     null
   );
+
+  // Audio feedback state
+  const [audioFeedback, setAudioFeedback] = useState<any>(null);
+  const [audioFeedbackLoading, setAudioFeedbackLoading] = useState(false);
+  const [audioFeedbackError, setAudioFeedbackError] = useState<string | null>(
+    null
+  );
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const audioPlayerRef = useRef<Audio.Sound | null>(null);
 
   // const [isSaving, setIsSaving] = useState(false); // not used currently
   const [isDeleting, setIsDeleting] = useState(false);
@@ -110,6 +121,15 @@ export default function ImageDetailScreen() {
       initializedRef.current = true;
     }
   }, [imageDataParam]);
+
+  // Cleanup audio player on unmount
+  useEffect(() => {
+    return () => {
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.unloadAsync();
+      }
+    };
+  }, []);
 
   // Resolve a valid HTTPS image URL for Firebase Storage if needed
   // ALWAYS regenerate from storagePath to ensure token is fresh, not using potentially stale imageUrl
@@ -288,6 +308,42 @@ export default function ImageDetailScreen() {
       showToast("Failed to generate feedback", { type: "error" });
     } finally {
       setTextFeedbackLoading(false);
+    }
+  };
+
+  const handleGenerateAudioFeedback = async () => {
+    if (!imageData?.id || !textFeedback?.feedback) {
+      showToast("Generate text feedback first to create audio", {
+        type: "error",
+      });
+      return;
+    }
+
+    setAudioFeedbackLoading(true);
+    setAudioFeedbackError(null);
+
+    try {
+      console.log("🎙️ Generating audio feedback for essay:", imageData.id);
+
+      const response = await generateAudioFeedback(
+        imageData.id,
+        textFeedback.feedback
+      );
+
+      setAudioFeedback(response);
+      console.log("✅ Audio feedback generated:", response);
+
+      // Save audio feedback to Firestore
+      await UserImageService.updateImageAudioFeedback(imageData.id, response);
+      console.log("💾 Audio feedback saved to Firestore");
+
+      showToast("Audio feedback generated successfully", { type: "success" });
+    } catch (error: any) {
+      console.error("❌ Failed to generate audio feedback:", error);
+      setAudioFeedbackError(error.message || "Failed to generate audio");
+      showToast("Failed to generate audio feedback", { type: "error" });
+    } finally {
+      setAudioFeedbackLoading(false);
     }
   };
 
@@ -807,6 +863,137 @@ export default function ImageDetailScreen() {
                   Click refresh to generate AI-powered feedback
                 </Text>
               )}
+            </View>
+          )}
+
+          {/* AUDIO FEEDBACK SECTION */}
+          {textFeedback && (
+            <View style={styles.audioFeedbackCard}>
+              <View style={styles.audioFeedbackHeader}>
+                <MaterialIcons name="volume-up" size={20} color="#10B981" />
+                <Text style={styles.audioFeedbackTitle}>
+                  Sinhala Audio Feedback
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.generateAudioButton,
+                    audioFeedbackLoading && { opacity: 0.6 },
+                  ]}
+                  onPress={handleGenerateAudioFeedback}
+                  disabled={audioFeedbackLoading}
+                >
+                  {audioFeedbackLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <MaterialIcons name="music-note" size={16} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {audioFeedbackLoading && (
+                <View style={styles.audioLoadingBox}>
+                  <ActivityIndicator color="#10B981" />
+                  <Text style={styles.audioLoadingText}>
+                    Generating audio feedback...
+                  </Text>
+                </View>
+              )}
+
+              {audioFeedbackError && (
+                <View style={styles.audioErrorBox}>
+                  <MaterialIcons
+                    name="error-outline"
+                    size={16}
+                    color="#EF4444"
+                  />
+                  <Text style={styles.audioErrorText}>
+                    {audioFeedbackError}
+                  </Text>
+                </View>
+              )}
+
+              {audioFeedback &&
+                (audioFeedback.audio_url || audioFeedback.audio_base64) && (
+                  <View style={styles.audioPlayerBox}>
+                    <TouchableOpacity
+                      style={styles.playButton}
+                      onPress={async () => {
+                        try {
+                          if (isAudioPlaying) {
+                            // Pause audio
+                            if (audioPlayerRef.current) {
+                              await audioPlayerRef.current.pauseAsync();
+                              setIsAudioPlaying(false);
+                              console.log("⏸️ Audio paused");
+                            }
+                          } else {
+                            // Play audio
+                            if (!audioPlayerRef.current) {
+                              // First time loading - create new Sound object
+                              const sound = new Audio.Sound();
+                              const source = audioFeedback.audio_url
+                                ? { uri: audioFeedback.audio_url }
+                                : { uri: audioFeedback.audio_base64 };
+
+                              await sound.loadAsync(source);
+                              audioPlayerRef.current = sound;
+                              console.log(
+                                audioFeedback.audio_url
+                                  ? "🎵 Playing audio from URL"
+                                  : "🎵 Playing audio from base64"
+                              );
+                            }
+
+                            if (audioPlayerRef.current) {
+                              // Check if already playing
+                              const status =
+                                await audioPlayerRef.current.getStatusAsync();
+                              if (status.isLoaded) {
+                                if (status.isPlaying) {
+                                  // Already playing, do nothing
+                                  return;
+                                } else {
+                                  // Resume from pause
+                                  await audioPlayerRef.current.playAsync();
+                                }
+                              }
+                            }
+
+                            setIsAudioPlaying(true);
+                          }
+                        } catch (error) {
+                          console.error("❌ Audio playback error:", error);
+                          setAudioFeedbackError("Failed to play audio");
+                          showToast("Failed to play audio", { type: "error" });
+                        }
+                      }}
+                    >
+                      <MaterialIcons
+                        name={isAudioPlaying ? "pause" : "play-arrow"}
+                        size={24}
+                        color="#fff"
+                      />
+                    </TouchableOpacity>
+                    <View style={styles.audioInfoBox}>
+                      <Text style={styles.audioPlayingText}>
+                        {isAudioPlaying ? "Playing" : "Ready to play"}
+                      </Text>
+                      {audioFeedback.duration && (
+                        <Text style={styles.audioDurationText}>
+                          Duration: {audioFeedback.duration}s
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                )}
+
+              {!audioFeedback &&
+                !audioFeedbackLoading &&
+                !audioFeedbackError && (
+                  <Text style={styles.audioPlaceholder}>
+                    Click the button to generate Sinhala audio from feedback
+                  </Text>
+                )}
             </View>
           )}
 
@@ -1473,5 +1660,111 @@ const styles = StyleSheet.create({
     color: "#E5E7EB",
     fontSize: 14,
     fontWeight: "bold",
+  },
+
+  // Audio Feedback Styles
+  audioFeedbackCard: {
+    backgroundColor: "#1f2128",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#10B981",
+    marginBottom: 20,
+  },
+
+  audioFeedbackHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  audioFeedbackTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    flex: 1,
+    marginLeft: 8,
+  },
+
+  generateAudioButton: {
+    backgroundColor: "#10B981",
+    padding: 8,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  audioLoadingBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    backgroundColor: "#111827",
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+
+  audioLoadingText: {
+    color: "#10B981",
+    fontSize: 13,
+  },
+
+  audioErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    backgroundColor: "#7F1D1D",
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+
+  audioErrorText: {
+    color: "#FCA5A5",
+    fontSize: 13,
+    flex: 1,
+  },
+
+  audioPlayerBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#111827",
+    padding: 12,
+    borderRadius: 8,
+    gap: 12,
+  },
+
+  playButton: {
+    backgroundColor: "#10B981",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  audioInfoBox: {
+    flex: 1,
+  },
+
+  audioPlayingText: {
+    color: "#E5E7EB",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  audioDurationText: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    marginTop: 4,
+  },
+
+  audioPlaceholder: {
+    color: "#6B7280",
+    fontSize: 13,
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 12,
   },
 });
