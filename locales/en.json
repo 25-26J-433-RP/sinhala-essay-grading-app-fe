@@ -104,7 +104,15 @@
     "feedbackTechnical": "Strengthen grammar and technical writing skills - current score {{score}}/3",
     "feedbackPerformance": "Performance is excellent! Keep up the quality",
     "feedbackDyslexia": "Dyslexia indicators detected - consider providing supportive tools and accommodations",
-    "feedbackGeneral": "Continue practicing and reviewing essay structure to improve overall quality"
+    "feedbackGeneral": "Continue practicing and reviewing essay structure to improve overall quality",
+    "audioFeedback": "Audio Feedback",
+    "generateAudio": "Generate Audio",
+    "audioGenerating": "Generating audio feedback...",
+    "audioGenerated": "Audio feedback generated successfully",
+    "audioError": "Failed to generate audio feedback",
+    "audioPlay": "Play Audio",
+    "audioPause": "Pause Audio",
+    "audioLoading": "Loading audio..."
   },
   "mindmap": {
     "title": "Essay Mindmap",
