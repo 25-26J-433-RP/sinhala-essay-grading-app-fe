@@ -5,6 +5,7 @@ import { storage } from "@/config/firebase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { Audio } from "expo-av";
 import { router, useLocalSearchParams } from "expo-router";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 import React, { useEffect, useRef, useState } from "react";
@@ -20,6 +21,7 @@ import {
   View,
 } from "react-native";
 
+import { generateAudioFeedback } from "@/app/api/audioFeedback";
 import {
   BatchFeedbackRequest,
   BatchFeedbackResponse,
@@ -158,6 +160,15 @@ export default function StudentEssaysScreen() {
     null
   );
 
+  // Audio feedback state
+  const [audioFeedback, setAudioFeedback] = useState<any>(null);
+  const [audioFeedbackLoading, setAudioFeedbackLoading] = useState(false);
+  const [audioFeedbackError, setAudioFeedbackError] = useState<string | null>(
+    null
+  );
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const audioPlayerRef = useRef<Audio.Sound | null>(null);
+
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { t } = useLanguage();
@@ -294,6 +305,15 @@ export default function StudentEssaysScreen() {
     setCurrentPage((prev) => Math.min(prev, totalPages));
   }, [studentInfo]);
 
+  // Cleanup audio player on unmount
+  useEffect(() => {
+    return () => {
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.unloadAsync();
+      }
+    };
+  }, []);
+
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("en-US", {
       year: "numeric",
@@ -384,6 +404,49 @@ export default function StudentEssaysScreen() {
       showToast("Failed to analyze essays", { type: "error" });
     } finally {
       setBatchFeedbackLoading(false);
+    }
+  };
+
+  const handleGenerateAudioFeedback = async () => {
+    if (
+      !batchFeedback?.summary?.common_suggestions ||
+      batchFeedback.summary.common_suggestions.length === 0
+    ) {
+      showToast("No feedback text available for audio generation", {
+        type: "error",
+      });
+      return;
+    }
+
+    setAudioFeedbackLoading(true);
+    setAudioFeedbackError(null);
+
+    try {
+      // Combine all common suggestions into a single feedback text
+      const feedbackText = batchFeedback.summary.common_suggestions.join(" ");
+
+      console.log("🎙️ Generating audio feedback from text:", feedbackText);
+
+      const response = await generateAudioFeedback(
+        `batch-${studentInfo?.id || "student"}`,
+        feedbackText
+      );
+
+      setAudioFeedback(response);
+      console.log("✅ Audio feedback generated:", response);
+
+      await UserImageService.updateImageAudioFeedback(
+        `batch-${studentInfo?.id || "student"}`,
+        response
+      );
+
+      showToast(t("essay.audioGenerated"), { type: "success" });
+    } catch (error: any) {
+      console.error("❌ Failed to generate audio feedback:", error);
+      setAudioFeedbackError(error.message || t("essay.audioError"));
+      showToast(t("essay.audioError"), { type: "error" });
+    } finally {
+      setAudioFeedbackLoading(false);
     }
   };
 
@@ -687,6 +750,139 @@ export default function StudentEssaysScreen() {
                     )}
                   </View>
                 )}
+
+              {/* Audio Feedback Section */}
+              <View style={styles.audioFeedbackBox}>
+                <View style={styles.audioFeedbackHeader}>
+                  <MaterialIcons name="volume-up" size={20} color="#10B981" />
+                  <Text style={styles.audioFeedbackTitle}>
+                    {t("essay.audioFeedback")}
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.generateAudioButton,
+                      audioFeedbackLoading && { opacity: 0.6 },
+                    ]}
+                    onPress={handleGenerateAudioFeedback}
+                    disabled={audioFeedbackLoading}
+                  >
+                    {audioFeedbackLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <MaterialIcons name="music-note" size={16} color="#fff" />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {audioFeedbackLoading && (
+                  <View style={styles.audioLoadingBox}>
+                    <ActivityIndicator color="#10B981" />
+                    <Text style={styles.audioLoadingText}>
+                      {t("essay.audioGenerating")}
+                    </Text>
+                  </View>
+                )}
+
+                {audioFeedbackError && (
+                  <View style={styles.audioErrorBox}>
+                    <MaterialIcons
+                      name="error-outline"
+                      size={16}
+                      color="#EF4444"
+                    />
+                    <Text style={styles.audioErrorText}>
+                      {audioFeedbackError}
+                    </Text>
+                  </View>
+                )}
+
+                {audioFeedback &&
+                  (audioFeedback.audio_url || audioFeedback.audio_base64) && (
+                    <View style={styles.audioPlayerBox}>
+                      <TouchableOpacity
+                        style={styles.playButton}
+                        onPress={async () => {
+                          try {
+                            if (isAudioPlaying) {
+                              // Pause audio
+                              if (audioPlayerRef.current) {
+                                await audioPlayerRef.current.pauseAsync();
+                                setIsAudioPlaying(false);
+                                console.log("⏸️ Audio paused");
+                              }
+                            } else {
+                              // Play audio
+                              if (!audioPlayerRef.current) {
+                                // First time loading - create new Sound object
+                                const sound = new Audio.Sound();
+                                const source = audioFeedback.audio_url
+                                  ? { uri: audioFeedback.audio_url }
+                                  : { uri: audioFeedback.audio_base64 };
+
+                                await sound.loadAsync(source);
+                                audioPlayerRef.current = sound;
+                                console.log(
+                                  audioFeedback.audio_url
+                                    ? "🎵 Playing audio from URL"
+                                    : "🎵 Playing audio from base64"
+                                );
+                              }
+
+                              if (audioPlayerRef.current) {
+                                // Check if already playing
+                                const status =
+                                  await audioPlayerRef.current.getStatusAsync();
+                                if (status.isLoaded) {
+                                  if (status.isPlaying) {
+                                    // Already playing, do nothing
+                                    return;
+                                  } else {
+                                    // Resume from pause
+                                    await audioPlayerRef.current.playAsync();
+                                  }
+                                }
+                              }
+
+                              setIsAudioPlaying(true);
+                            }
+                          } catch (error) {
+                            console.error("❌ Audio playback error:", error);
+                            setAudioFeedbackError("Failed to play audio");
+                            showToast("Failed to play audio", {
+                              type: "error",
+                            });
+                          }
+                        }}
+                      >
+                        <MaterialIcons
+                          name={isAudioPlaying ? "pause" : "play-arrow"}
+                          size={24}
+                          color="#fff"
+                        />
+                      </TouchableOpacity>
+                      <View style={styles.audioInfoBox}>
+                        <Text style={styles.audioPlayingText}>
+                          {isAudioPlaying
+                            ? t("essay.audioPlay")
+                            : t("essay.audioPause")}
+                        </Text>
+                        {audioFeedback.duration && (
+                          <Text style={styles.audioDurationText}>
+                            Duration: {audioFeedback.duration}s
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                {!audioFeedback &&
+                  !audioFeedbackLoading &&
+                  !audioFeedbackError && (
+                    <Text style={styles.audioPlaceholder}>
+                      Click the button to generate Sinhala audio from feedback
+                    </Text>
+                  )}
+              </View>
             </View>
           )}
 
@@ -1412,6 +1608,109 @@ const styles = StyleSheet.create({
   batchFeedbackPlaceholder: {
     color: "#6B7280",
     fontSize: 13,
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 12,
+  },
+
+  audioFeedbackBox: {
+    backgroundColor: "#111827",
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#10B981",
+    marginTop: 12,
+  },
+
+  audioFeedbackHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  audioFeedbackTitle: {
+    color: "#10B981",
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1,
+  },
+
+  generateAudioButton: {
+    backgroundColor: "#10B981",
+    padding: 8,
+    borderRadius: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  audioLoadingBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+  },
+
+  audioLoadingText: {
+    color: "#9CA3AF",
+    fontSize: 12,
+  },
+
+  audioErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#7F1D1D",
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+
+  audioErrorText: {
+    color: "#FCA5A5",
+    fontSize: 12,
+    flex: 1,
+  },
+
+  audioPlayerBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#1f2128",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#10B981",
+  },
+
+  playButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#10B981",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  audioInfoBox: {
+    flex: 1,
+  },
+
+  audioPlayingText: {
+    color: "#10B981",
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+
+  audioDurationText: {
+    color: "#9CA3AF",
+    fontSize: 11,
+  },
+
+  audioPlaceholder: {
+    color: "#6B7280",
+    fontSize: 12,
     fontStyle: "italic",
     textAlign: "center",
     paddingVertical: 12,
