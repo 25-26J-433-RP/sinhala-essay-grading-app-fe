@@ -1,15 +1,15 @@
 import { db, storage } from '@/config/firebase';
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDocs,
-    orderBy,
-    query,
-    serverTimestamp,
-    updateDoc,
-    where
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 
@@ -50,6 +50,13 @@ export interface UserImageUpload {
   fairness_report?: any;
   // Text feedback from API (optional)
   text_feedback?: any;
+  // Audio feedback from TTS API (optional)
+  audio_feedback?: {
+    audio_url?: string;
+    audio_base64?: string;
+    duration?: number;
+    generated_at?: string;
+  };
 }
 
 export interface CreateImageUploadData {
@@ -350,6 +357,47 @@ export class UserImageService {
 
     dlog('✅ Image text feedback updated:', { imageId, textFeedback });
   }
+
+  /**
+   * Update audio feedback for an image (generated from TTS API)
+   * Creates document if it doesn't exist (for batch feedback)
+   */
+  static async updateImageAudioFeedback(imageId: string, audioFeedback: any): Promise<void> {
+    if (!db) {
+      throw new Error('Firestore not initialized. Check your Firebase configuration.');
+    }
+
+    const docRef = doc(db, this.COLLECTION, imageId);
+    
+    try {
+      // Try to update existing document
+      await updateDoc(docRef, {
+        audio_feedback: cleanFirestore({
+          ...audioFeedback,
+          generated_at: new Date().toISOString(),
+        }),
+      });
+      dlog('✅ Image audio feedback updated:', { imageId, audioFeedback });
+    } catch (error: any) {
+      // If document doesn't exist (batch feedback case), create it
+      if (error.code === 'not-found') {
+        dlog('📝 Document not found, creating new document for batch feedback:', { imageId });
+        await addDoc(collection(db, this.COLLECTION), {
+          id: imageId,
+          isBatchFeedback: true,
+          audio_feedback: cleanFirestore({
+            ...audioFeedback,
+            generated_at: new Date().toISOString(),
+          }),
+          createdAt: serverTimestamp(),
+        });
+        dlog('✅ Batch feedback audio created:', { imageId, audioFeedback });
+      } else {
+        throw error;
+      }
+    }
+  }
+
 
   /**
    * Debug method to check all documents in the collection
