@@ -80,43 +80,35 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <AppHeader />
-
-      <View style={styles.hero}>
-        <View style={styles.logoContainer}>
-          <Image
-            source={require("../../assets/images/akura-logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </View>
-        <Text style={styles.heroTitle}>{t("home.welcomeTitle")}</Text>
-        <Text style={styles.heroSubtitle}>{t("home.welcomeSubtitle")}</Text>
-
-        {/* {userProfile && !profileLoading && (
-          <View style={styles.roleFeatures}>
-            <Text style={styles.roleFeaturesTitle}>
-              {isTeacher() ? 'Teacher Dashboard' : 'Student Dashboard'}
-            </Text>
-            <Text style={styles.roleFeaturesText}>
-              {isTeacher() 
-                ? 'Grade essays, provide feedback, and manage student submissions.'
-                : 'Submit essays, view grades, and track your progress.'
-              }
-            </Text>
-            
+    <View style={styles.fullBg}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <AppHeader />
+        <View style={styles.hero}>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require("../../assets/images/akura-logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </View>
-        )} */}
-      </View>
-      <View style={styles.partnerContainer}>
-        <Text style={styles.partnerInfo}>{t("home.developedBy")}</Text>
-      </View>
-    </ScrollView>
+          <Text style={styles.heroTitle}>{t("home.welcomeTitle")}</Text>
+          <Text style={styles.heroSubtitle}>{t("home.welcomeSubtitle")}</Text>
+        </View>
+        <View style={styles.partnerContainer}>
+          <Text style={styles.partnerInfo}>{t("home.developedBy")}</Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  fullBg: {
+    flex: 1,
+    backgroundColor: "#181A20",
+    minHeight: "100%",
+    width: "100%",
+  },
   logoContainer: {
     alignItems: "center",
     marginBottom: 16,
@@ -130,11 +122,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 0,
     paddingHorizontal: 16,
-    backgroundColor: "#181A20",
     minHeight: "100%",
     maxWidth: 1200,
     marginHorizontal: "auto",
     width: "100%",
+    backgroundColor: "transparent",
   },
   hero: {
     flex: 1,
@@ -142,14 +134,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 100,
     paddingHorizontal: 32,
-    backgroundColor: "#23262F",
+    backgroundColor: "#181A20",
     borderRadius: 20,
     marginVertical: 24,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   heroTitle: {
     fontSize: 42,
@@ -164,41 +156,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     maxWidth: 600,
     lineHeight: 32,
-  },
-  roleFeatures: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    backgroundColor: "#1A1D24",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#333640",
-    maxWidth: 500,
-  },
-  roleFeaturesTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  roleFeaturesText: {
-    fontSize: 16,
-    color: "#B0B3C6",
-    textAlign: "center",
-    lineHeight: 24,
-  },
-  debugInfo: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#333640",
-  },
-  debugText: {
-    fontSize: 12,
-    color: "#34C759",
-    textAlign: "center",
-    fontFamily: "monospace",
   },
   partnerContainer: {
     alignItems: "center",

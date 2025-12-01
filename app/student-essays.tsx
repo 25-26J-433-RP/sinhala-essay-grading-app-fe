@@ -1452,7 +1452,7 @@ export default function StudentEssaysScreen() {
 
 const styles = StyleSheet.create({
   batchFeedbackSection: {
-    backgroundColor: "#23262F",
+    backgroundColor: "#181A20",
     borderRadius: 12,
     padding: 20,
     marginBottom: 24,
@@ -1717,7 +1717,7 @@ const styles = StyleSheet.create({
   },
 
   feedbackSection: {
-    backgroundColor: "#23262F",
+    backgroundColor: "#181A20",
     borderRadius: 12,
     padding: 20,
     marginBottom: 24,
@@ -2265,9 +2265,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#181A20",
-    maxWidth: 1400,
-    marginHorizontal: "auto",
     width: "100%",
+    minHeight: "100vh",
   },
   centerContainer: {
     flex: 1,
@@ -2301,10 +2300,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   studentInfoCard: {
-    backgroundColor: "#23262F",
+    backgroundColor: "#181A20",
     borderRadius: 12,
     padding: 20,
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#333640",
   },
   studentHeader: {
     flexDirection: "row",
@@ -2421,7 +2422,7 @@ const styles = StyleSheet.create({
   essayCard: {
     flex: 1,
     flexDirection: "row",
-    backgroundColor: "#23262F",
+    backgroundColor: "#181A20",
     borderRadius: 12,
     padding: 14,
     alignItems: "center",

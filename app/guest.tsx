@@ -1,3 +1,4 @@
+import LanguageDropdown from "@/components/LanguageDropdown";
 import { useLanguage } from "@/contexts/LanguageContext";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
@@ -14,6 +15,11 @@ import {
 export default function GuestScreen() {
   const { language, changeLanguage, t } = useLanguage();
   const router = useRouter();
+
+  const languages = [
+    { code: "en", label: "English", flag: "🇬🇧" },
+    { code: "si", label: "සිංහල", flag: "🇱🇰" },
+  ];
 
   const features = [
     {
@@ -55,23 +61,22 @@ export default function GuestScreen() {
   ];
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollViewContent}
+      showsVerticalScrollIndicator={false}
+      scrollEventThrottle={16}
+    >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.appName}>{t("guest.appName")}</Text>
-          <TouchableOpacity
-            style={styles.languageButton}
-            onPress={() => changeLanguage(language === "en" ? "si" : "en")}
-          >
-            <MaterialIcons name="language" size={20} color="#fff" />
-            <Text style={styles.languageText}>
-              {language === "en" ? "සිංහල" : "English"}
-            </Text>
-          </TouchableOpacity>
+          <LanguageDropdown
+            currentLanguage={language}
+            languages={languages}
+            onSelect={changeLanguage}
+          />
         </View>
-
-        <Text style={styles.subtitle}>{t("guest.subtitle")}</Text>
       </View>
 
       {/* Hero Section */}
@@ -259,61 +264,46 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#181A20",
+  },
+
+  scrollViewContent: {
     maxWidth: 1400,
     marginHorizontal: "auto",
     width: "100%",
   },
 
   header: {
-    backgroundColor: "#23262F",
-    paddingTop: 20,
-    paddingBottom: 28,
+    backgroundColor: "#181A20",
+    paddingTop: 16,
+    paddingBottom: 16,
     paddingHorizontal: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderBottomWidth: 0,
+    borderBottomColor: "transparent",
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 8,
   },
 
   appName: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 26,
+    fontWeight: "900",
     color: "#fff",
-  },
-
-  languageButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#1f2128",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#374151",
-  },
-
-  languageText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
   },
 
   subtitle: {
     color: "#9CA3AF",
-    fontSize: 15,
-    lineHeight: 24,
-    maxWidth: 800,
+    fontSize: 14,
+    lineHeight: 22,
+    maxWidth: 900,
     marginHorizontal: "auto",
   },
 
@@ -358,80 +348,95 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "800",
     color: "#fff",
-    marginBottom: 28,
+    marginBottom: 40,
     textAlign: "center",
   },
 
   featuresGrid: {
-    gap: 20,
+    gap: 24,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
   },
 
   featureCard: {
     backgroundColor: "#23262F",
-    padding: 28,
+    padding: 32,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#333640",
-    marginBottom: 16,
+    width: "calc(50% - 12px)",
+    minWidth: 280,
+    maxWidth: 380,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
   },
 
   featureIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
+    width: 72,
+    height: 72,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 16,
   },
 
   featureTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
     color: "#fff",
-    marginBottom: 6,
+    marginBottom: 8,
   },
 
   featureDescription: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#9CA3AF",
     lineHeight: 18,
   },
 
   howItWorksSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 30,
+    paddingHorizontal: 24,
+    paddingVertical: 60,
     backgroundColor: "#1f2128",
-    marginHorizontal: 20,
-    borderRadius: 12,
-    marginTop: 20,
-    marginBottom: 20,
+    maxWidth: 1200,
+    marginHorizontal: "auto",
+    width: "100%",
+    borderRadius: 16,
+    marginTop: 40,
+    marginBottom: 40,
   },
 
   stepContainer: {
     flexDirection: "row",
-    marginBottom: 24,
+    marginBottom: 32,
     alignItems: "flex-start",
+    paddingBottom: 32,
+    borderBottomWidth: 1,
+    borderBottomColor: "#333640",
   },
 
   stepNumber: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#007AFF",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
-    marginTop: 2,
+    marginRight: 20,
+    marginTop: 4,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
 
   stepNumberText: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
   },
 
@@ -440,16 +445,16 @@ const styles = StyleSheet.create({
   },
 
   stepTitle: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
     color: "#fff",
-    marginBottom: 4,
+    marginBottom: 6,
   },
 
   stepDescription: {
-    fontSize: 13,
+    fontSize: 15,
     color: "#9CA3AF",
-    lineHeight: 18,
+    lineHeight: 24,
   },
 
   stepConnector: {
@@ -592,4 +597,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
-});
+} as any);
