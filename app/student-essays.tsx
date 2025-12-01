@@ -20,6 +20,12 @@ import {
   View,
 } from "react-native";
 
+import {
+  BatchFeedbackRequest,
+  BatchFeedbackResponse,
+  fetchBatchTextFeedback,
+} from "@/app/api/batchTextFeedback";
+
 // Component to display essay thumbnail with fresh URL resolution (CORS bypass on web)
 interface EssayThumbnailProps {
   essay: UserImageUpload;
@@ -143,6 +149,15 @@ export default function StudentEssaysScreen() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Batch feedback state
+  const [batchFeedback, setBatchFeedback] =
+    useState<BatchFeedbackResponse | null>(null);
+  const [batchFeedbackLoading, setBatchFeedbackLoading] = useState(false);
+  const [batchFeedbackError, setBatchFeedbackError] = useState<string | null>(
+    null
+  );
+
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { t } = useLanguage();
@@ -326,6 +341,49 @@ export default function StudentEssaysScreen() {
       showToast(t("studentEssays.deleteFailed"), { type: "error" });
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleFetchBatchFeedback = async () => {
+    if (!studentInfo?.essays || studentInfo.essays.length === 0) {
+      showToast("No essays to analyze", { type: "error" });
+      return;
+    }
+
+    setBatchFeedbackLoading(true);
+    setBatchFeedbackError(null);
+
+    try {
+      console.log(
+        `🔄 Fetching batch feedback for ${studentInfo.essays.length} essays...`
+      );
+
+      // Construct the batch request with essay_id and text
+      const requests: BatchFeedbackRequest[] = studentInfo.essays
+        .filter((essay: UserImageUpload) => essay.essay_text) // Only include essays with text
+        .map((essay: UserImageUpload) => ({
+          essay_id: essay.id,
+          text: essay.essay_text || essay.description || "",
+        }));
+
+      if (requests.length === 0) {
+        throw new Error("No essays with text content found");
+      }
+
+      console.log(`📤 Sending ${requests.length} essays for batch analysis`);
+
+      const response = await fetchBatchTextFeedback(requests);
+      setBatchFeedback(response);
+      console.log("✅ Batch feedback received:", response);
+      showToast(`Analysis complete for ${response.total} essays`, {
+        type: "success",
+      });
+    } catch (error: any) {
+      console.error("❌ Failed to fetch batch feedback:", error);
+      setBatchFeedbackError(error.message || "Failed to get batch feedback");
+      showToast("Failed to analyze essays", { type: "error" });
+    } finally {
+      setBatchFeedbackLoading(false);
     }
   };
 
@@ -553,6 +611,91 @@ export default function StudentEssaysScreen() {
             </View>
           );
         })()}
+
+        {/* Batch Feedback Section */}
+        <View style={styles.batchFeedbackSection}>
+          <View style={styles.batchFeedbackHeader}>
+            <MaterialIcons name="summarize" size={24} color="#8B5CF6" />
+            <Text style={styles.sectionTitle}>Student Performance Summary</Text>
+            <TouchableOpacity
+              style={[
+                styles.batchFeedbackButton,
+                batchFeedbackLoading && { opacity: 0.6 },
+              ]}
+              onPress={handleFetchBatchFeedback}
+              disabled={batchFeedbackLoading}
+            >
+              {batchFeedbackLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <MaterialIcons name="refresh" size={18} color="#fff" />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {batchFeedbackLoading && (
+            <View style={styles.batchFeedbackStatusBox}>
+              <ActivityIndicator color="#8B5CF6" />
+              <Text style={styles.batchFeedbackStatusText}>
+                Analyzing all essays...
+              </Text>
+            </View>
+          )}
+
+          {batchFeedbackError && (
+            <View style={styles.batchFeedbackErrorBox}>
+              <MaterialIcons name="error-outline" size={20} color="#EF4444" />
+              <Text style={styles.batchFeedbackErrorText}>
+                {batchFeedbackError}
+              </Text>
+            </View>
+          )}
+
+          {batchFeedback && (
+            <View style={styles.batchFeedbackContent}>
+              <View style={styles.batchFeedbackStats}>
+                <Text style={styles.batchFeedbackStatLabel}>
+                  Essays Analyzed
+                </Text>
+                <Text style={styles.batchFeedbackStatValue}>
+                  {batchFeedback.total}
+                </Text>
+              </View>
+
+              {batchFeedback.summary?.common_suggestions &&
+                batchFeedback.summary.common_suggestions.length > 0 && (
+                  <View style={styles.commonSuggestionsBox}>
+                    <View style={styles.suggestionsHeader}>
+                      <MaterialIcons
+                        name="lightbulb"
+                        size={20}
+                        color="#F59E0B"
+                      />
+                      <Text style={styles.suggestionsBoxTitle}>
+                        Common Suggestions Across All Essays
+                      </Text>
+                    </View>
+                    {batchFeedback.summary.common_suggestions.map(
+                      (suggestion, idx) => (
+                        <View key={idx} style={styles.commonSuggestionItem}>
+                          <Text style={styles.suggestionBullet}>•</Text>
+                          <Text style={styles.commonSuggestionText}>
+                            {suggestion}
+                          </Text>
+                        </View>
+                      )
+                    )}
+                  </View>
+                )}
+            </View>
+          )}
+
+          {!batchFeedback && !batchFeedbackLoading && !batchFeedbackError && (
+            <Text style={styles.batchFeedbackPlaceholder}>
+              Click refresh to analyze all student essays
+            </Text>
+          )}
+        </View>
 
         {/* Analytics Dashboard */}
         <View style={styles.feedbackSection}>
@@ -1074,76 +1217,6 @@ export default function StudentEssaysScreen() {
                   )}
                 </View>
 
-                {/* Personalized Recommendations */}
-                <View style={styles.dashboardCard}>
-                  <View style={styles.cardHeader}>
-                    <MaterialIcons
-                      name="tips-and-updates"
-                      size={20}
-                      color="#10B981"
-                    />
-                    <Text style={styles.cardTitle}>
-                      {t("analytics.personalizedRecommendations")}
-                    </Text>
-                  </View>
-
-                  {/* Generate dynamic recommendations based on performance */}
-                  {avgRichness < 3 && (
-                    <View style={styles.recommendationItem}>
-                      <MaterialIcons name="flag" size={16} color="#EF4444" />
-                      <Text style={styles.recommendationItemText}>
-                        {t("analytics.vocabEnrichment", {
-                          avg: avgRichness.toFixed(1),
-                        })}
-                      </Text>
-                    </View>
-                  )}
-                  {avgOrganization < 3.5 && (
-                    <View style={styles.recommendationItem}>
-                      <MaterialIcons name="flag" size={16} color="#F59E0B" />
-                      <Text style={styles.recommendationItemText}>
-                        {t("analytics.essayStructure", {
-                          avg: avgOrganization.toFixed(1),
-                        })}
-                      </Text>
-                    </View>
-                  )}
-                  {avgTechnical < 2 && (
-                    <View style={styles.recommendationItem}>
-                      <MaterialIcons name="flag" size={16} color="#EF4444" />
-                      <Text style={styles.recommendationItemText}>
-                        {t("analytics.grammarSkills", {
-                          avg: avgTechnical.toFixed(1),
-                        })}
-                      </Text>
-                    </View>
-                  )}
-                  {trend < 0 && (
-                    <View style={styles.recommendationItem}>
-                      <MaterialIcons
-                        name="trending-down"
-                        size={16}
-                        color="#EF4444"
-                      />
-                      <Text style={styles.recommendationItemText}>
-                        {t("analytics.performanceDecline")}
-                      </Text>
-                    </View>
-                  )}
-                  {avgScore >= 12 && (
-                    <View style={styles.recommendationItem}>
-                      <MaterialIcons
-                        name="emoji-events"
-                        size={16}
-                        color="#10B981"
-                      />
-                      <Text style={styles.recommendationItemText}>
-                        {t("analytics.excellentPerformance")}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
                 {/* Latest Essay Quick View */}
                 <View style={styles.dashboardCard}>
                   <View style={styles.cardHeader}>
@@ -1182,6 +1255,168 @@ export default function StudentEssaysScreen() {
 }
 
 const styles = StyleSheet.create({
+  batchFeedbackSection: {
+    backgroundColor: "#23262F",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: "#8B5CF6",
+  },
+
+  batchFeedbackHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+
+  batchFeedbackButton: {
+    backgroundColor: "#8B5CF6",
+    padding: 8,
+    borderRadius: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  batchFeedbackStatusBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 10,
+  },
+
+  batchFeedbackStatusText: {
+    color: "#9CA3AF",
+    fontSize: 13,
+  },
+
+  batchFeedbackErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#7F1D1D",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 10,
+  },
+
+  batchFeedbackErrorText: {
+    color: "#FCA5A5",
+    fontSize: 13,
+    flex: 1,
+  },
+
+  batchFeedbackContent: {
+    gap: 16,
+  },
+
+  batchFeedbackStats: {
+    backgroundColor: "#111827",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    borderLeftWidth: 3,
+    borderLeftColor: "#8B5CF6",
+  },
+
+  batchFeedbackStatLabel: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    marginBottom: 4,
+  },
+
+  batchFeedbackStatValue: {
+    color: "#8B5CF6",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+
+  commonSuggestionsBox: {
+    backgroundColor: "#111827",
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#F59E0B",
+    gap: 8,
+  },
+
+  suggestionsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+
+  suggestionsBoxTitle: {
+    color: "#F59E0B",
+    fontSize: 13,
+    fontWeight: "600",
+    flex: 1,
+  },
+
+  commonSuggestionItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+
+  suggestionBullet: {
+    color: "#F59E0B",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
+  commonSuggestionText: {
+    color: "#E5E7EB",
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+
+  processedEssaysBox: {
+    backgroundColor: "#111827",
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: "#10B981",
+  },
+
+  processedEssaysLabel: {
+    color: "#10B981",
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+
+  essayIdsList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  essayIdTag: {
+    backgroundColor: "#1f2128",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#10B981",
+  },
+
+  essayIdTagText: {
+    color: "#E5E7EB",
+    fontSize: 11,
+  },
+
+  batchFeedbackPlaceholder: {
+    color: "#6B7280",
+    fontSize: 13,
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 12,
+  },
+
   feedbackSection: {
     backgroundColor: "#23262F",
     borderRadius: 12,

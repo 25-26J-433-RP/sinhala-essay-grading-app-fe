@@ -94,7 +94,17 @@
     "failedToDelete": "Failed to delete",
     "download": "Download",
     "share": "Share",
-    "years": "years"
+    "years": "years",
+    "rubricBreakdown": "Rubric Breakdown",
+    "fairnessMetrics": "Fairness Metrics",
+    "mitigation": "Mitigation Used",
+    "personalizedFeedback": "Personalized Feedback",
+    "feedbackRichness": "Focus on vocabulary enrichment - current score {{score}}/5",
+    "feedbackOrganization": "Work on essay structure and creative expression - current score {{score}}/6",
+    "feedbackTechnical": "Strengthen grammar and technical writing skills - current score {{score}}/3",
+    "feedbackPerformance": "Performance is excellent! Keep up the quality",
+    "feedbackDyslexia": "Dyslexia indicators detected - consider providing supportive tools and accommodations",
+    "feedbackGeneral": "Continue practicing and reviewing essay structure to improve overall quality"
   },
   "mindmap": {
     "title": "Essay Mindmap",

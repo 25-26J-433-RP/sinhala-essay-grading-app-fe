@@ -1,15 +1,15 @@
 import { db, storage } from '@/config/firebase';
 import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where
+    addDoc,
+    collection,
+    deleteDoc,
+    doc,
+    getDocs,
+    orderBy,
+    query,
+    serverTimestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 
@@ -48,6 +48,8 @@ export interface UserImageUpload {
   details?: any;
   rubric?: any;
   fairness_report?: any;
+  // Text feedback from API (optional)
+  text_feedback?: any;
 }
 
 export interface CreateImageUploadData {
@@ -331,6 +333,22 @@ export class UserImageService {
     });
 
     dlog('✅ Image description updated:', { imageId, description });
+  }
+
+  /**
+   * Update text feedback for an image (generated from API)
+   */
+  static async updateImageTextFeedback(imageId: string, textFeedback: any): Promise<void> {
+    if (!db) {
+      throw new Error('Firestore not initialized. Check your Firebase configuration.');
+    }
+
+    const docRef = doc(db, this.COLLECTION, imageId);
+    await updateDoc(docRef, {
+      text_feedback: cleanFirestore(textFeedback),
+    });
+
+    dlog('✅ Image text feedback updated:', { imageId, textFeedback });
   }
 
   /**
