@@ -2265,6 +2265,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#181A20",
+    maxWidth: 1400,
+    marginHorizontal: "auto",
+    width: "100%",
   },
   centerContainer: {
     flex: 1,

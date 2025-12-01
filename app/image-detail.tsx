@@ -1259,33 +1259,47 @@ const styles = StyleSheet.create({
 
   detailsCard: {
     backgroundColor: "#23262F",
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
+    padding: 28,
+    borderRadius: 16,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
 
   scoreBox: {
     backgroundColor: "#111827",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 2,
     borderColor: "#2563eb",
-    marginBottom: 20,
+    marginBottom: 24,
+    shadowColor: "#2563eb",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
 
   scoreMain: {
-    fontSize: 26,
-    fontWeight: "bold",
+    fontSize: 36,
+    fontWeight: "900",
     color: "#3B82F6",
-    marginBottom: 10,
+    marginBottom: 12,
   },
 
-  scoreDetail: { color: "#E5E7EB", marginBottom: 4 },
+  scoreDetail: {
+    color: "#E5E7EB",
+    marginBottom: 6,
+    fontSize: 16,
+  },
 
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
 
   detailContent: { marginLeft: 12, flex: 1 },
