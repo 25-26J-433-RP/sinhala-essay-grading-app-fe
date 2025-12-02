@@ -55,10 +55,14 @@ export async function generateMindmap(
   essayText: string
 ): Promise<GenerateMindmapResponse> {
   try {
-    const baseOverride = process.env.EXPO_PUBLIC_MINDMAP_API_URL?.trim();
-    const path = `/api/mindmap/generate`;
-    const base = baseOverride ? baseOverride.replace(/\/+$/g, "") : "";
-    const url = base ? `${base}${path}` : path;
+    const gateway = process.env.EXPO_PUBLIC_API_GATEWAY?.trim();
+    if (!gateway) {
+      throw new Error(
+        "API gateway not configured. Set EXPO_PUBLIC_API_GATEWAY in your environment to call the mindmap service."
+      );
+    }
+    const path = `/sinhala-visual-mapping-service/api/mindmap/generate`;
+    const url = `${gateway.replace(/\/+$/g, "")}${path}`;
     if (!essayText || !essayText.trim()) {
       throw new Error("Mindmap generation requires non-empty essay text");
     }
@@ -95,11 +99,14 @@ export async function generateMindmap(
  */
 export async function fetchMindmap(essayId: string): Promise<MindmapData> {
   try {
-    const baseOverride = process.env.EXPO_PUBLIC_MINDMAP_API_URL?.trim();
-    // Updated endpoint path to match new service contract
-    const path = `/api/mindmap/essay/${essayId}`;
-    const base = baseOverride ? baseOverride.replace(/\/+$/g, "") : "";
-    const url = base ? `${base}${path}` : path;
+    const gateway = process.env.EXPO_PUBLIC_API_GATEWAY?.trim();
+    if (!gateway) {
+      throw new Error(
+        "API gateway not configured. Set EXPO_PUBLIC_API_GATEWAY in your environment to fetch mindmap data."
+      );
+    }
+    const path = `/sinhala-visual-mapping-service/api/mindmap/essay/${essayId}`;
+    const url = `${gateway.replace(/\/+$/g, "")}${path}`;
     const response = await api.get(url);
     // Accept both { success, data } and { data } shapes
     if (response.data) {

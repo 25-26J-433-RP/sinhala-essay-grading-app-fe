@@ -19,8 +19,13 @@ export interface BatchFeedbackResponse {
   summary: BatchFeedbackSummary;
 }
 
-const FEEDBACK_API_BASE_URL =
-  process.env.EXPO_PUBLIC_FEEDBACK_API_BASE_URL;
+const GATEWAY_BASE = process.env.EXPO_PUBLIC_API_GATEWAY?.trim();
+if (!GATEWAY_BASE) {
+  throw new Error(
+    "API gateway not configured. Set EXPO_PUBLIC_API_GATEWAY to call the feedback service."
+  );
+}
+const FEEDBACK_API_BASE_URL = `${GATEWAY_BASE.replace(/\/+$/g, "")}/sinhala-text-feedback-service`;
 
 /**
  * Fetch batch feedback for multiple essays from the feedback service
@@ -41,7 +46,7 @@ export async function fetchBatchTextFeedback(
     );
 
     const payload: BatchFeedbackPayload = { requests };
-    const url = `${FEEDBACK_API_BASE_URL}/feedback/batch`;
+    const url = `${FEEDBACK_API_BASE_URL.replace(/\/+$/g, "")}/feedback/batch`;
     console.log("🔗 Full API URL being called:", url);
     console.log("📦 Request method: POST");
     console.log("📦 Request payload:", JSON.stringify(payload, null, 2));

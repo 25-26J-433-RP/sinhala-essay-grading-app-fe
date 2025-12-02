@@ -23,8 +23,13 @@ export interface TextFeedbackResponse {
   metrics: TextMetrics;
 }
 
-const FEEDBACK_API_BASE_URL =
-  process.env.EXPO_PUBLIC_FEEDBACK_API_BASE_URL;
+const GATEWAY_BASE = process.env.EXPO_PUBLIC_API_GATEWAY?.trim();
+if (!GATEWAY_BASE) {
+  throw new Error(
+    "API gateway not configured. Set EXPO_PUBLIC_API_GATEWAY to call the feedback service."
+  );
+}
+const FEEDBACK_API_BASE_URL = `${GATEWAY_BASE.replace(/\/+$/g, "")}/sinhala-text-feedback-service`;
 
 /**
  * Fetch personalized text feedback from the feedback service
@@ -44,7 +49,7 @@ export async function fetchTextFeedback(
       text: essayText,
     };
 
-    const response = await fetch(`${FEEDBACK_API_BASE_URL}/feedback`, {
+    const response = await fetch(`${FEEDBACK_API_BASE_URL.replace(/\/+$/g, "")}/feedback`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

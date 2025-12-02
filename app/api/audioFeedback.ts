@@ -14,8 +14,13 @@ export interface AudioFeedbackResponse {
   message?: string;
 }
 
-const AUDIO_FEEDBACK_API_URL =
-  process.env.EXPO_PUBLIC_AUDIO_FEEDBACK_API_URL;
+const GATEWAY_BASE = process.env.EXPO_PUBLIC_API_GATEWAY?.trim();
+if (!GATEWAY_BASE) {
+  throw new Error(
+    "API gateway not configured. Set EXPO_PUBLIC_API_GATEWAY to call the audio feedback service."
+  );
+}
+const AUDIO_FEEDBACK_API_URL = `${GATEWAY_BASE.replace(/\/+$/g, "")}/sinhala-audio-feedback-service`;
 
 /**
  * Generate Sinhala audio feedback from text using Text-to-Speech service
@@ -30,7 +35,7 @@ export async function generateAudioFeedback(
   try {
     if (!AUDIO_FEEDBACK_API_URL) {
       throw new Error(
-        "EXPO_PUBLIC_AUDIO_FEEDBACK_API_URL environment variable not set"
+        "Audio feedback API URL not configured. Ensure EXPO_PUBLIC_API_GATEWAY is set"
       );
     }
 
@@ -45,7 +50,7 @@ export async function generateAudioFeedback(
       text: feedbackText,
     };
 
-    const url = `${AUDIO_FEEDBACK_API_URL}/tts`;
+    const url = `${AUDIO_FEEDBACK_API_URL.replace(/\/+$/g, "")}/tts`;
     console.log("🔗 Audio TTS API URL:", url);
     console.log("📦 Request payload:", JSON.stringify(payload, null, 2));
 
