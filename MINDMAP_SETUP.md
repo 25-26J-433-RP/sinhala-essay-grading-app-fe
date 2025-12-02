@@ -30,7 +30,7 @@ This React Native app includes a mindmap visualization feature for student essay
 
 ### Generate Mindmap Endpoint
 ```
-POST {EXPO_PUBLIC_MINDMAP_API_URL}/api/mindmap/generate
+POST {EXPO_PUBLIC_API_GATEWAY}/sinhala-visual-mapping-service/api/mindmap/generate
 ```
 
 **Payload:**
@@ -53,7 +53,7 @@ POST {EXPO_PUBLIC_MINDMAP_API_URL}/api/mindmap/generate
 
 ### Fetch Mindmap Endpoint
 ```
-GET {EXPO_PUBLIC_MINDMAP_API_URL}/api/mindmap/essay/{essayId}
+GET {EXPO_PUBLIC_API_GATEWAY}/sinhala-visual-mapping-service/api/mindmap/essay/{essayId}
 ```
 
 **Response:**
