@@ -134,12 +134,12 @@
     "scan": "Scan",
     "score": "Score",
     "sinhalaScore": "Sinhala Score",
-    "recording": "Recording",
-    "collection": "Collection"
+    "collection": "Collection",
+    "addStudent": "Add Student"
   },
   "home": {
     "welcomeTitle": "Welcome to the Essay Grading System",
-    "welcomeSubtitle": "Effortlessly record, upload, and grade student essays with AI-powered feedback and analytics. Start by exploring the tabs for scanning essays or recording readings.",
+    "welcomeSubtitle": "Effortlessly upload and grade student essays with AI-powered feedback and analytics. Start by exploring the tabs for scanning and scoring essays.",
     "developedBy": "Developed by Team Akura"
   },
   "scan": {

@@ -16,7 +16,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 // Resolve Firebase Storage download URLs when a gs:// path or storagePath is provided
@@ -996,106 +996,6 @@ export default function ImageDetailScreen() {
                 )}
             </View>
           )}
-
-          {/* FILE DETAILS */}
-          <View style={styles.detailRow}>
-            <MaterialIcons name="insert-drive-file" size={20} color="#007AFF" />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t("essay.fileName")}</Text>
-              <Text style={styles.detailValue}>{imageData.fileName}</Text>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <MaterialIcons name="fingerprint" size={20} color="#007AFF" />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t("essay.essayId")}</Text>
-              <Text style={styles.detailValue}>{imageData.id}</Text>
-            </View>
-          </View>
-
-          <View style={styles.detailRow}>
-            <MaterialIcons name="person" size={20} color="#007AFF" />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t("essay.studentId")}</Text>
-              <Text style={styles.detailValue}>{imageData.studentId}</Text>
-            </View>
-          </View>
-          {/* Student Age */}
-          {imageData.studentAge && (
-            <View style={styles.detailRow}>
-              <MaterialIcons name="cake" size={20} color="#007AFF" />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>{t("essay.studentAge")}</Text>
-                <Text style={styles.detailValue}>
-                  {imageData.studentAge} {t("essay.years")}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Student Grade */}
-          {imageData.studentGrade && (
-            <View style={styles.detailRow}>
-              <MaterialIcons name="school" size={20} color="#007AFF" />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>
-                  {t("essay.studentGrade")}
-                </Text>
-                <Text style={styles.detailValue}>{imageData.studentGrade}</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Gender */}
-          {imageData.studentGender && (
-            <View style={styles.detailRow}>
-              <MaterialIcons name="wc" size={20} color="#007AFF" />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>
-                  {t("essay.studentGender")}
-                </Text>
-                <Text style={styles.detailValue}>
-                  {imageData.studentGender}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Uploaded At */}
-          <View style={styles.detailRow}>
-            <MaterialIcons name="access-time" size={20} color="#007AFF" />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t("essay.uploadedAt")}</Text>
-              <Text style={styles.detailValue}>
-                {new Date(imageData.uploadedAt).toLocaleString()}
-              </Text>
-            </View>
-          </View>
-
-          {/* File Size */}
-          <View style={styles.detailRow}>
-            <MaterialIcons name="storage" size={20} color="#007AFF" />
-            <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>{t("essay.fileSize")}</Text>
-              <Text style={styles.detailValue}>
-                {imageData.fileSize
-                  ? (imageData.fileSize / 1024).toFixed(2) + " KB"
-                  : "Unknown"}
-              </Text>
-            </View>
-          </View>
-
-          {/* MIME Type */}
-          {imageData.mimeType && (
-            <View style={styles.detailRow}>
-              <MaterialIcons name="image" size={20} color="#007AFF" />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>{t("essay.type")}</Text>
-                <Text style={styles.detailValue}>{imageData.mimeType}</Text>
-              </View>
-            </View>
-          )}
         </View>
 
         {/* MINDMAP SECTION */}
@@ -1184,9 +1084,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 32,
+    padding: 16,
   },
-  content: { padding: 20 },
+  content: { padding: 12 },
 
   imageContainer: {
     backgroundColor: "#23262F",
