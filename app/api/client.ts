@@ -1,9 +1,9 @@
 // app/api/client.ts
 import axios from "axios";
 
-// Pick up backend URL from .env or fall back to localhost
-const baseURL =
-  process.env.EXPO_PUBLIC_API_URL?.trim() || "http://127.0.0.1:8000";
+// Pick up API gateway from .env or fall back to localhost for local dev.
+// The app uses an API gateway as a single entrypoint to backend services.
+const baseURL = process.env.EXPO_PUBLIC_API_GATEWAY?.trim() || "http://127.0.0.1:8000";
 
 export const api = axios.create({
   baseURL,

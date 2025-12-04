@@ -38,7 +38,16 @@ export async function scoreSinhala(
   payload: SinhalaScorePayload
 ): Promise<SinhalaScoreResponse> {
   try {
-    const res = await api.post("/score-sinhala-ml", payload);
+    const GATEWAY_BASE = process.env.EXPO_PUBLIC_API_GATEWAY?.trim();
+    if (!GATEWAY_BASE) {
+      throw new Error(
+        "API gateway not configured. Set EXPO_PUBLIC_API_GATEWAY to call the scoring service."
+      );
+    }
+
+    const SCORING_API_BASE = `${GATEWAY_BASE.replace(/\/+$|\s+$/g, "")}/bias-aware-scoring-engine`;
+    const url = `${SCORING_API_BASE}/score-sinhala-ml`;
+    const res = await api.post(url, payload);
     return res.data as SinhalaScoreResponse;
   } catch (err: any) {
     console.log(" Sinhala ML API Error:", err.response?.data || err);
