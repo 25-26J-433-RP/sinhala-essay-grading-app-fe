@@ -4,6 +4,8 @@ export interface SinhalaScorePayload {
   text: string;
   grade: number;
   topic?: string;
+  dyslexic_flag?: boolean;  // ✅ ADDED
+  error_tags?: string[];     // ✅ ADDED
 }
 
 export interface SinhalaScoreResponse {
@@ -45,12 +47,14 @@ export async function scoreSinhala(
       );
     }
 
-    const SCORING_API_BASE = `${GATEWAY_BASE.replace(/\/+$|\s+$/g, "")}/bias-aware-scoring-engine`;
-    const url = `${SCORING_API_BASE}/score-sinhala-ml`;
+    // ✅ FIXED: Remove the /bias-aware-scoring-engine prefix
+    const url = `${GATEWAY_BASE.replace(/\/+$|\s+$/g, "")}/score-sinhala-ml`;
+    
     const res = await api.post(url, payload);
     return res.data as SinhalaScoreResponse;
   } catch (err: any) {
-    console.log(" Sinhala ML API Error:", err.response?.data || err);
+    console.log("❌ Sinhala ML API Error:", err.response?.data || err);
     throw err;
   }
 }
+

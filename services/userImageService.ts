@@ -12,6 +12,8 @@ import {
   where
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
+import { getDoc } from "firebase/firestore";
+
 
 const DEBUG = __DEV__ === true;
 const dlog = (...args: any[]) => { if (DEBUG) console.log(...args); };
@@ -121,6 +123,45 @@ export class UserImageService {
       uploadedAt: new Date(),
     } as UserImageUpload;
   }
+
+
+/**
+ * Get a single image document by ID (source of truth for refresh)
+ */
+static async getUserImage(imageId: string): Promise<UserImageUpload> {
+  if (!db) {
+    throw new Error("Firestore not initialized");
+  }
+
+  const docRef = doc(db, this.COLLECTION, imageId);
+  const snap = await getDoc(docRef);
+
+  if (!snap.exists()) {
+    throw new Error(`Image ${imageId} not found`);
+  }
+
+  const data = snap.data();
+
+  // 🔥 Always regenerate fresh image URL
+  let imageUrl = data.imageUrl;
+  if (data.storagePath && storage) {
+    try {
+      const storageRef = ref(storage, data.storagePath);
+      imageUrl = await getDownloadURL(storageRef);
+    } catch (e) {
+      console.warn("Failed to refresh image URL, using stored one");
+    }
+  }
+
+  return {
+    id: snap.id,
+    ...(data as any),
+    imageUrl,
+    uploadedAt: data.uploadedAt?.toDate?.() || new Date(),
+  } as UserImageUpload;
+}
+
+
 
   /**
    * Get all images uploaded by a specific user (includes migration from old system)
@@ -444,6 +485,8 @@ static async updateImageScore(id: string, scoreData: any): Promise<void> {
 
   dlog("✅ Score updated:", { id, cleanedData });
 }
+
+
 
 
 
