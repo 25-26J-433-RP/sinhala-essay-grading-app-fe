@@ -40,8 +40,8 @@
     "expo-web-browser": "~14.2.0",
     "firebase": "^12.1.0",
     "i18next": "^25.6.3",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "react-i18next": "^16.3.5",
     "react-native": "0.79.5",
     "react-native-gesture-handler": "~2.24.0",
@@ -49,10 +49,10 @@
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
+    "react-native-svg": "15.11.2",
     "react-native-web": "~0.20.0",
     "react-native-webview": "^13.13.5",
-    "react-webcam": "^7.2.0",
-    "react-native-svg": "15.11.2"
+    "react-webcam": "^7.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
