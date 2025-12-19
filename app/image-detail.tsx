@@ -579,11 +579,11 @@ export default function ImageDetailScreen() {
                   score: result.score,
 
                   details: {
-                    grade: result.details.grade,
-                    topic: result.details.topic ?? null,
+                    // grade: result.details.grade,
+                    // topic: result.details.topic ?? null,
                     dyslexic_flag: result.details.dyslexic_flag,
                     error_tags: result.details.error_tags ?? [],
-                    model: result.details.model,
+                    // model: result.details.model,
                   },
 
                   rubric: {
@@ -709,9 +709,9 @@ export default function ImageDetailScreen() {
                 Dyslexic: {scoreData.details.dyslexic_flag ? "Yes" : "No"}
               </Text>
 
-              <Text style={styles.scoreDetail}>
+              {/* <Text style={styles.scoreDetail}>
                 Topic: {scoreData.details.topic || "â€”"}
-              </Text>
+              </Text> */}
             </View>
           )}
 
