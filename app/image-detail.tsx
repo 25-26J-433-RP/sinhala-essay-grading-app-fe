@@ -4,7 +4,6 @@ import { useToast } from "@/components/Toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
-import { getOCRResultByImageId } from "./services/ocrService";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -45,9 +44,7 @@ function cleanFirestore(obj: any) {
 }
 
 export default function ImageDetailScreen() {
-  const { imageData: imageDataParam } = useLocalSearchParams<{
-    imageData?: string;
-  }>();
+  
 
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +53,7 @@ export default function ImageDetailScreen() {
   const [imageLoadingError, setImageLoadingError] = useState<string | null>(
     null
   );
+const ocrAppliedRef = useRef(false);
 
   const [essayTopic, setEssayTopic] = useState("");
   const [inputText, setInputText] = useState("");
@@ -65,6 +63,7 @@ export default function ImageDetailScreen() {
   const [mindmapData, setMindmapData] = useState<MindmapData | null>(null);
   const [mindmapLoading, setMindmapLoading] = useState(false);
   const [mindmapError, setMindmapError] = useState<string | null>(null);
+const { imageId } = useLocalSearchParams<{ imageId?: string }>();
 
   // Text feedback state
   const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(
@@ -91,101 +90,19 @@ export default function ImageDetailScreen() {
   const confirm = useConfirm();
   const { t } = useLanguage();
   // const DEBUG = __DEV__ === true; // not used currently
-  const initializedRef = useRef(false);
-const ocrAppliedRef = useRef(false);
-
-
- useEffect(() => {
-  try {
-    if (typeof imageDataParam === "string") {
-      const parsed = JSON.parse(imageDataParam);
-
-      setImageData(parsed);
-
-      // ✅ ALWAYS reset text when image changes
-      setInputText(
-        parsed.essay_text ||
-        parsed.cleaned_text ||
-        parsed.description ||
-        ""
-      );
-
-      setEssayTopic(parsed.essay_topic || "");
-
-      if (parsed.score) {
-        setScoreData({
-          score: parsed.score,
-          details: parsed.details || {},
-          rubric: parsed.rubric || {},
-          fairness_report: parsed.fairness_report || {},
-        });
-      } else {
-        setScoreData(null);
-      }
-
-      setTextFeedback(parsed.text_feedback || null);
-    }
-  } catch (err) {
-    console.error("Error parsing imageDataParam:", err);
-  } finally {
-    setLoading(false);
-  }
-}, [imageDataParam]);
-
-
- useEffect(() => {
-  if (!imageData?.image_id || !imageData?.id) {
-    console.log("ℹ️ No OCR image_id yet");
-    return;
-  }
-
-  // if (ocrAppliedRef.current) {
-  //   console.log("⏭️ OCR already applied, skipping");
-  //   return;
-  // }
-
-  console.log("📥 Fetching OCR for image_id:", imageData.image_id);
-
-  (async () => {
-    try {
-      const ocr = await getOCRResultByImageId(imageData.image_id);
-
-      console.log("🧠 OCR fetched:", ocr);
-
-      if (!ocr?.cleaned_text) return;
-
-      // 1️⃣ Apply to UI if textbox is empty
-setInputText((prev) => {
-  if (prev && prev.trim().length > 0) return prev;
-  return ocr.cleaned_text;
-});
-
-
-      // 2️⃣ SAVE OCR TO FIRESTORE ONLY ONCE
-if (!ocrAppliedRef.current) {
-  await UserImageService.updateUserImage(imageData.id, {
-    essay_text: ocr.cleaned_text,
-    raw_text: ocr.raw_text,
-    source: ocr.source,
-  });
-
-  ocrAppliedRef.current = true;
-  console.log("💾 OCR saved to Firestore");
-}
+  
 
 
 
-      // 3️⃣ Refresh from Firestore so state is correct everywhere
-      await refreshImageData();
+useEffect(() => {
+  if (!imageData?.id) return;
 
-      
-      console.log("✅ OCR applied + persisted");
+  console.log("📝 Setting inputText from Firestore:", imageData.essay_text);
 
-    } catch (err) {
-      console.error("❌ OCR fetch failed", err);
-    }
-  })();
-}, [imageData?.image_id]);
+  setInputText(imageData.essay_text ?? "");
+}, [imageData?.id]);
+
+
 
 
 
@@ -263,11 +180,21 @@ if (!ocrAppliedRef.current) {
 
 
 
-useEffect(() => {
-  // Reset OCR guard when switching images
-  ocrAppliedRef.current = false;
-}, [imageData?.id]);
 
+
+useEffect(() => {
+  if (!imageId) return;
+
+  (async () => {
+    setLoading(true);
+    const freshImage = await UserImageService.getUserImage(imageId);
+    setImageData(freshImage);
+    
+
+    setEssayTopic(freshImage.essay_topic || "");
+    setLoading(false);
+  })();
+}, [imageId]);
 
 
 

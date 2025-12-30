@@ -134,7 +134,19 @@ export default function ScanScreen() {
 
     const filename = asset.fileName || `image_${Date.now()}.jpg`;
 
-    const userImageId = await UserImageService.uploadUserImage({
+// ===============================
+// ✅ CORRECT ORDER (OCR → Firestore)
+// ===============================
+
+// 1️⃣ Call OCR FIRST
+const ocrRes = await OcrApi.callOcrApi(blob, filename);
+
+if (!ocrRes?.image_id) {
+  throw new Error("OCR did not return image_id");
+}
+
+// 2️⃣ NOW create Firestore document (image_id is guaranteed)
+const userImageId = await UserImageService.uploadUserImage({
   userId: user.uid,
   studentId: selectedStudent.studentId,
   studentAge: selectedStudent.studentAge,
@@ -142,7 +154,9 @@ export default function ScanScreen() {
   studentGender: selectedStudent.studentGender,
   fileName: filename,
   fileBlob: blob,
+  image_id: ocrRes.image_id, // ✅ ALWAYS DEFINED
 });
+
 
     // 🔥 OCR — background only
    OcrApi.callOcrApi(blob, filename)

@@ -16,6 +16,7 @@ import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebas
 
 
 
+
 const DEBUG = __DEV__ === true;
 const dlog = (...args: any[]) => { if (DEBUG) console.log(...args); };
 const dwarn = (...args: any[]) => { if (DEBUG) console.warn(...args); };
@@ -31,7 +32,8 @@ function cleanFirestore(obj: any) {
 
 export interface UserImageUpload {
   id: string;
-  image_id?: string;
+   // 🔥 ADD THIS
+  image_id: string; // FROM OCR BACKEND
 
   userId: string;
   studentId: string;
@@ -81,6 +83,7 @@ export interface CreateImageUploadData {
   studentGender?: string;
   fileName: string;
   fileBlob: Blob;
+  image_id: string;
 }
 
 export class UserImageService {
@@ -136,19 +139,27 @@ static async updateUserImage(
   const imageUrl = await getDownloadURL(storageRef);
 
   const uploadData = {
-    userId: data.userId,
-    studentId: data.studentId,
-    studentAge: data.studentAge,
-    studentGrade: data.studentGrade,
-    studentGender: data.studentGender,
-    imageUrl,
-    fileName: data.fileName,
-    storagePath,
-    uploadedAt: serverTimestamp(),
-    fileSize: data.fileBlob.size,
-    mimeType: data.fileBlob.type,
-    description: '',
-  };
+  userId: data.userId,
+  studentId: data.studentId,
+  studentAge: data.studentAge,
+  studentGrade: data.studentGrade,
+  studentGender: data.studentGender,
+
+  // 🔑 CRITICAL JOIN KEY
+  image_id: data.image_id,
+
+  imageUrl,
+  fileName: data.fileName,
+  storagePath,
+  uploadedAt: serverTimestamp(),
+  fileSize: data.fileBlob.size,
+  mimeType: data.fileBlob.type,
+  description: "",
+
+  // 🔥 LET BACKEND FILL THIS
+  essay_text: "",
+};
+
 
   const docRef = await addDoc(collection(db, this.COLLECTION), uploadData);
 
@@ -158,8 +169,17 @@ static async updateUserImage(
     fileName: data.fileName,
   });
 
-  // 🔥 RETURN ONLY THE DOC ID
-  return docRef.id;
+  // 🟢 ADD THIS BLOCK ⬇️⬇️⬇️
+if (uploadData.image_id) {
+  await fetch(
+    `https://sinhala-ocr-api-651457725719.asia-south1.run.app/ocr/sync?image_id=${uploadData.image_id}`,
+    { method: "POST" }
+  );
+  dlog("🔁 OCR sync triggered for image_id:", uploadData.image_id);
+}
+
+// 🔚 THEN return
+return docRef.id;
 }
 
 
@@ -554,12 +574,12 @@ static async updateImageScore(id: string, scoreData: any): Promise<void> {
   dlog("✅ Score updated:", { id, cleanedData });
 }
 
-static listenToOCR(imageId: string, cb: (data: any) => void) {
-  const ref = doc(db, "ocr_results", imageId);
-  return onSnapshot(ref, (snap) => {
-    if (snap.exists()) cb(snap.data());
-  });
-}
+// static listenToOCR(imageId: string, cb: (data: any) => void) {
+//   const ref = doc(db, "ocr_results", imageId);
+//   return onSnapshot(ref, (snap) => {
+//     if (snap.exists()) cb(snap.data());
+//   });
+// }
 
 
 
