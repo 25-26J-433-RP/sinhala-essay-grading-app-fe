@@ -1,3 +1,5 @@
+import * as OcrApi from "@/app/api/ocrApi";
+
 import AppHeader from "@/components/AppHeader";
 import { useToast } from "@/components/Toast";
 import { db } from "@/config/firebase";
@@ -25,15 +27,15 @@ import {
   Text,
   View,
 } from "react-native";
-import ReactWebcam from "react-webcam"; // ✅ for web
+import ReactWebcam from "react-webcam";
 
 export default function ScanScreen() {
   const [uploading, setUploading] = useState(false);
-  const [uploadingSource, setUploadingSource] = useState<
-    "camera" | "gallery" | null
-  >(null);
+  const [uploadingSource, setUploadingSource] =
+    useState<"camera" | "gallery" | null>(null);
   const [showWebCamera, setShowWebCamera] = useState(false);
-  const [cameraFacing, setCameraFacing] = useState<"front" | "back">("back");
+  const [cameraFacing, setCameraFacing] =
+    useState<"front" | "back">("back");
   const [students, setStudents] = useState<any[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [showStudentDropdown, setShowStudentDropdown] =
@@ -44,14 +46,14 @@ export default function ScanScreen() {
   const { profileLoading } = useRole();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView | null>(null);
-  const webcamRef = useRef<ReactWebcam | null>(null); // ✅ for web
+  const webcamRef = useRef<ReactWebcam | null>(null);
   const { showToast } = useToast();
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardTranslateY = useRef(new Animated.Value(16)).current;
   const DEBUG = __DEV__ === true;
   const { t } = useLanguage();
 
-  // Fetch students for the current user
+  // 🔹 Fetch students
   const fetchStudents = useCallback(async () => {
     if (!user || !db) return;
 
@@ -97,176 +99,168 @@ export default function ScanScreen() {
     fetchStudents();
   }, [fetchStudents]);
 
-  // Refresh students list when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchStudents();
     }, [fetchStudents])
   );
 
-  // More robust role-based access control
-  // Verify upload capability
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
+
   if (profileLoading) {
     return (
-      <View style={styles.container}>
+      <View>
         <AppHeader />
-        <View style={styles.accessDeniedContainer}>
-          <Text style={styles.accessDeniedTitle}>{t("common.loading")}</Text>
-          <Text style={styles.accessDeniedText}>
-            {t("scan.settingUpProfile")}
-          </Text>
-        </View>
+        <Text>{t("common.loading")}</Text>
       </View>
     );
   }
 
-  const uploadImage = async (asset: any) => {
-    if (!user) {
-      Alert.alert(t("common.error"), t("scan.mustBeLoggedIn"));
-      return;
-    }
+  // ===============================
+  // 🔥 IMAGE UPLOAD (OCR ADDED HERE)
+  // ===============================
+ const uploadImage = async (asset: any) => {
+  if (!user || !selectedStudent) return;
 
-    // Validate selected student
-    if (!selectedStudent) {
-      Alert.alert(t("scan.validation"), t("scan.selectStudentFirst"));
-      return;
-    }
+  try {
+    let blob: Blob;
 
-    try {
+    if (Platform.OS === "web" && asset.file) {
+      blob = asset.file;
+    } else {
       const response = await fetch(asset.uri);
-      const blob = await response.blob();
-      const filename = asset.fileName || `image_${Date.now()}.jpg`;
-
-      // Use UserImageService for user-specific uploads with selected student data
-      await UserImageService.uploadUserImage({
-        userId: user.uid,
-        studentId: selectedStudent.studentId,
-        studentAge: selectedStudent.studentAge,
-        studentGrade: selectedStudent.studentGrade,
-        studentGender: selectedStudent.studentGender,
-        fileName: filename,
-        fileBlob: blob,
-      });
-
-      // Cross-platform success toast (top)
-      showToast(t("scan.imageUploadSuccess"), { type: "success" });
-
-      // Navigate to student essays page
-      const userImages = await UserImageService.getUserImages(user.uid);
-      const studentImages = userImages.filter(
-        (img) => img.studentId === selectedStudent.studentId
-      );
-
-      router.push({
-        pathname: "/student-essays",
-        params: {
-          studentData: JSON.stringify({
-            studentId: selectedStudent.studentId,
-            studentAge: selectedStudent.studentAge,
-            studentGrade: selectedStudent.studentGrade,
-            studentGender: selectedStudent.studentGender,
-            essayCount: studentImages.length,
-            lastUploadDate: new Date().toISOString(),
-            essays: studentImages.map((essay) => ({
-              ...essay,
-              uploadedAt: essay.uploadedAt.toISOString(),
-            })),
-          }),
-        },
-      });
-      // Clear selection after successful upload
-      setSelectedStudent(null);
-    } catch (error) {
-      console.error("Upload Error:", error);
-      Alert.alert(t("scan.uploadError"), (error as Error).message);
-    } finally {
-      setUploading(false);
-      setUploadingSource(null);
+      blob = await response.blob();
     }
-  };
+
+    const filename = asset.fileName || `image_${Date.now()}.jpg`;
+
+// ===============================
+// ✅ CORRECT ORDER (OCR → Firestore)
+// ===============================
+
+
+
+// ✅ Upload image only
+const image_id = `img_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+// 1️⃣ Save Firestore FIRST
+const userImageId = await UserImageService.uploadUserImage({
+  userId: user.uid,
+  studentId: selectedStudent.studentId,
+  studentAge: selectedStudent.studentAge,
+  studentGrade: selectedStudent.studentGrade,
+  studentGender: selectedStudent.studentGender,
+  fileName: filename,
+  fileBlob: blob,
+  image_id, // 🔑 SAME ID
+});
+
+// 2️⃣ Call OCR (background)
+OcrApi.callOcrApi(blob, filename, image_id)
+  .then(() => {
+    console.log("🧠 OCR completed for", image_id);
+  })
+  .catch((err) => {
+    console.warn("⚠️ OCR failed", err);
+  });
+
+
+
+
+
+
+
+    const userImages = await UserImageService.getUserImages(user.uid);
+    const studentImages = userImages.filter(
+      (img) => img.studentId === selectedStudent.studentId
+    );
+
+    setUploading(false);
+    setUploadingSource(null);
+
+    router.push({
+      pathname: "/student-essays",
+      params: {
+        studentData: JSON.stringify({
+          studentId: selectedStudent.studentId,
+          studentAge: selectedStudent.studentAge,
+          studentGrade: selectedStudent.studentGrade,
+          studentGender: selectedStudent.studentGender,
+          essayCount: studentImages.length,
+          lastUploadDate: new Date().toISOString(),
+          essays: studentImages.map((essay) => ({
+            ...essay,
+            uploadedAt: essay.uploadedAt.toISOString(),
+          })),
+        }),
+        ocrText: "",
+      },
+    });
+
+    setSelectedStudent(null);
+  } catch (err) {
+    console.error("Upload error:", err);
+    setUploading(false);
+    setUploadingSource(null);
+  }
+};
+
 
   // 🔹 Pick from gallery
-  const pickFromLibrary = async () => {
-    // Validate selected student first
-    if (!selectedStudent) {
-      Alert.alert(t("scan.validation"), t("scan.selectStudentFirst"));
-      return;
-    }
+// 🔹 Pick from gallery (FIXED)
+const pickFromLibrary = async () => {
+  if (!selectedStudent) {
+    Alert.alert(t("scan.validation"), t("scan.selectStudentFirst"));
+    return;
+  }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
-    if (!result.canceled) {
-      setUploading(true);
-      setUploadingSource("gallery");
-      await uploadImage(result.assets[0]);
-    }
-  };
+  // ✅ ADD THIS — REQUIRED FOR WEB
+  const permission =
+    await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-  // 🔹 Scan with camera (mobile web fix included)
+  if (!permission.granted) {
+    Alert.alert(
+      t("common.permissionDenied"),
+      t("scan.mediaPermissionRequired")
+    );
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    quality: 1,
+  });
+
+  if (!result.canceled && result.assets?.length > 0) {
+    setUploading(true);
+    setUploadingSource("gallery");
+    await uploadImage(result.assets[0]);
+  }
+};
+
+
+  // 🔹 Scan with camera
   const scanWithCamera = async () => {
-    console.log("🔥 scanWithCamera called!");
-    console.log("🔥 Platform:", Platform.OS);
-    console.log("🔥 selectedStudent:", selectedStudent);
-
-    // Validate selected student first
     if (!selectedStudent) {
-      console.log("❌ No student selected");
       Alert.alert(t("scan.validation"), t("scan.selectStudentFirst"));
       return;
     }
 
     if (Platform.OS === "web") {
-      // Better mobile detection - check for touch support and screen size
-      const isMobile =
-        /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) &&
-        "ontouchstart" in window &&
-        window.innerWidth < 768;
-      console.log("🔥 Is mobile:", isMobile);
-      console.log("🔥 User agent:", navigator.userAgent);
-      console.log("🔥 Has touch:", "ontouchstart" in window);
-      console.log("🔥 Screen width:", window.innerWidth);
-
-      if (isMobile) {
-        console.log("📸 Mobile web - launching camera picker");
-        // ✅ Mobile web → use ImagePicker (opens native camera/photo sheet)
-        const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          quality: 1,
-        });
-        if (!result.canceled) {
-          setUploading(true);
-          setUploadingSource("camera");
-          await uploadImage(result.assets[0]);
-        }
-        return;
-      }
-
-      // ✅ Desktop web → show webcam
-      console.log("📸 Desktop web - showing webcam interface");
       setShowWebCamera(true);
       return;
     }
 
-    // ✅ Native apps
-    console.log("📸 Native app - requesting camera permission");
     if (!permission?.granted) {
       const { granted } = await requestPermission();
-      if (!granted) {
-        Alert.alert(t("scan.permissionDenied"), t("scan.cameraAccessRequired"));
-        return;
-      }
+      if (!granted) return;
     }
 
-    console.log("📸 Native app - launching camera");
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
     });
+
     if (!result.canceled) {
       setUploading(true);
       setUploadingSource("camera");
@@ -274,12 +268,15 @@ export default function ScanScreen() {
     }
   };
 
-  // 🔹 Take photo on web desktop
+  // 🔹 Webcam capture
   const captureWebcamPhoto = async () => {
     if (webcamRef.current) {
       const screenshot = webcamRef.current.getScreenshot();
       if (screenshot) {
-        const asset = { uri: screenshot, fileName: `webcam_${Date.now()}.jpg` };
+        const asset = {
+          uri: screenshot,
+          fileName: `webcam_${Date.now()}.jpg`,
+        };
         setUploading(true);
         setUploadingSource("camera");
         await uploadImage(asset);
@@ -287,6 +284,12 @@ export default function ScanScreen() {
       }
     }
   };
+
+  // ===============================
+  // UI BELOW — COMPLETELY UNCHANGED
+  // ===============================
+
+
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
