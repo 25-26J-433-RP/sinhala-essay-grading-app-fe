@@ -1,4 +1,4 @@
-import * as OcrApi from "../api/ocrApi"; // ✅ ADDED
+import * as OcrApi from "@/app/api/ocrApi";
 
 import AppHeader from "@/components/AppHeader";
 import { useToast } from "@/components/Toast";
@@ -138,14 +138,12 @@ export default function ScanScreen() {
 // ✅ CORRECT ORDER (OCR → Firestore)
 // ===============================
 
-// 1️⃣ Call OCR FIRST
-const ocrRes = await OcrApi.callOcrApi(blob, filename);
 
-if (!ocrRes?.image_id) {
-  throw new Error("OCR did not return image_id");
-}
 
-// 2️⃣ NOW create Firestore document (image_id is guaranteed)
+// ✅ Upload image only
+const image_id = `img_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+// 1️⃣ Save Firestore FIRST
 const userImageId = await UserImageService.uploadUserImage({
   userId: user.uid,
   studentId: selectedStudent.studentId,
@@ -154,26 +152,22 @@ const userImageId = await UserImageService.uploadUserImage({
   studentGender: selectedStudent.studentGender,
   fileName: filename,
   fileBlob: blob,
-  image_id: ocrRes.image_id, // ✅ ALWAYS DEFINED
+  image_id, // 🔑 SAME ID
 });
 
-
-    // 🔥 OCR — background only
-   OcrApi.callOcrApi(blob, filename)
-  .then(async (res) => {
-    console.log("🧠 OCR finished:", res);
-
-    await UserImageService.updateUserImage(userImageId, {
-  image_id: res.image_id,
-  image_url: res.image_url,
-});
-
-
-    console.log("🔗 OCR linked to userImage:", userImageId);
+// 2️⃣ Call OCR (background)
+OcrApi.callOcrApi(blob, filename, image_id)
+  .then(() => {
+    console.log("🧠 OCR completed for", image_id);
   })
   .catch((err) => {
-    console.warn("⚠️ OCR failed (background)", err);
+    console.warn("⚠️ OCR failed", err);
   });
+
+
+
+
+
 
 
     const userImages = await UserImageService.getUserImages(user.uid);

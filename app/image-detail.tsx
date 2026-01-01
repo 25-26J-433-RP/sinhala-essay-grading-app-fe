@@ -92,6 +92,33 @@ const { imageId } = useLocalSearchParams<{ imageId?: string }>();
   // const DEBUG = __DEV__ === true; // not used currently
   
 
+useEffect(() => {
+  if (!imageData?.id) return;
+
+  if (imageData.essay_text && imageData.essay_text.trim() !== "") {
+    // OCR already present
+    if (!inputText || inputText.trim() === "") {
+      setInputText(imageData.essay_text);
+      console.log("✅ OCR text applied to textbox");
+    }
+    return;
+  }
+
+  // OCR not ready yet → poll Firestore
+  const interval = setInterval(async () => {
+    console.log("⏳ Waiting for OCR result...");
+    const fresh = await UserImageService.getUserImage(imageData.id);
+
+    if (fresh.essay_text && fresh.essay_text.trim() !== "") {
+      setImageData(fresh);
+      setInputText(fresh.essay_text);
+      console.log("🎯 OCR text arrived, textbox updated");
+      clearInterval(interval);
+    }
+  }, 3000); // every 3 seconds
+
+  return () => clearInterval(interval);
+}, [imageData?.id]);
 
 
 useEffect(() => {

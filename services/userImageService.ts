@@ -14,6 +14,11 @@ import {
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 
+// const OCR_API_BASE_URL = process.env.EXPO_PUBLIC_OCR_API_URL;
+
+// if (!OCR_API_BASE_URL) {
+//   throw new Error("❌ EXPO_PUBLIC_OCR_API_URL is not defined");
+// }
 
 
 
@@ -95,29 +100,29 @@ export class UserImageService {
  * 🔗 Link OCR result to a user image
  * (called after OCR microservice finishes)
  */
-static async updateUserImage(
-  imageId: string,
-  data: {
-    image_id?: string;
-    image_url?: string;
-    raw_text?: string;
-    cleaned_text?: string;
-    source?: string;
-  }
-): Promise<void> {
-  if (!db) {
-    throw new Error("Firestore not initialized");
-  }
+// static async updateUserImage(
+//   imageId: string,
+//   data: {
+//     image_id?: string;
+//     image_url?: string;
+//     raw_text?: string;
+//     cleaned_text?: string;
+//     source?: string;
+//   }
+// ): Promise<void> {
+//   if (!db) {
+//     throw new Error("Firestore not initialized");
+//   }
 
-  const docRef = doc(db, this.COLLECTION, imageId);
+//   const docRef = doc(db, this.COLLECTION, imageId);
 
-  await updateDoc(docRef, cleanFirestore({
-    ...data,
-    ocr_updated_at: serverTimestamp(),
-  }));
+//   await updateDoc(docRef, cleanFirestore({
+//     ...data,
+//     ocr_updated_at: serverTimestamp(),
+//   }));
 
-  dlog("🔗 OCR linked to userImage:", { imageId, data });
-}
+//   dlog("🔗 OCR linked to userImage:", { imageId, data });
+// }
 
   /**
    * Upload an image for a specific user
@@ -170,13 +175,15 @@ static async updateUserImage(
   });
 
   // 🟢 ADD THIS BLOCK ⬇️⬇️⬇️
-if (uploadData.image_id) {
-  await fetch(
-    `https://sinhala-ocr-api-651457725719.asia-south1.run.app/ocr/sync?image_id=${uploadData.image_id}`,
-    { method: "POST" }
-  );
-  dlog("🔁 OCR sync triggered for image_id:", uploadData.image_id);
-}
+// if (uploadData.image_id) {
+// await fetch(
+//   `${OCR_API_BASE_URL}/sync?image_id=${uploadData.image_id}`,
+//   { method: "POST" }
+// );
+
+// dlog("🔁 OCR sync triggered for image_id:", uploadData.image_id);
+
+// }
 
 // 🔚 THEN return
 return docRef.id;
