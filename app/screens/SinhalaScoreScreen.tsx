@@ -1,26 +1,36 @@
-import React, { useState } from "react";
+import { useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  ActivityIndicator,
+  View,
 } from "react-native";
 
-import { scoreSinhala } from "../api/scoreSinhala";
 import { toMessage } from "../api/client";
+import { scoreSinhala } from "../api/scoreSinhala";
 
 export default function SinhalaScoreScreen() {
+  // 🔹 READ OCR TEXT FROM ROUTE (NEW)
+  const { ocrText } = useLocalSearchParams<{ ocrText?: string }>();
+
   const [text, setText] = useState<string>("");
   const [grade, setGrade] = useState<string>("6");
   const [topic, setTopic] = useState<string>("");
 
-  // FIX: define proper types
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // 🔥 AUTO-FILL ESSAY WHEN OCR TEXT EXISTS (NEW)
+  useEffect(() => {
+    if (ocrText && typeof ocrText === "string") {
+      setText(ocrText);
+    }
+  }, [ocrText]);
 
   const onScore = async () => {
     setResult(null);
@@ -77,8 +87,16 @@ export default function SinhalaScoreScreen() {
         style={[styles.input, styles.textArea]}
       />
 
-      <TouchableOpacity style={styles.button} onPress={onScore} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Score</Text>}
+      <TouchableOpacity
+        style={styles.button}
+        onPress={onScore}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Score</Text>
+        )}
       </TouchableOpacity>
 
       {error && <Text style={styles.error}>{error}</Text>}
@@ -86,7 +104,9 @@ export default function SinhalaScoreScreen() {
       {result && (
         <View style={styles.resultBox}>
           <Text>Model: {result.details.model}</Text>
-          <Text>Dyslexic: {result.details.dyslexic_flag ? "Yes" : "No"}</Text>
+          <Text>
+            Dyslexic: {result.details.dyslexic_flag ? "Yes" : "No"}
+          </Text>
           <Text>Topic: {result.details.topic || "—"}</Text>
         </View>
       )}
