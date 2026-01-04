@@ -53,6 +53,7 @@ export default function TabLayout() {
     { name: "scan", label: t("tabs.scan"), icon: "camera" },
     { name: "score", label: t("tabs.score"), icon: "file" },
     { name: "sinhala-score", label: t("tabs.sinhalaScore"), icon: "book" },
+    { name: "ai-correction", label: t("tabs.aiCorrection"), icon: "brain" },
     { name: "uploaded-images", label: t("tabs.collection"), icon: "photo" },
     { name: "add-student", label: t("tabs.addStudent"), icon: "person" },
   ];
@@ -262,6 +263,19 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => (
               <MaterialCommunityIcons
                 name="book-open-variant"
+                size={26}
+                color={color}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="ai-correction"
+          options={{
+            title: t("tabs.aiCorrection"),
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons
+                name="brain"
                 size={26}
                 color={color}
               />
