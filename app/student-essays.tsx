@@ -10,23 +10,23 @@ import { router, useLocalSearchParams } from "expo-router";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 import { generateAudioFeedback } from "@/app/api/audioFeedback";
 import {
-  BatchFeedbackRequest,
-  BatchFeedbackResponse,
-  fetchBatchTextFeedback,
+    BatchFeedbackRequest,
+    BatchFeedbackResponse,
+    fetchBatchTextFeedback,
 } from "@/app/api/batchTextFeedback";
 
 // Component to display essay thumbnail with fresh URL resolution (CORS bypass on web)
@@ -519,6 +519,7 @@ export default function StudentEssaysScreen() {
                 imageData: JSON.stringify({
                   ...item,
                   uploadedAt: item.uploadedAt.toISOString(),
+                  studentGrade: studentInfo.studentGrade || item.studentGrade,
                 }),
               },
             });
