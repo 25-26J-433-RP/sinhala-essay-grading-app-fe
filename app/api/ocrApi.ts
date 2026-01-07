@@ -1,14 +1,14 @@
 const OCR_API_BASE_URL = process.env.EXPO_PUBLIC_OCR_API_URL;
 
-if (!OCR_API_BASE_URL) {
-  throw new Error("EXPO_PUBLIC_OCR_API_URL not set");
-}
-
 export async function callOcrApi(
   blob: Blob,
   filename: string,
   image_id: string
 ) {
+  if (!OCR_API_BASE_URL) {
+    throw new Error("OCR service is not configured. Please set EXPO_PUBLIC_OCR_API_URL in your .env file");
+  }
+
   const formData = new FormData();
 
   formData.append("image_id", image_id);

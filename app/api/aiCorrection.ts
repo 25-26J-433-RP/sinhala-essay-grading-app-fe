@@ -5,7 +5,11 @@
  * Includes all endpoints from Postman collection
  */
 
-const AI_BACKEND_URL = 'http://localhost:8000/api/v1';
+// Use API Gateway for routing, fallback to localhost for local development
+const GATEWAY_BASE = process.env.EXPO_PUBLIC_API_GATEWAY?.trim() || '';
+const AI_BACKEND_URL = GATEWAY_BASE 
+  ? `${GATEWAY_BASE}/ai-recorrection-workbench/api/v1`
+  : 'http://localhost:8000/api/v1';  // Fallback for local dev without gateway
 
 // ============================================================================
 // Type Definitions
