@@ -2,7 +2,9 @@ import AppHeader from "@/components/AppHeader";
 import { useConfirm } from "@/components/Confirm";
 import { useToast } from "@/components/Toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
+
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -25,7 +27,7 @@ import { getDownloadURL, ref as storageRef } from "firebase/storage";
 
 import { generateAudioFeedback } from "@/app/api/audioFeedback";
 import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
-import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // ✅ FIXED IMPORT
+import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // âœ… FIXED IMPORT
 import {
   fetchTextFeedback,
   TextFeedbackResponse,
@@ -34,7 +36,7 @@ import {
 import { MindmapView } from "@/components/MindmapView";
 import { Audio } from "expo-av";
 
-// 🔥 Prevent Firestore from rejecting undefined/null fields
+// ðŸ”¥ Prevent Firestore from rejecting undefined/null fields
 function cleanFirestore(obj: any) {
   return JSON.parse(
     JSON.stringify(obj, (key, value) => (value === undefined ? null : value))
@@ -42,9 +44,7 @@ function cleanFirestore(obj: any) {
 }
 
 export default function ImageDetailScreen() {
-  const { imageData: imageDataParam } = useLocalSearchParams<{
-    imageData?: string;
-  }>();
+  
 
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,6 +53,7 @@ export default function ImageDetailScreen() {
   const [imageLoadingError, setImageLoadingError] = useState<string | null>(
     null
   );
+const ocrAppliedRef = useRef(false);
 
   const [essayTopic, setEssayTopic] = useState("");
   const [inputText, setInputText] = useState("");
@@ -62,6 +63,7 @@ export default function ImageDetailScreen() {
   const [mindmapData, setMindmapData] = useState<MindmapData | null>(null);
   const [mindmapLoading, setMindmapLoading] = useState(false);
   const [mindmapError, setMindmapError] = useState<string | null>(null);
+const { imageId } = useLocalSearchParams<{ imageId?: string }>();
 
   // Text feedback state
   const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(
@@ -88,39 +90,50 @@ export default function ImageDetailScreen() {
   const confirm = useConfirm();
   const { t } = useLanguage();
   // const DEBUG = __DEV__ === true; // not used currently
-  const initializedRef = useRef(false);
+  
 
-  useEffect(() => {
-    if (initializedRef.current) return;
-    try {
-      if (typeof imageDataParam === "string") {
-        const parsed = JSON.parse(imageDataParam);
-        setImageData(parsed);
-        // Load saved essay text and topic from database
-        setInputText(parsed.essay_text || parsed.description || "");
-        setEssayTopic(parsed.essay_topic || "");
-        // Load saved score data if available
-        if (parsed.score) {
-          setScoreData({
-            score: parsed.score,
-            details: parsed.details || {},
-            rubric: parsed.rubric || {},
-            fairness_report: parsed.fairness_report || {},
-          });
-        }
-        // Load saved text feedback if available
-        if (parsed.text_feedback) {
-          setTextFeedback(parsed.text_feedback);
-          console.log("✅ Loaded saved text feedback from Firestore");
-        }
-      }
-    } catch (error) {
-      console.error("Error parsing image data:", error);
-    } finally {
-      setLoading(false);
-      initializedRef.current = true;
+useEffect(() => {
+  if (!imageData?.id) return;
+
+  if (imageData.essay_text && imageData.essay_text.trim() !== "") {
+    // OCR already present
+    if (!inputText || inputText.trim() === "") {
+      setInputText(imageData.essay_text);
+      console.log("✅ OCR text applied to textbox");
     }
-  }, [imageDataParam]);
+    return;
+  }
+
+  // OCR not ready yet → poll Firestore
+  const interval = setInterval(async () => {
+    console.log("⏳ Waiting for OCR result...");
+    const fresh = await UserImageService.getUserImage(imageData.id);
+
+    if (fresh.essay_text && fresh.essay_text.trim() !== "") {
+      setImageData(fresh);
+      setInputText(fresh.essay_text);
+      console.log("🎯 OCR text arrived, textbox updated");
+      clearInterval(interval);
+    }
+  }, 3000); // every 3 seconds
+
+  return () => clearInterval(interval);
+}, [imageData?.id]);
+
+
+useEffect(() => {
+  if (!imageData?.id) return;
+
+  console.log("📝 Setting inputText from Firestore:", imageData.essay_text);
+
+  setInputText(imageData.essay_text ?? "");
+}, [imageData?.id]);
+
+
+
+
+
+
 
   // Cleanup audio player on unmount
   useEffect(() => {
@@ -134,95 +147,37 @@ export default function ImageDetailScreen() {
   // Resolve a valid HTTPS image URL for Firebase Storage if needed
   // ALWAYS regenerate from storagePath to ensure token is fresh, not using potentially stale imageUrl
   useEffect(() => {
-    const resolveUrl = async () => {
-      if (!imageData) return;
-      setImageLoading(true);
-      setImageLoadingError(null);
+  const resolveUrl = async () => {
+    if (!imageData?.storagePath) return;
 
-      // Priority: Always regenerate from storagePath to get a fresh token
-      const storagePath = imageData.storagePath;
+    setImageLoading(true);
+    setImageLoadingError(null);
 
-      if (storagePath) {
-        try {
-          // Extract plain path from gs:// URL if needed
-          let normalizedPath = storagePath;
-          if (storagePath.startsWith("gs://")) {
-            // gs://bucket-name/path/to/file → path/to/file
-            const parts = storagePath.replace("gs://", "").split("/");
-            normalizedPath = parts.slice(1).join("/");
-            console.info("📦 Extracted path from gs:// URL:", normalizedPath);
-          }
+    try {
+      let path = imageData.storagePath;
 
-          console.info(
-            "🔄 Regenerating fresh download URL for:",
-            normalizedPath
-          );
-          const ref = storageRef(storage, normalizedPath);
-          const freshUrl = await getDownloadURL(ref);
-          console.info("✅ Fresh URL generated successfully:", freshUrl);
-
-          // On web, fetch as blob and convert to data URI to bypass CORS
-          if (Platform.OS === "web") {
-            try {
-              console.info("🌐 Converting to data URI (web CORS bypass)...");
-              const response = await fetch(freshUrl);
-              if (!response.ok) {
-                throw new Error(
-                  `HTTP ${response.status}: ${response.statusText}`
-                );
-              }
-              const blob = await response.blob();
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                const dataUri = reader.result as string;
-                console.info("✅ Data URI created, image ready to load");
-                setImageUrlResolved(dataUri);
-                setImageLoading(false);
-              };
-              reader.onerror = () => {
-                console.error("❌ FileReader error:", reader.error);
-                setImageLoadingError("Failed to read image data");
-                setImageLoading(false);
-              };
-              reader.readAsDataURL(blob);
-            } catch (corsErr) {
-              console.error(
-                "⚠️ Web CORS bypass failed, trying direct URL:",
-                corsErr
-              );
-              setImageUrlResolved(freshUrl); // Fallback to fresh URL, may still fail due to CORS
-              setImageLoading(false);
-            }
-          } else {
-            // Native: use URL directly
-            setImageUrlResolved(freshUrl);
-            setImageLoading(false);
-          }
-        } catch (err) {
-          console.error("❌ Failed to regenerate Firebase image URL:", err);
-          setImageLoadingError("Failed to load image");
-          setImageUrlResolved(null);
-          setImageLoading(false);
-        }
-      } else {
-        // Fallback: Try stored imageUrl if storagePath not available
-        const candidate = imageData.imageUrl || "";
-        if (candidate.startsWith("http")) {
-          console.warn(
-            "⚠️ Using stored imageUrl (may have expired token):",
-            candidate
-          );
-          setImageUrlResolved(candidate);
-          setImageLoading(false);
-        } else {
-          setImageLoadingError("No image path available");
-          setImageUrlResolved(null);
-          setImageLoading(false);
-        }
+      // Handle gs:// paths safely
+      if (path.startsWith("gs://")) {
+        const parts = path.replace("gs://", "").split("/");
+        path = parts.slice(1).join("/");
       }
-    };
-    resolveUrl();
-  }, [imageData]);
+
+      const ref = storageRef(storage, path);
+      const freshUrl = await getDownloadURL(ref);
+
+      setImageUrlResolved(freshUrl);
+    } catch (err) {
+      console.error("❌ Failed to resolve image URL", err);
+      setImageLoadingError("Failed to load image");
+      setImageUrlResolved(null);
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  resolveUrl();
+}, [imageData?.storagePath]);
+
 
   // Load mindmap once imageData is available (uses essay/image id)
   useEffect(() => {
@@ -246,6 +201,29 @@ export default function ImageDetailScreen() {
       cancelled = true;
     };
   }, [imageData?.id]);
+
+
+
+
+
+
+
+
+useEffect(() => {
+  if (!imageId) return;
+
+  (async () => {
+    setLoading(true);
+    const freshImage = await UserImageService.getUserImage(imageId);
+    setImageData(freshImage);
+    
+
+    setEssayTopic(freshImage.essay_topic || "");
+    setLoading(false);
+  })();
+}, [imageId]);
+
+
 
   const handleDeleteImage = async () => {
     const ok = await confirm({
@@ -282,6 +260,56 @@ export default function ImageDetailScreen() {
     }
   };
 
+
+
+
+const refreshImageData = async () => {
+  if (!imageData?.id) return;
+
+  try {
+    console.log("🔄 Refreshing image metadata from Firestore...");
+
+    const freshImage = await UserImageService.getUserImage(imageData.id);
+    setImageData(freshImage);
+
+    setEssayTopic(freshImage.essay_topic || "");
+
+    if (freshImage.score) {
+      setScoreData({
+        score: freshImage.score,
+        details: freshImage.details || {},
+        rubric: freshImage.rubric || {},
+        fairness_report: freshImage.fairness_report || {},
+      });
+    }
+
+    if (freshImage.text_feedback) {
+      setTextFeedback(freshImage.text_feedback);
+    }
+
+    if (freshImage.audio_feedback) {
+      setAudioFeedback(freshImage.audio_feedback);
+    }
+
+    // 🔥 THIS WAS MISSING
+    if (
+      freshImage.essay_text &&
+      (!inputText || inputText.trim() === "")
+    ) {
+      setInputText(freshImage.essay_text);
+      ocrAppliedRef.current = true;
+      console.log("🛡 Restored essay text after refresh");
+    }
+
+    console.log("✅ Image metadata refreshed");
+  } catch (err) {
+    console.error("❌ Refresh failed:", err);
+  }
+};
+
+
+
+
   const handleFetchTextFeedback = async () => {
     if (!imageData?.id || !inputText.trim()) {
       showToast("Missing essay data for feedback", { type: "error" });
@@ -292,18 +320,18 @@ export default function ImageDetailScreen() {
     setTextFeedbackError(null);
 
     try {
-      console.log("🔄 Fetching text feedback...");
+      console.log("ðŸ”„ Fetching text feedback...");
       const response = await fetchTextFeedback(imageData.id, inputText);
       setTextFeedback(response);
-      console.log("✅ Text feedback received:", response);
+      console.log("âœ… Text feedback received:", response);
 
       // Save feedback to Firestore
       await UserImageService.updateImageTextFeedback(imageData.id, response);
-      console.log("💾 Feedback saved to Firestore");
+      console.log("ðŸ’¾ Feedback saved to Firestore");
 
       showToast("Feedback generated successfully", { type: "success" });
     } catch (error: any) {
-      console.error("❌ Failed to fetch text feedback:", error);
+      console.error("âŒ Failed to fetch text feedback:", error);
       setTextFeedbackError(error.message || "Failed to fetch feedback");
       showToast("Failed to generate feedback", { type: "error" });
     } finally {
@@ -323,7 +351,7 @@ export default function ImageDetailScreen() {
     setAudioFeedbackError(null);
 
     try {
-      console.log("🎙️ Generating audio feedback for essay:", imageData.id);
+      console.log("ðŸŽ™ï¸ Generating audio feedback for essay:", imageData.id);
 
       const response = await generateAudioFeedback(
         imageData.id,
@@ -331,15 +359,15 @@ export default function ImageDetailScreen() {
       );
 
       setAudioFeedback(response);
-      console.log("✅ Audio feedback generated:", response);
+      console.log("âœ… Audio feedback generated:", response);
 
       // Save audio feedback to Firestore
       await UserImageService.updateImageAudioFeedback(imageData.id, response);
-      console.log("💾 Audio feedback saved to Firestore");
+      console.log("ðŸ’¾ Audio feedback saved to Firestore");
 
       showToast("Audio feedback generated successfully", { type: "success" });
     } catch (error: any) {
-      console.error("❌ Failed to generate audio feedback:", error);
+      console.error("âŒ Failed to generate audio feedback:", error);
       setAudioFeedbackError(error.message || "Failed to generate audio");
       showToast("Failed to generate audio feedback", { type: "error" });
     } finally {
@@ -408,7 +436,7 @@ export default function ImageDetailScreen() {
                   });
                   setImageUrlResolved(null);
                 }}
-                onLoad={() => console.info("✅ Web img loaded successfully")}
+                onLoad={() => console.info("âœ… Web img loaded successfully")}
               />
             ) : (
               <Image
@@ -459,11 +487,11 @@ export default function ImageDetailScreen() {
                       }
                       const ref = storageRef(storage, normalizedPath);
                       const url = await getDownloadURL(ref);
-                      console.info("✅ Resolved download URL", { url });
+                      console.info("âœ… Resolved download URL", { url });
                       setImageUrlResolved(url);
                     }
                   } catch (err) {
-                    console.error("❌ Retry resolution failed", err);
+                    console.error("âŒ Retry resolution failed", err);
                   }
                 }}
               >
@@ -515,32 +543,60 @@ export default function ImageDetailScreen() {
 
               try {
                 const result = await scoreSinhala({
-                  text: inputText,
+                  text: inputText,  // âœ… Changed from essay_text to text
                   grade: Number(imageData.studentGrade) || 6,
                   topic: essayTopic || undefined,
+                  dyslexic_flag: false,  // âœ… Added dyslexic_flag
+                  error_tags: [],        // âœ… Added error_tags
                 });
 
                 // UI update
                 setScoreData(result);
                 showToast(t("essay.scoreCalculated"), { type: "success" });
 
-                // 🔥 SAVE TO FIRESTORE (with cleaning)
+                // ðŸ”¥ SAVE TO FIRESTORE (with cleaning)
+                const firestoreScorePayload = cleanFirestore({
+                  score: result.score,
+
+                  details: {
+                    // grade: result.details.grade,
+                    // topic: result.details.topic ?? null,
+                    dyslexic_flag: result.details.dyslexic_flag,
+                    error_tags: result.details.error_tags ?? [],
+                    // model: result.details.model,
+                  },
+
+                  rubric: {
+                    richness_5: result.rubric.richness_5,
+                    organization_6: result.rubric.organization_6,
+                    technical_3: result.rubric.technical_3,
+                    total_14: result.rubric.total_14,
+                  },
+
+                  // ðŸ” Firestore-safe (can be null)
+                  fairness_report: result.fairness_report ?? null,
+
+                  essay_text: inputText,
+                  essay_topic: essayTopic || null,
+
+                  scored_at: new Date().toISOString(),
+                });
+
                 await UserImageService.updateImageScore(
                   imageData.id,
-                  cleanFirestore({
-                    ...result,
-                    essay_text: inputText, // SAVE ESSAY TEXT
-                    essay_topic: essayTopic || null, // SAVE ESSAY TOPIC
-                  })
+                  firestoreScorePayload
                 );
 
                 showToast(t("essay.scoreSaved"), { type: "success" });
 
-                // ✅ GENERATE MINDMAP
+                // ✅ REFRESH DATA FROM FIRESTORE - This ensures everything is in sync
+                await refreshImageData();
+
+                // âœ… GENERATE MINDMAP
                 try {
-                  console.log("🧠 Generating mindmap for essay:", imageData.id);
+                  console.log("ðŸ§  Generating mindmap for essay:", imageData.id);
                   await generateMindmap(imageData.id, inputText);
-                  console.log("✅ Mindmap generation triggered");
+                  console.log("âœ… Mindmap generation triggered");
 
                   // Fetch the generated mindmap
                   setMindmapLoading(true);
@@ -550,7 +606,7 @@ export default function ImageDetailScreen() {
                   setMindmapLoading(false);
                   showToast(t("essay.mindmapGenerated"), { type: "success" });
                 } catch (mindmapErr: any) {
-                  console.error("❌ Mindmap generation failed:", mindmapErr);
+                  console.error("âŒ Mindmap generation failed:", mindmapErr);
                   setMindmapError(
                     mindmapErr?.message || t("mindmap.generationFailed")
                   );
@@ -558,10 +614,10 @@ export default function ImageDetailScreen() {
                   // Don't block the main flow - mindmap is optional
                 }
 
-                // ✅ FETCH TEXT FEEDBACK
+                // âœ… FETCH TEXT FEEDBACK
                 try {
                   console.log(
-                    "📤 Fetching text feedback for essay:",
+                    "ðŸ“¤ Fetching text feedback for essay:",
                     imageData.id
                   );
                   const feedback = await fetchTextFeedback(
@@ -569,11 +625,13 @@ export default function ImageDetailScreen() {
                     inputText
                   );
                   setTextFeedback(feedback);
-                  console.log("✅ Text feedback received:", feedback);
+                  console.log("âœ… Text feedback received:", feedback);
                   showToast("Text feedback generated!", { type: "success" });
+                  // Refresh to get the saved feedback from Firestore
+                  await refreshImageData();
                 } catch (feedbackErr: any) {
                   console.error(
-                    "❌ Text feedback generation failed:",
+                    "âŒ Text feedback generation failed:",
                     feedbackErr
                   );
                   setTextFeedbackError(
@@ -583,16 +641,16 @@ export default function ImageDetailScreen() {
                 }
               } catch (err: any) {
                 console.log(
-                  "🔥 FIREBASE ERROR (full):",
+                  "ðŸ”¥ FIREBASE ERROR (full):",
                   JSON.stringify(err, null, 2)
                 );
-                console.log("🔥 FIREBASE ERROR MESSAGE:", err?.message);
-                console.log("🔥 FIREBASE ERROR CODE:", err?.code);
+                console.log("ðŸ”¥ FIREBASE ERROR MESSAGE:", err?.message);
+                console.log("ðŸ”¥ FIREBASE ERROR CODE:", err?.code);
 
                 if (
                   err?.message?.includes("Missing or insufficient permissions")
                 ) {
-                  showToast("❌ Firestore rules blocked the write", {
+                  showToast("âŒ Firestore rules blocked the write", {
                     type: "error",
                   });
                 }
@@ -623,17 +681,17 @@ export default function ImageDetailScreen() {
                 {t("essay.score")}: {scoreData.score}
               </Text>
 
-              <Text style={styles.scoreDetail}>
+              {/* <Text style={styles.scoreDetail}>
                 Model: {scoreData.details.model}
-              </Text>
+              </Text> */}
 
               <Text style={styles.scoreDetail}>
                 Dyslexic: {scoreData.details.dyslexic_flag ? "Yes" : "No"}
               </Text>
 
-              <Text style={styles.scoreDetail}>
-                Topic: {scoreData.details.topic || "—"}
-              </Text>
+              {/* <Text style={styles.scoreDetail}>
+                Topic: {scoreData.details.topic || "â€”"}
+              </Text> */}
             </View>
           )}
 
@@ -647,7 +705,7 @@ export default function ImageDetailScreen() {
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>Richness (5)</Text>
                 <Text style={styles.rubricValue}>
-                  {scoreData.rubric?.richness_5 ?? "—"}
+                  {scoreData.rubric?.richness_5 ?? "â€”"}
                 </Text>
               </View>
 
@@ -656,14 +714,14 @@ export default function ImageDetailScreen() {
                   Organization / Creativity (6)
                 </Text>
                 <Text style={styles.rubricValue}>
-                  {scoreData.rubric?.organization_6 ?? "—"}
+                  {scoreData.rubric?.organization_6 ?? "â€”"}
                 </Text>
               </View>
 
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>Technical Skills (3)</Text>
                 <Text style={styles.rubricValue}>
-                  {scoreData.rubric?.technical_3 ?? "—"}
+                  {scoreData.rubric?.technical_3 ?? "â€”"}
                 </Text>
               </View>
 
@@ -672,13 +730,13 @@ export default function ImageDetailScreen() {
                   Total (14)
                 </Text>
                 <Text style={styles.rubricTotalValue}>
-                  {scoreData.rubric?.total_14 ?? "—"}
+                  {scoreData.rubric?.total_14 ?? "â€”"}
                 </Text>
               </View>
             </View>
           )}
 
-          {/* ==================== FAIRNESS SECTION ==================== */}
+          {/* ==================== FAIRNESS SECTION ====================
           {scoreData && (
             <View style={styles.fairnessCard}>
               <Text style={styles.rubricTitle}>
@@ -688,21 +746,21 @@ export default function ImageDetailScreen() {
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>SPD</Text>
                 <Text style={styles.rubricValue}>
-                  {scoreData.fairness_report?.spd ?? "—"}
+                  {scoreData.fairness_report?.spd ?? "â€”"}
                 </Text>
               </View>
 
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>DIR</Text>
                 <Text style={styles.rubricValue}>
-                  {scoreData.fairness_report?.dir ?? "—"}
+                  {scoreData.fairness_report?.dir ?? "â€”"}
                 </Text>
               </View>
 
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>EOD</Text>
                 <Text style={styles.rubricValue}>
-                  {scoreData.fairness_report?.eod ?? "—"}
+                  {scoreData.fairness_report?.eod ?? "â€”"}
                 </Text>
               </View>
 
@@ -710,12 +768,12 @@ export default function ImageDetailScreen() {
                 <Text style={styles.fairnessNote}>
                   {t("essay.mitigation")}:
                   <Text style={{ color: "#60A5FA" }}>
-                    {scoreData.fairness_report?.mitigation_used ?? "—"}
+                    {scoreData.fairness_report?.mitigation_used ?? "â€”"}
                   </Text>
                 </Text>
               </View>
             </View>
-          )}
+          )} */}
 
           {/* PERSONALIZED FEEDBACK SECTION - DYNAMIC API RESPONSE */}
           {scoreData && (
@@ -789,7 +847,7 @@ export default function ImageDetailScreen() {
                         </Text>
                         {textFeedback.suggestions.map((suggestion, idx) => (
                           <View key={idx} style={styles.suggestionItem}>
-                            <Text style={styles.suggestionBullet}>•</Text>
+                            <Text style={styles.suggestionBullet}>â€¢</Text>
                             <Text style={styles.suggestionText}>
                               {suggestion}
                             </Text>
@@ -924,7 +982,7 @@ export default function ImageDetailScreen() {
                             if (audioPlayerRef.current) {
                               await audioPlayerRef.current.pauseAsync();
                               setIsAudioPlaying(false);
-                              console.log("⏸️ Audio paused");
+                              console.log("â¸ï¸ Audio paused");
                             }
                           } else {
                             // Play audio
@@ -939,8 +997,8 @@ export default function ImageDetailScreen() {
                               audioPlayerRef.current = sound;
                               console.log(
                                 audioFeedback.audio_url
-                                  ? "🎵 Playing audio from URL"
-                                  : "🎵 Playing audio from base64"
+                                  ? "ðŸŽµ Playing audio from URL"
+                                  : "ðŸŽµ Playing audio from base64"
                               );
                             }
 
@@ -962,7 +1020,7 @@ export default function ImageDetailScreen() {
                             setIsAudioPlaying(true);
                           }
                         } catch (error) {
-                          console.error("❌ Audio playback error:", error);
+                          console.error("âŒ Audio playback error:", error);
                           setAudioFeedbackError("Failed to play audio");
                           showToast("Failed to play audio", { type: "error" });
                         }
@@ -1037,7 +1095,7 @@ export default function ImageDetailScreen() {
             <View style={styles.mindmapContainer}>
               <MindmapView data={mindmapData} />
               <Text style={styles.mindmapMeta}>
-                {t("mindmap.nodes")}: {mindmapData.metadata.total_nodes} •{" "}
+                {t("mindmap.nodes")}: {mindmapData.metadata.total_nodes} 
                 {t("mindmap.edges")}: {mindmapData.metadata.total_edges}
               </Text>
               <Text style={styles.mindmapHint}>{t("mindmap.hint")}</Text>
