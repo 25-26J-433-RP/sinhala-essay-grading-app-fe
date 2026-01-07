@@ -7,9 +7,15 @@
 
 // Use API Gateway for routing, fallback to localhost for local development
 const GATEWAY_BASE = process.env.EXPO_PUBLIC_API_GATEWAY?.trim() || '';
-const AI_BACKEND_URL = GATEWAY_BASE 
+
+// Validate gateway URL - must be a valid http(s) URL, not 0.0.0.0
+const isValidGatewayUrl = GATEWAY_BASE && 
+  GATEWAY_BASE.startsWith('http') && 
+  !GATEWAY_BASE.includes('0.0.0.0');
+
+const AI_BACKEND_URL = isValidGatewayUrl 
   ? `${GATEWAY_BASE}/ai-recorrection-workbench/api/v1`
-  : 'http://localhost:8000/api/v1';  // Fallback for local dev without gateway
+  : 'http://localhost:8003/api/v1';  // Fallback: workbench runs on port 8003
 
 // ============================================================================
 // Type Definitions
@@ -325,14 +331,33 @@ class AICorrectionService {
       const match = /\.(\w+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-      // For React Native, we need to handle file uploads differently
-      const fileData: any = {
-        uri: imageUri,
-        type,
-        name: filename,
-      };
-
-      formData.append('image', fileData as any);
+      // Check if running on web platform
+      const isWeb = typeof window !== 'undefined' && typeof document !== 'undefined';
+      
+      if (isWeb) {
+        // For web: Convert data URI or fetch blob from URL
+        let blob: Blob;
+        if (imageUri.startsWith('data:')) {
+          // Convert data URI to blob
+          const response = await fetch(imageUri);
+          blob = await response.blob();
+        } else if (imageUri.startsWith('blob:') || imageUri.startsWith('http')) {
+          // Fetch blob from URL
+          const response = await fetch(imageUri);
+          blob = await response.blob();
+        } else {
+          throw new Error('Invalid image URI format for web');
+        }
+        formData.append('image', blob, filename);
+      } else {
+        // For React Native: use file object format
+        const fileData: any = {
+          uri: imageUri,
+          type,
+          name: filename,
+        };
+        formData.append('image', fileData as any);
+      }
 
       const controller = new AbortController();
       // Use longer timeout for OCR (60 seconds) - image processing can take time
