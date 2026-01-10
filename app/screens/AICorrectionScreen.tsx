@@ -435,7 +435,29 @@ export default function AICorrectionScreen() {
       const originalText = inputText;
       const correctedText = tokens.map((t) => t.displayWord).join(" ");
 
-      // Submit to backend
+      // Build corrections array for session tracking
+      const corrections = tokens
+        .filter((t) => t.type === "error")
+        .map((t) => ({
+          original_word: t.originalWord,
+          suggested_word: t.correctedWord || t.suggestion || "",
+          pattern: t.pattern || t.dyslexiaPattern || "",
+          confidence: t.confidence || 0.85,
+        }));
+
+      // 1. Save to PostgreSQL for student tracking analytics
+      await aiCorrectionService.createSession({
+        original_text: originalText,
+        model_used: modelUsed || "Akura LLaMA 8B",
+        corrections: corrections,
+        student_id: selectedStudent.studentId || selectedStudent.id,
+        student_name: selectedStudent.name || selectedStudent.studentId,
+        student_grade: selectedStudent.grade || selectedStudent.studentGrade,
+      });
+
+      console.log("✅ Session saved to PostgreSQL for student tracking");
+
+      // 2. Submit essay to child-based backend (existing functionality)
       const result = await aiCorrectionService.submitEssayForChild(
         selectedStudent.studentId,
         {

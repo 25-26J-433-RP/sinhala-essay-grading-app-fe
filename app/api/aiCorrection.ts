@@ -125,6 +125,10 @@ export interface SessionCreate {
   original_text: string;
   model_used: string;
   corrections: SessionCorrection[];
+  // Student tracking fields
+  student_id?: string;
+  student_name?: string;
+  student_grade?: string;
 }
 
 export interface SessionResponse {
