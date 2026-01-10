@@ -54,6 +54,7 @@ export default function ImageDetailScreen() {
     null
   );
 const ocrAppliedRef = useRef(false);
+const [isWaitingForOcr, setIsWaitingForOcr] = useState(false);
 
   const [essayTopic, setEssayTopic] = useState("");
   const [inputText, setInputText] = useState("");
@@ -101,10 +102,12 @@ useEffect(() => {
       setInputText(imageData.essay_text);
       console.log("✅ OCR text applied to textbox");
     }
+    setIsWaitingForOcr(false);
     return;
   }
 
   // OCR not ready yet → poll Firestore
+  setIsWaitingForOcr(true);
   const interval = setInterval(async () => {
     console.log("⏳ Waiting for OCR result...");
     const fresh = await UserImageService.getUserImage(imageData.id);
@@ -112,6 +115,7 @@ useEffect(() => {
     if (fresh.essay_text && fresh.essay_text.trim() !== "") {
       setImageData(fresh);
       setInputText(fresh.essay_text);
+      setIsWaitingForOcr(false);
       console.log("🎯 OCR text arrived, textbox updated");
       clearInterval(interval);
     }
@@ -519,17 +523,34 @@ const refreshImageData = async () => {
 
           {/* Essay */}
           <Text style={styles.detailLabel}>{t("essay.essayRequired")}</Text>
+          
+          {/* OCR Loading Indicator */}
+          {isWaitingForOcr && (
+            <View style={styles.ocrLoadingContainer}>
+              <ActivityIndicator size="small" color="#007AFF" />
+              <View style={styles.ocrLoadingTextContainer}>
+                <Text style={styles.ocrLoadingText}>
+                  ✨ Extracting text from image...
+                </Text>
+                <Text style={styles.ocrLoadingSubtext}>
+                  This may take a few seconds
+                </Text>
+              </View>
+            </View>
+          )}
+          
           <TextInput
             value={inputText}
             onChangeText={setInputText}
-            placeholder={t("essay.essayPlaceholder")}
+            placeholder={isWaitingForOcr ? "Waiting for OCR..." : t("essay.essayPlaceholder")}
             multiline
             numberOfLines={8}
             textAlignVertical="top"
-            style={[styles.textInput, { minHeight: 160 }]}
+            style={[styles.textInput, { minHeight: 160 }, isWaitingForOcr && { opacity: 0.7 }]}
           />
 
-          {/* Score Button */}
+          {/* Action Buttons */}
+          <View style={styles.actionButtonsRow}>
           <TouchableOpacity
             style={[styles.scoreButton, isScoring && { opacity: 0.6 }]}
             disabled={isScoring}
@@ -669,6 +690,24 @@ const refreshImageData = async () => {
               </Text>
             )}
           </TouchableOpacity>
+
+          {/* Analyze with AI Button */}
+          <TouchableOpacity
+            style={[styles.aiCorrectionButton, !inputText.trim() && { opacity: 0.5 }]}
+            disabled={!inputText.trim()}
+            onPress={() => {
+              router.push({
+                pathname: "/(tabs)/ai-correction",
+                params: { ocrText: inputText }
+              });
+            }}
+          >
+            <MaterialIcons name="psychology" size={20} color="#fff" />
+            <Text style={styles.aiCorrectionButtonText}>
+              {t("essay.analyzeWithAI") || "Analyze with AI"}
+            </Text>
+          </TouchableOpacity>
+          </View>
         </View>
 
         {/* SCORE DISPLAY */}
@@ -1738,5 +1777,53 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
     paddingVertical: 12,
+  },
+
+  // OCR Loading Styles
+  ocrLoadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1E3A5F",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 12,
+  },
+  ocrLoadingTextContainer: {
+    flex: 1,
+  },
+  ocrLoadingText: {
+    color: "#60A5FA",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  ocrLoadingSubtext: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  // Action Buttons Row
+  actionButtonsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 12,
+  },
+
+  // AI Correction Button
+  aiCorrectionButton: {
+    flex: 1,
+    backgroundColor: "#7C3AED",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 10,
+    gap: 8,
+  },
+  aiCorrectionButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

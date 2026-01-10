@@ -16,6 +16,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as ImagePicker from "expo-image-picker";
+import { useLocalSearchParams } from "expo-router";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
@@ -128,6 +129,9 @@ export default function AICorrectionScreen() {
   const { width } = useWindowDimensions();
   const { user } = useAuth();
   const isDesktop = width >= 1024;
+  
+  // Get ocrText from URL params (from image-detail navigation)
+  const { ocrText } = useLocalSearchParams<{ ocrText?: string }>();
 
   // State
   const [inputText, setInputText] = useState("");
@@ -161,6 +165,14 @@ export default function AICorrectionScreen() {
     checkBackendHealth();
     loadStudents();
   }, []);
+
+  // Pre-fill input text from ocrText param
+  useEffect(() => {
+    if (ocrText && typeof ocrText === 'string' && ocrText.trim()) {
+      setInputText(ocrText);
+      console.log("✅ Pre-filled input with OCR text from image-detail");
+    }
+  }, [ocrText]);
 
   // Load students from Firebase
   const loadStudents = async () => {
