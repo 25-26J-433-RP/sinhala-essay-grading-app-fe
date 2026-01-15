@@ -4,6 +4,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -12,6 +13,14 @@ import {
   where
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
+
+// const OCR_API_BASE_URL = process.env.EXPO_PUBLIC_OCR_API_URL;
+
+// if (!OCR_API_BASE_URL) {
+//   throw new Error("❌ EXPO_PUBLIC_OCR_API_URL is not defined");
+// }
+
+
 
 const DEBUG = __DEV__ === true;
 const dlog = (...args: any[]) => { if (DEBUG) console.log(...args); };
@@ -28,19 +37,30 @@ function cleanFirestore(obj: any) {
 
 export interface UserImageUpload {
   id: string;
+   // 🔥 ADD THIS
+  image_id: string; // FROM OCR BACKEND
+
   userId: string;
   studentId: string;
   studentAge?: number;
   studentGrade?: string;
   studentGender?: string;
+
   imageUrl: string;
   fileName: string;
   storagePath: string;
   uploadedAt: Date;
+
   fileSize?: number;
   mimeType?: string;
   description?: string;
-  // Scoring fields (optional)
+
+  // 🔥 OCR FIELDS (MISSING)
+  cleaned_text?: string;
+  raw_text?: string;
+  source?: string;
+
+  // Scoring fields
   score?: number;
   scoreDetails?: any;
   essay_text?: string;
@@ -48,9 +68,9 @@ export interface UserImageUpload {
   details?: any;
   rubric?: any;
   fairness_report?: any;
-  // Text feedback from API (optional)
+
   text_feedback?: any;
-  // Audio feedback from TTS API (optional)
+
   audio_feedback?: {
     audio_url?: string;
     audio_base64?: string;
@@ -58,6 +78,7 @@ export interface UserImageUpload {
     generated_at?: string;
   };
 }
+
 
 export interface CreateImageUploadData {
   userId: string;
@@ -67,60 +88,175 @@ export interface CreateImageUploadData {
   studentGender?: string;
   fileName: string;
   fileBlob: Blob;
+  image_id: string;
 }
 
 export class UserImageService {
   private static readonly COLLECTION = 'userImages';
   private static readonly STORAGE_PATH = 'user-images';
 
+
+  /**
+ * 🔗 Link OCR result to a user image
+ * (called after OCR microservice finishes)
+ */
+// static async updateUserImage(
+//   imageId: string,
+//   data: {
+//     image_id?: string;
+//     image_url?: string;
+//     raw_text?: string;
+//     cleaned_text?: string;
+//     source?: string;
+//   }
+// ): Promise<void> {
+//   if (!db) {
+//     throw new Error("Firestore not initialized");
+//   }
+
+//   const docRef = doc(db, this.COLLECTION, imageId);
+
+//   await updateDoc(docRef, cleanFirestore({
+//     ...data,
+//     ocr_updated_at: serverTimestamp(),
+//   }));
+
+//   dlog("🔗 OCR linked to userImage:", { imageId, data });
+// }
+
   /**
    * Upload an image for a specific user
    */
-  static async uploadUserImage(data: CreateImageUploadData): Promise<UserImageUpload> {
-    if (!db || !storage) {
-      throw new Error('Firebase not initialized. Check your Firebase configuration.');
-    }
-
-    const timestamp = Date.now();
-    const fileName = `${data.userId}_${timestamp}_${data.fileName}`;
-    const storagePath = `${this.STORAGE_PATH}/${fileName}`;
-    const storageRef = ref(storage, storagePath);
-
-    // Upload file to Storage
-    await uploadBytes(storageRef, data.fileBlob);
-    const imageUrl = await getDownloadURL(storageRef);
-
-    // Save metadata to Firestore, including required studentId and optional age/grade/gender
-    const uploadData = {
-      userId: data.userId,
-      studentId: data.studentId,
-      studentAge: data.studentAge,
-      studentGrade: data.studentGrade,
-      studentGender: data.studentGender,
-      imageUrl,
-      fileName: data.fileName,
-      storagePath,
-      uploadedAt: serverTimestamp(),
-      fileSize: data.fileBlob.size,
-      mimeType: data.fileBlob.type,
-      description: '',
-    };
-
-    const docRef = await addDoc(collection(db, this.COLLECTION), uploadData);
-
-    dlog('✅ Image uploaded to Firestore:', {
-      docId: docRef.id,
-      userId: data.userId,
-      fileName: data.fileName,
-      collection: this.COLLECTION
-    });
-
-    return {
-      id: docRef.id,
-      ...uploadData,
-      uploadedAt: new Date(),
-    } as UserImageUpload;
+ static async uploadUserImage(
+  data: CreateImageUploadData
+): Promise<string> {
+  if (!db || !storage) {
+    throw new Error('Firebase not initialized. Check your Firebase configuration.');
   }
+
+  const timestamp = Date.now();
+  const fileName = `${data.userId}_${timestamp}_${data.fileName}`;
+  const storagePath = `${this.STORAGE_PATH}/${fileName}`;
+  const storageRef = ref(storage, storagePath);
+
+  // Upload file to Storage
+  await uploadBytes(storageRef, data.fileBlob);
+  const imageUrl = await getDownloadURL(storageRef);
+
+  const uploadData = {
+  userId: data.userId,
+  studentId: data.studentId,
+  studentAge: data.studentAge,
+  studentGrade: data.studentGrade,
+  studentGender: data.studentGender,
+
+  // 🔑 CRITICAL JOIN KEY
+  image_id: data.image_id,
+
+  imageUrl,
+  fileName: data.fileName,
+  storagePath,
+  uploadedAt: serverTimestamp(),
+  fileSize: data.fileBlob.size,
+  mimeType: data.fileBlob.type,
+  description: "",
+
+  // 🔥 LET BACKEND FILL THIS
+  essay_text: "",
+};
+
+
+  const docRef = await addDoc(collection(db, this.COLLECTION), uploadData);
+
+  dlog('✅ Image uploaded to Firestore:', {
+    docId: docRef.id,
+    userId: data.userId,
+    fileName: data.fileName,
+  });
+
+  // 🟢 ADD THIS BLOCK ⬇️⬇️⬇️
+// if (uploadData.image_id) {
+// await fetch(
+//   `${OCR_API_BASE_URL}/sync?image_id=${uploadData.image_id}`,
+//   { method: "POST" }
+// );
+
+// dlog("🔁 OCR sync triggered for image_id:", uploadData.image_id);
+
+// }
+
+// 🔚 THEN return
+return docRef.id;
+}
+
+
+
+/**
+ * Get a single image document by ID (source of truth for refresh)
+ */
+static async getUserImage(imageId: string): Promise<UserImageUpload> {
+  if (!db) {
+    throw new Error("Firestore not initialized");
+  }
+
+  const docRef = doc(db, this.COLLECTION, imageId);
+  const snap = await getDoc(docRef);
+
+  if (!snap.exists()) {
+    throw new Error(`Image ${imageId} not found`);
+  }
+
+  const data = snap.data();
+
+  // 🔥 Always regenerate fresh image URL
+  let imageUrl = data.imageUrl;
+  if (data.storagePath && storage) {
+    try {
+      const storageRef = ref(storage, data.storagePath);
+      imageUrl = await getDownloadURL(storageRef);
+    } catch (e) {
+      console.warn("Failed to refresh image URL, using stored one");
+    }
+  }
+
+  return {
+  id: snap.id,
+  userId: data.userId,
+  studentId: data.studentId,
+  studentAge: data.studentAge,
+  studentGrade: data.studentGrade,
+  studentGender: data.studentGender,
+
+  imageUrl,
+  fileName: data.fileName,
+  storagePath: data.storagePath,
+  uploadedAt: data.uploadedAt?.toDate?.() || new Date(),
+
+  description: data.description,
+
+  // 🔥 OCR
+  cleaned_text: data.cleaned_text,
+  raw_text: data.raw_text,
+  source: data.source,
+
+  // Essay
+  essay_text: data.essay_text,
+  essay_topic: data.essay_topic,
+
+  // Scoring
+  score: data.score,
+  details: data.details,
+  rubric: data.rubric,
+  fairness_report: data.fairness_report,
+
+  // Feedback
+  text_feedback: data.text_feedback,
+  audio_feedback: data.audio_feedback,
+};
+
+}
+
+
 
   /**
    * Get all images uploaded by a specific user (includes migration from old system)
@@ -327,7 +463,7 @@ export class UserImageService {
   }
 
   /**
-   * Update the description/notes for an image
+   * (id:) the description/notes for an image
    */
   static async updateImageDescription(imageId: string, description: string): Promise<void> {
     if (!db) {
@@ -444,6 +580,14 @@ static async updateImageScore(id: string, scoreData: any): Promise<void> {
 
   dlog("✅ Score updated:", { id, cleanedData });
 }
+
+// static listenToOCR(imageId: string, cb: (data: any) => void) {
+//   const ref = doc(db, "ocr_results", imageId);
+//   return onSnapshot(ref, (snap) => {
+//     if (snap.exists()) cb(snap.data());
+//   });
+// }
+
 
 
 

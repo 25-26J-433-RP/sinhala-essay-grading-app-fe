@@ -53,8 +53,10 @@ export default function TabLayout() {
     { name: "scan", label: t("tabs.scan"), icon: "camera" },
     { name: "score", label: t("tabs.score"), icon: "file" },
     { name: "sinhala-score", label: t("tabs.sinhalaScore"), icon: "book" },
+    { name: "ai-correction", label: t("tabs.aiCorrection"), icon: "brain" },
     { name: "uploaded-images", label: t("tabs.collection"), icon: "photo" },
     { name: "add-student", label: t("tabs.addStudent"), icon: "person" },
+    { name: "profile", label: t("profile.title"), icon: "account" },
   ];
 
   const headerComponent = isDesktop ? (
@@ -269,6 +271,15 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="ai-correction"
+          options={{
+            title: t("tabs.aiCorrection"),
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="brain" size={26} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="uploaded-images"
           options={{
             title: t("tabs.collection"),
@@ -283,6 +294,15 @@ export default function TabLayout() {
             title: "Add Student",
             tabBarIcon: ({ color }: { color: string }) => (
               <MaterialIcons name="person-add" size={26} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: t("profile.title"),
+            tabBarIcon: ({ color }: { color: string }) => (
+              <MaterialIcons name="account-circle" size={26} color={color} />
             ),
           }}
         />

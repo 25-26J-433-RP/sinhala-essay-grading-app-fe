@@ -514,14 +514,12 @@ export default function StudentEssaysScreen() {
           style={styles.essayCard}
           onPress={() => {
             router.push({
-              pathname: "/image-detail",
-              params: {
-                imageData: JSON.stringify({
-                  ...item,
-                  uploadedAt: item.uploadedAt.toISOString(),
-                }),
-              },
-            });
+  pathname: "/image-detail",
+  params: {
+    imageId: item.id,
+  },
+});
+
           }}
           activeOpacity={0.8}
         >
