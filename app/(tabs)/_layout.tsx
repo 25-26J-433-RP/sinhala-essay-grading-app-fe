@@ -55,6 +55,7 @@ export default function TabLayout() {
     { name: "scan", label: t("tabs.scan"), icon: "camera" },
     { name: "uploaded-images", label: t("tabs.collection"), icon: "photo" },
     { name: "add-student", label: t("tabs.addStudent"), icon: "person" },
+    { name: "profile", label: t("profile.title"), icon: "account" },
   ];
 
   const headerComponent = isDesktop ? (
@@ -295,6 +296,7 @@ export default function TabLayout() {
             });
           })()
         }
+
       </Tabs>
     </>
   );
