@@ -9,11 +9,14 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
+  useWindowDimensions,
 } from "react-native";
 
 export default function GuestScreen() {
   const { language, changeLanguage, t } = useLanguage();
   const router = useRouter();
+  const { width } = useWindowDimensions();
 
   const features = useMemo(
     () => [
@@ -66,8 +69,15 @@ export default function GuestScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.appName}>{t("guest.appName")}</Text>
+        <View
+          style={[
+            styles.headerTop,
+            (Platform.OS !== "web" || width < 768) && { justifyContent: "flex-end" },
+          ]}
+        >
+          {Platform.OS === "web" && width >= 768 && (
+            <Text style={styles.appName}>{t("guest.appName")}</Text>
+          )}
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.languageToggleButton}
