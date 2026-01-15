@@ -47,9 +47,9 @@ export async function scoreSinhala(
       );
     }
 
-    // Build URL directly without duplicate prefix
-    const url = `${GATEWAY_BASE.replace(/\/+$|\s+$/g, "")}/score-sinhala-ml`;
-    
+    // Build URL with proper gateway route prefix
+    const url = `${GATEWAY_BASE.replace(/\/+$|\s+$/g, "")}/bias-aware-scoring-engine/score-sinhala-ml`;
+
     const res = await api.post(url, payload);
     return res.data as SinhalaScoreResponse;
   } catch (err: any) {
