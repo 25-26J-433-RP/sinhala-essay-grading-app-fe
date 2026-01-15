@@ -1,7 +1,7 @@
-const OCR_API_BASE_URL = process.env.EXPO_PUBLIC_OCR_API_URL;
+const API_GATEWAY = process.env.EXPO_PUBLIC_API_GATEWAY;
 
-if (!OCR_API_BASE_URL) {
-  throw new Error("EXPO_PUBLIC_OCR_API_URL not set");
+if (!API_GATEWAY) {
+  throw new Error("EXPO_PUBLIC_API_GATEWAY not set");
 }
 
 export async function callOcrApi(
@@ -14,7 +14,7 @@ export async function callOcrApi(
   formData.append("image_id", image_id);
   formData.append("file", blob, filename);
 
-  const res = await fetch(`${OCR_API_BASE_URL}/ocr`, {
+  const res = await fetch(`${API_GATEWAY}/api/ocr`, {
     method: "POST",
     body: formData,
   });
