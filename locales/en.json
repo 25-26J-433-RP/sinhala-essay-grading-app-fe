@@ -46,7 +46,7 @@
   "student": {
     "collection": "Student Collection",
     "students": "Students",
-    "noStudentsYet": "No Students Yet",
+    "noStudentsYet": "No Students Submissions Yet",
     "noStudentsText": "Student submissions will appear here once essays are uploaded.",
     "loadingStudents": "Loading students...",
     "essayCount": "{{count}} Essay",

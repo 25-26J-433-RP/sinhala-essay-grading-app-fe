@@ -234,6 +234,7 @@ export default function TabLayout() {
               "scan",
               "uploaded-images",
               "add-student",
+              "profile",
             ];
 
             const screensToRender = isDesktop ? desktopOrder : mobileOrder;
@@ -286,6 +287,16 @@ export default function TabLayout() {
                     <MaterialIcons name="person-add" size={26} color={color} />
                   );
                   break;
+                case "profile":
+                  commonOptions.title = t("profile.title");
+                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
+                    <MaterialIcons
+                      name="account-circle"
+                      size={26}
+                      color={color}
+                    />
+                  );
+                  break;
                 default:
                   break;
               }
@@ -296,7 +307,6 @@ export default function TabLayout() {
             });
           })()
         }
-
       </Tabs>
     </>
   );
