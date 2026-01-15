@@ -1,64 +1,64 @@
-import LanguageDropdown from "@/components/LanguageDropdown";
 import { useLanguage } from "@/contexts/LanguageContext";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 
 export default function GuestScreen() {
   const { language, changeLanguage, t } = useLanguage();
   const router = useRouter();
+  const { width } = useWindowDimensions();
 
-  const languages = [
-    { code: "en", label: "English", flag: "🇬🇧" },
-    { code: "si", label: "සිංහල", flag: "🇱🇰" },
-  ];
-
-  const features = [
-    {
-      icon: "assessment",
-      title: t("guest.aiScoring"),
-      description: t("guest.aiScoringDesc"),
-      color: "#3B82F6",
-    },
-    {
-      icon: "chat-bubble-outline",
-      title: t("guest.smartFeedback"),
-      description: t("guest.smartFeedbackDesc"),
-      color: "#10B981",
-    },
-    {
-      icon: "volume-up",
-      title: t("guest.sinhalaAudio"),
-      description: t("guest.sinhalaAudioDesc"),
-      color: "#8B5CF6",
-    },
-    {
-      icon: "show-chart",
-      title: t("guest.analytics"),
-      description: t("guest.analyticsDesc"),
-      color: "#F59E0B",
-    },
-    {
-      icon: "hub",
-      title: t("guest.mindMaps"),
-      description: t("guest.mindMapsDesc"),
-      color: "#EC4899",
-    },
-    {
-      icon: "translate",
-      title: t("guest.multiLanguage"),
-      description: t("guest.multiLanguageDesc"),
-      color: "#06B6D4",
-    },
-  ];
+  const features = useMemo(
+    () => [
+      {
+        icon: "assessment",
+        title: t("guest.aiScoring"),
+        description: t("guest.aiScoringDesc"),
+        color: "#3B82F6",
+      },
+      {
+        icon: "chat-bubble-outline",
+        title: t("guest.smartFeedback"),
+        description: t("guest.smartFeedbackDesc"),
+        color: "#10B981",
+      },
+      {
+        icon: "volume-up",
+        title: t("guest.sinhalaAudio"),
+        description: t("guest.sinhalaAudioDesc"),
+        color: "#8B5CF6",
+      },
+      {
+        icon: "show-chart",
+        title: t("guest.analytics"),
+        description: t("guest.analyticsDesc"),
+        color: "#F59E0B",
+      },
+      {
+        icon: "hub",
+        title: t("guest.mindMaps"),
+        description: t("guest.mindMapsDesc"),
+        color: "#EC4899",
+      },
+      {
+        icon: "translate",
+        title: t("guest.multiLanguage"),
+        description: t("guest.multiLanguageDesc"),
+        color: "#06B6D4",
+      },
+    ],
+    [t]
+  );
 
   return (
     <ScrollView
@@ -69,13 +69,37 @@ export default function GuestScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.appName}>{t("guest.appName")}</Text>
-          <LanguageDropdown
-            currentLanguage={language}
-            languages={languages}
-            onSelect={changeLanguage}
-          />
+        <View
+          style={[
+            styles.headerTop,
+            (Platform.OS !== "web" || width < 768) && {
+              justifyContent: "flex-end",
+            },
+          ]}
+        >
+          {Platform.OS === "web" && width >= 768 && (
+            <Text style={styles.appName}>{t("guest.appName")}</Text>
+          )}
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.languageToggleButton}
+              onPress={() => changeLanguage(language === "en" ? "si" : "en")}
+            >
+              <MaterialIcons name="language" size={20} color="#fff" />
+              <Text style={styles.languageToggleText}>
+                {language === "en" ? "සි" : "EN"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerLoginButton}
+              onPress={() => router.push("/login")}
+            >
+              <MaterialIcons name="login" size={20} color="#fff" />
+              <Text style={styles.headerLoginButtonText}>
+                {t("auth.login")}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -253,7 +277,12 @@ export default function GuestScreen() {
 
       {/* Footer */}
       <View style={styles.footer}>
-        <Text style={styles.footerText}>{t("guest.footerText")}</Text>
+        <Text style={styles.footerText}>
+          {t("guest.footerText").replace(
+            "{{year}}",
+            new Date().getFullYear().toString()
+          )}
+        </Text>
         <Text style={styles.footerSubtext}>{t("guest.footerDescription")}</Text>
       </View>
     </ScrollView>
@@ -291,6 +320,54 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
+  },
+
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  languageToggleButton: {
+    backgroundColor: "#007AFF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  languageToggleText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  headerLoginButton: {
+    backgroundColor: "#007AFF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  headerLoginButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   appName: {

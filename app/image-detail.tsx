@@ -2,7 +2,9 @@ import AppHeader from "@/components/AppHeader";
 import { useConfirm } from "@/components/Confirm";
 import { useToast } from "@/components/Toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
+
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -42,9 +44,7 @@ function cleanFirestore(obj: any) {
 }
 
 export default function ImageDetailScreen() {
-  const { imageData: imageDataParam } = useLocalSearchParams<{
-    imageData?: string;
-  }>();
+  
 
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,6 +53,7 @@ export default function ImageDetailScreen() {
   const [imageLoadingError, setImageLoadingError] = useState<string | null>(
     null
   );
+const ocrAppliedRef = useRef(false);
 
   const [essayTopic, setEssayTopic] = useState("");
   const [inputText, setInputText] = useState("");
@@ -62,6 +63,7 @@ export default function ImageDetailScreen() {
   const [mindmapData, setMindmapData] = useState<MindmapData | null>(null);
   const [mindmapLoading, setMindmapLoading] = useState(false);
   const [mindmapError, setMindmapError] = useState<string | null>(null);
+const { imageId } = useLocalSearchParams<{ imageId?: string }>();
 
   // Text feedback state
   const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(
@@ -88,39 +90,50 @@ export default function ImageDetailScreen() {
   const confirm = useConfirm();
   const { t } = useLanguage();
   // const DEBUG = __DEV__ === true; // not used currently
-  const initializedRef = useRef(false);
+  
 
-  useEffect(() => {
-    if (initializedRef.current) return;
-    try {
-      if (typeof imageDataParam === "string") {
-        const parsed = JSON.parse(imageDataParam);
-        setImageData(parsed);
-        // Load saved essay text and topic from database
-        setInputText(parsed.essay_text || parsed.description || "");
-        setEssayTopic(parsed.essay_topic || "");
-        // Load saved score data if available
-        if (parsed.score) {
-          setScoreData({
-            score: parsed.score,
-            details: parsed.details || {},
-            rubric: parsed.rubric || {},
-            fairness_report: parsed.fairness_report || {},
-          });
-        }
-        // Load saved text feedback if available
-        if (parsed.text_feedback) {
-          setTextFeedback(parsed.text_feedback);
-          console.log("âœ… Loaded saved text feedback from Firestore");
-        }
-      }
-    } catch (error) {
-      console.error("Error parsing image data:", error);
-    } finally {
-      setLoading(false);
-      initializedRef.current = true;
+useEffect(() => {
+  if (!imageData?.id) return;
+
+  if (imageData.essay_text && imageData.essay_text.trim() !== "") {
+    // OCR already present
+    if (!inputText || inputText.trim() === "") {
+      setInputText(imageData.essay_text);
+      console.log("✅ OCR text applied to textbox");
     }
-  }, [imageDataParam]);
+    return;
+  }
+
+  // OCR not ready yet → poll Firestore
+  const interval = setInterval(async () => {
+    console.log("⏳ Waiting for OCR result...");
+    const fresh = await UserImageService.getUserImage(imageData.id);
+
+    if (fresh.essay_text && fresh.essay_text.trim() !== "") {
+      setImageData(fresh);
+      setInputText(fresh.essay_text);
+      console.log("🎯 OCR text arrived, textbox updated");
+      clearInterval(interval);
+    }
+  }, 3000); // every 3 seconds
+
+  return () => clearInterval(interval);
+}, [imageData?.id]);
+
+
+useEffect(() => {
+  if (!imageData?.id) return;
+
+  console.log("📝 Setting inputText from Firestore:", imageData.essay_text);
+
+  setInputText(imageData.essay_text ?? "");
+}, [imageData?.id]);
+
+
+
+
+
+
 
   // Cleanup audio player on unmount
   useEffect(() => {
@@ -134,95 +147,37 @@ export default function ImageDetailScreen() {
   // Resolve a valid HTTPS image URL for Firebase Storage if needed
   // ALWAYS regenerate from storagePath to ensure token is fresh, not using potentially stale imageUrl
   useEffect(() => {
-    const resolveUrl = async () => {
-      if (!imageData) return;
-      setImageLoading(true);
-      setImageLoadingError(null);
+  const resolveUrl = async () => {
+    if (!imageData?.storagePath) return;
 
-      // Priority: Always regenerate from storagePath to get a fresh token
-      const storagePath = imageData.storagePath;
+    setImageLoading(true);
+    setImageLoadingError(null);
 
-      if (storagePath) {
-        try {
-          // Extract plain path from gs:// URL if needed
-          let normalizedPath = storagePath;
-          if (storagePath.startsWith("gs://")) {
-            // gs://bucket-name/path/to/file â†’ path/to/file
-            const parts = storagePath.replace("gs://", "").split("/");
-            normalizedPath = parts.slice(1).join("/");
-            console.info("ðŸ“¦ Extracted path from gs:// URL:", normalizedPath);
-          }
+    try {
+      let path = imageData.storagePath;
 
-          console.info(
-            "ðŸ”„ Regenerating fresh download URL for:",
-            normalizedPath
-          );
-          const ref = storageRef(storage, normalizedPath);
-          const freshUrl = await getDownloadURL(ref);
-          console.info("âœ… Fresh URL generated successfully:", freshUrl);
-
-          // On web, fetch as blob and convert to data URI to bypass CORS
-          if (Platform.OS === "web") {
-            try {
-              console.info("ðŸŒ Converting to data URI (web CORS bypass)...");
-              const response = await fetch(freshUrl);
-              if (!response.ok) {
-                throw new Error(
-                  `HTTP ${response.status}: ${response.statusText}`
-                );
-              }
-              const blob = await response.blob();
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                const dataUri = reader.result as string;
-                console.info("âœ… Data URI created, image ready to load");
-                setImageUrlResolved(dataUri);
-                setImageLoading(false);
-              };
-              reader.onerror = () => {
-                console.error("âŒ FileReader error:", reader.error);
-                setImageLoadingError("Failed to read image data");
-                setImageLoading(false);
-              };
-              reader.readAsDataURL(blob);
-            } catch (corsErr) {
-              console.error(
-                "âš ï¸ Web CORS bypass failed, trying direct URL:",
-                corsErr
-              );
-              setImageUrlResolved(freshUrl); // Fallback to fresh URL, may still fail due to CORS
-              setImageLoading(false);
-            }
-          } else {
-            // Native: use URL directly
-            setImageUrlResolved(freshUrl);
-            setImageLoading(false);
-          }
-        } catch (err) {
-          console.error("âŒ Failed to regenerate Firebase image URL:", err);
-          setImageLoadingError("Failed to load image");
-          setImageUrlResolved(null);
-          setImageLoading(false);
-        }
-      } else {
-        // Fallback: Try stored imageUrl if storagePath not available
-        const candidate = imageData.imageUrl || "";
-        if (candidate.startsWith("http")) {
-          console.warn(
-            "âš ï¸ Using stored imageUrl (may have expired token):",
-            candidate
-          );
-          setImageUrlResolved(candidate);
-          setImageLoading(false);
-        } else {
-          setImageLoadingError("No image path available");
-          setImageUrlResolved(null);
-          setImageLoading(false);
-        }
+      // Handle gs:// paths safely
+      if (path.startsWith("gs://")) {
+        const parts = path.replace("gs://", "").split("/");
+        path = parts.slice(1).join("/");
       }
-    };
-    resolveUrl();
-  }, [imageData]);
+
+      const ref = storageRef(storage, path);
+      const freshUrl = await getDownloadURL(ref);
+
+      setImageUrlResolved(freshUrl);
+    } catch (err) {
+      console.error("❌ Failed to resolve image URL", err);
+      setImageLoadingError("Failed to load image");
+      setImageUrlResolved(null);
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  resolveUrl();
+}, [imageData?.storagePath]);
+
 
   // Load mindmap once imageData is available (uses essay/image id)
   useEffect(() => {
@@ -247,12 +202,28 @@ export default function ImageDetailScreen() {
     };
   }, [imageData?.id]);
 
-  // Refresh data from Firestore on component mount
-  useEffect(() => {
-    if (imageData?.id && initializedRef.current) {
-      refreshImageData();
-    }
-  }, [imageData?.id]);
+
+
+
+
+
+
+
+useEffect(() => {
+  if (!imageId) return;
+
+  (async () => {
+    setLoading(true);
+    const freshImage = await UserImageService.getUserImage(imageId);
+    setImageData(freshImage);
+    
+
+    setEssayTopic(freshImage.essay_topic || "");
+    setLoading(false);
+  })();
+}, [imageId]);
+
+
 
   const handleDeleteImage = async () => {
     const ok = await confirm({
@@ -290,45 +261,54 @@ export default function ImageDetailScreen() {
   };
 
 
-  const refreshImageData = async () => {
-    if (!imageData?.id) return;
 
-    try {
-      console.log('🔄 Refreshing image data from Firestore...');
-      const freshData = await UserImageService.getUserImage(imageData.id);
 
-      // Update all state with fresh data
-      setImageData(freshData);
+const refreshImageData = async () => {
+  if (!imageData?.id) return;
 
-      // Update essay text and topic
-      setInputText(freshData.essay_text || freshData.description || '');
-      setEssayTopic(freshData.essay_topic || '');
+  try {
+    console.log("🔄 Refreshing image metadata from Firestore...");
 
-      // Update score data if available
-      if (freshData.score) {
-        setScoreData({
-          score: freshData.score,
-          details: freshData.details || {},
-          rubric: freshData.rubric || {},
-          fairness_report: freshData.fairness_report || {},
-        });
-      }
+    const freshImage = await UserImageService.getUserImage(imageData.id);
+    setImageData(freshImage);
 
-      // Update text feedback if available
-      if (freshData.text_feedback) {
-        setTextFeedback(freshData.text_feedback);
-      }
+    setEssayTopic(freshImage.essay_topic || "");
 
-      // Update audio feedback if available
-      if (freshData.audio_feedback) {
-        setAudioFeedback(freshData.audio_feedback);
-      }
-
-      console.log('✅ Image data refreshed successfully');
-    } catch (error) {
-      console.error('❌ Failed to refresh image data:', error);
+    if (freshImage.score) {
+      setScoreData({
+        score: freshImage.score,
+        details: freshImage.details || {},
+        rubric: freshImage.rubric || {},
+        fairness_report: freshImage.fairness_report || {},
+      });
     }
-  };
+
+    if (freshImage.text_feedback) {
+      setTextFeedback(freshImage.text_feedback);
+    }
+
+    if (freshImage.audio_feedback) {
+      setAudioFeedback(freshImage.audio_feedback);
+    }
+
+    // 🔥 THIS WAS MISSING
+    if (
+      freshImage.essay_text &&
+      (!inputText || inputText.trim() === "")
+    ) {
+      setInputText(freshImage.essay_text);
+      ocrAppliedRef.current = true;
+      console.log("🛡 Restored essay text after refresh");
+    }
+
+    console.log("✅ Image metadata refreshed");
+  } catch (err) {
+    console.error("❌ Refresh failed:", err);
+  }
+};
+
+
+
 
   const handleFetchTextFeedback = async () => {
     if (!imageData?.id || !inputText.trim()) {
@@ -1121,7 +1101,7 @@ export default function ImageDetailScreen() {
             <View style={styles.mindmapContainer}>
               <MindmapView data={mindmapData} />
               <Text style={styles.mindmapMeta}>
-                {t("mindmap.nodes")}: {mindmapData.metadata.total_nodes} â€¢{" "}
+                {t("mindmap.nodes")}: {mindmapData.metadata.total_nodes} 
                 {t("mindmap.edges")}: {mindmapData.metadata.total_edges}
               </Text>
               <Text style={styles.mindmapHint}>{t("mindmap.hint")}</Text>

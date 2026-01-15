@@ -5,10 +5,12 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React from "react";
 import {
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -43,6 +45,8 @@ export default function ProfileScreen() {
     });
   };
 
+  const { width } = useWindowDimensions();
+
   if (profileLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -51,9 +55,13 @@ export default function ProfileScreen() {
     );
   }
 
+  // Add horizontal padding for mobile view (width < 768)
+  const mobilePadding =
+    Platform.OS !== "web" || width < 768 ? { paddingHorizontal: 16 } : {};
+
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, mobilePadding]}
       contentContainerStyle={styles.contentContainer}
     >
       {/* Header */}
@@ -64,23 +72,6 @@ export default function ProfileScreen() {
         <Text style={styles.displayName}>
           {userProfile?.displayName || user?.email?.split("@")[0] || "User"}
         </Text>
-        <Text style={styles.email}>{user?.email}</Text>
-        {userProfile && (
-          <View style={styles.roleBadgeContainer}>
-            <View
-              style={[
-                styles.roleBadge,
-                role === "teacher" ? styles.teacherBadge : styles.studentBadge,
-              ]}
-            >
-              <Text style={styles.roleBadgeText}>
-                {role === "teacher"
-                  ? `👨‍🏫 ${t("auth.teacher")}`
-                  : `👨‍🎓 ${t("auth.student")}`}
-              </Text>
-            </View>
-          </View>
-        )}
       </View>
 
       {/* Profile Information */}
@@ -209,6 +200,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: 40,
+    maxWidth: 600,
+    alignSelf: "center",
+    width: "100%",
+    marginTop: 20,
   },
   loadingContainer: {
     flex: 1,
@@ -225,6 +220,11 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     paddingHorizontal: 20,
     backgroundColor: "#23262F",
+    maxWidth: 600,
+    alignSelf: "center",
+    width: "100%",
+    borderRadius: 20,
+    marginHorizontal: 20,
   },
   avatarContainer: {
     marginBottom: 16,
@@ -264,6 +264,9 @@ const styles = StyleSheet.create({
   },
   section: {
     margin: 20,
+    maxWidth: 600,
+    alignSelf: "center",
+    width: "100%",
   },
   sectionTitle: {
     color: "#fff",

@@ -46,7 +46,7 @@
   "student": {
     "collection": "Student Collection",
     "students": "Students",
-    "noStudentsYet": "No Students Yet",
+    "noStudentsYet": "No Students Submissions Yet",
     "noStudentsText": "Student submissions will appear here once essays are uploaded.",
     "loadingStudents": "Loading students...",
     "essayCount": "{{count}} Essay",
@@ -134,8 +134,47 @@
     "scan": "Scan",
     "score": "Score",
     "sinhalaScore": "Sinhala Score",
+    "aiCorrection": "AI Correction",
     "collection": "Collection",
     "addStudent": "Add Student"
+  },
+  "aiCorrection": {
+    "title": "AI Correction",
+    "placeholder": "Enter Sinhala text for dyslexia analysis...",
+    "analyzeButton": "Analyze Text",
+    "uploadImage": "Upload Image",
+    "extractingText": "Extracting text...",
+    "analyzing": "Analyzing...",
+    "sampleTexts": "Sample Texts",
+    "results": "Results",
+    "noResults": "No analysis results yet",
+    "errorFound": "Error found",
+    "errorFound_plural": "Errors found",
+    "originalText": "Original Text",
+    "correctedText": "Corrected Text",
+    "acceptCorrection": "Accept",
+    "rejectCorrection": "Reject",
+    "editCorrection": "Edit",
+    "undoCorrection": "Undo",
+    "saveCorrection": "Save",
+    "cancelEdit": "Cancel",
+    "editMode": "Edit Correction",
+    "suggestedCorrection": "Suggested Correction",
+    "pattern": "Pattern",
+    "confidence": "Confidence",
+    "explanation": "Explanation",
+    "selectStudent": "Select Student",
+    "noStudents": "No students found",
+    "history": "History",
+    "noHistory": "No history available",
+    "saveToStudent": "Save to Student",
+    "savedSuccess": "Essay saved successfully!",
+    "savedError": "Failed to save essay",
+    "tapToEdit": "Tap any word to edit",
+    "tapToReview": "Tap error words to review",
+    "copyText": "Copy Text",
+    "reset": "Reset",
+    "textCopied": "Corrected text copied to clipboard!"
   },
   "home": {
     "welcomeTitle": "Welcome to the Essay Grading System",
@@ -251,7 +290,7 @@
     "score": "Score"
   },
   "guest": {
-    "appName": "📚 Essay Grader",
+    "appName": "📚 Akura Essay Grader",
     "subtitle": "AI-Powered Essay Evaluation for Sinhala Education",
     "welcome": "Welcome to Essay Grading System",
     "welcomeDescription": "A modern solution that supports essay evaluation with AI-powered scoring, personalized feedback, and full Sinhala language support.",
@@ -292,7 +331,7 @@
     "ctaDescription": "Join hundreds of teachers using our AI-powered essay grading system",
     "signIn": "Sign In / Register",
     "learnMore": "Learn More",
-    "footerText": "© 2024 Essay Grading System. All rights reserved.",
-    "footerDescription": "Empowering teachers with AI-powered essay evaluation for the Sinhala education system."
+    "footerText": "© {{year}} Akura Essay Grading System. All rights reserved.",
+    "footerDescription": "Empowering students and teachers with AI-powered essay evaluation for the Sinhala education system."
   }
 }

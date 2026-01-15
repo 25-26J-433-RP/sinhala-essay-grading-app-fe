@@ -25,7 +25,9 @@ export default function TabLayout() {
   const { width: screenWidth } = useWindowDimensions();
   const router = useRouter();
   const segments = useSegments();
-  const isDesktop = screenWidth >= 768;
+  // Treat as desktop only when running on web with a wide viewport.
+  const isDesktop = Platform.OS === "web" ? screenWidth >= 768 : false;
+  const hideOnMobile = !isDesktop;
   const { logout } = useAuth();
 
   const currentRoute = segments[segments.length - 1] || "index";
@@ -51,10 +53,9 @@ export default function TabLayout() {
   const navTabs = [
     { name: "index", label: t("tabs.home"), icon: "house.fill" },
     { name: "scan", label: t("tabs.scan"), icon: "camera" },
-    { name: "score", label: t("tabs.score"), icon: "file" },
-    { name: "sinhala-score", label: t("tabs.sinhalaScore"), icon: "book" },
     { name: "uploaded-images", label: t("tabs.collection"), icon: "photo" },
     { name: "add-student", label: t("tabs.addStudent"), icon: "person" },
+    { name: "profile", label: t("profile.title"), icon: "account" },
   ];
 
   const headerComponent = isDesktop ? (
@@ -219,73 +220,93 @@ export default function TabLayout() {
           }),
         }}
       >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: t("tabs.home"),
-            tabBarIcon: ({ color }: { color: string }) => (
-              <IconSymbol size={28} name="house.fill" color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="scan"
-          options={{
-            title: t("tabs.scan"),
-            tabBarIcon: ({ color }: { color: string }) => (
-              <MaterialCommunityIcons
-                name="camera-outline"
-                size={26}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="score"
-          options={{
-            title: t("tabs.score"),
-            tabBarIcon: ({ color }: { color: string }) => (
-              <MaterialCommunityIcons
-                name="file-document-edit-outline"
-                size={26}
-                color={color}
-              />
-            ),
-          }}
-        />
+        {
+          // Define which tab screens to render depending on desktop vs mobile.
+          (() => {
+            const desktopOrder = [
+              "index",
+              "scan",
+              "uploaded-images",
+              "add-student",
+            ];
+            const mobileOrder = [
+              "index",
+              "scan",
+              "uploaded-images",
+              "add-student",
+              "profile",
+            ];
 
-        <Tabs.Screen
-          name="sinhala-score"
-          options={{
-            title: t("tabs.sinhalaScore"),
-            tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons
-                name="book-open-variant"
-                size={26}
-                color={color}
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="uploaded-images"
-          options={{
-            title: t("tabs.collection"),
-            tabBarIcon: ({ color }: { color: string }) => (
-              <MaterialIcons name="photo-library" size={26} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="add-student"
-          options={{
-            title: "Add Student",
-            tabBarIcon: ({ color }: { color: string }) => (
-              <MaterialIcons name="person-add" size={26} color={color} />
-            ),
-          }}
-        />
+            const screensToRender = isDesktop ? desktopOrder : mobileOrder;
+
+            return screensToRender.map((name) => {
+              const commonOptions: any = {};
+
+              // Hide tab buttons for screens that aren't part of the mobile order
+              // This prevents their icons from appearing in the tab bar on mobile.
+              const hiddenOnMobile = !isDesktop && !mobileOrder.includes(name);
+              if (hiddenOnMobile) {
+                // Ensure the tab has no button, icon or label on mobile.
+                commonOptions.tabBarButton = () => null;
+                commonOptions.tabBarIcon = () => null;
+                commonOptions.tabBarLabel = () => null;
+                commonOptions.title = "";
+              }
+
+              switch (name) {
+                case "index":
+                  commonOptions.title = t("tabs.home");
+                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
+                    <IconSymbol size={28} name="house.fill" color={color} />
+                  );
+                  break;
+                case "scan":
+                  commonOptions.title = t("tabs.scan");
+                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
+                    <MaterialCommunityIcons
+                      name="camera-outline"
+                      size={26}
+                      color={color}
+                    />
+                  );
+                  break;
+
+                case "uploaded-images":
+                  commonOptions.title = t("tabs.collection");
+                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
+                    <MaterialIcons
+                      name="photo-library"
+                      size={26}
+                      color={color}
+                    />
+                  );
+                  break;
+                case "add-student":
+                  commonOptions.title = "Add Student";
+                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
+                    <MaterialIcons name="person-add" size={26} color={color} />
+                  );
+                  break;
+                case "profile":
+                  commonOptions.title = t("profile.title");
+                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
+                    <MaterialIcons
+                      name="account-circle"
+                      size={26}
+                      color={color}
+                    />
+                  );
+                  break;
+                default:
+                  break;
+              }
+
+              return (
+                <Tabs.Screen key={name} name={name} options={commonOptions} />
+              );
+            });
+          })()
+        }
       </Tabs>
     </>
   );
