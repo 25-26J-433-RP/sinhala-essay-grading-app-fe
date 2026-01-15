@@ -4,13 +4,13 @@ import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import {
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  Platform,
   useWindowDimensions,
+  View,
 } from "react-native";
 
 export default function GuestScreen() {
@@ -72,7 +72,9 @@ export default function GuestScreen() {
         <View
           style={[
             styles.headerTop,
-            (Platform.OS !== "web" || width < 768) && { justifyContent: "flex-end" },
+            (Platform.OS !== "web" || width < 768) && {
+              justifyContent: "flex-end",
+            },
           ]}
         >
           {Platform.OS === "web" && width >= 768 && (
