@@ -71,11 +71,22 @@ export default function GuestScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.appName}>{t("guest.appName")}</Text>
-          <LanguageDropdown
-            currentLanguage={language}
-            languages={languages}
-            onSelect={changeLanguage}
-          />
+          <View style={styles.headerActions}>
+            <LanguageDropdown
+              currentLanguage={language}
+              languages={languages}
+              onSelect={changeLanguage}
+            />
+            <TouchableOpacity
+              style={styles.headerLoginButton}
+              onPress={() => router.push("/login")}
+            >
+              <MaterialIcons name="login" size={20} color="#fff" />
+              <Text style={styles.headerLoginButtonText}>
+                {t("auth.login")}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -291,6 +302,33 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
+  },
+
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  headerLoginButton: {
+    backgroundColor: "#007AFF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+
+  headerLoginButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   appName: {
