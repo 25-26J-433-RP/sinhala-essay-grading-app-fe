@@ -63,7 +63,7 @@ const ocrAppliedRef = useRef(false);
   const [mindmapData, setMindmapData] = useState<MindmapData | null>(null);
   const [mindmapLoading, setMindmapLoading] = useState(false);
   const [mindmapError, setMindmapError] = useState<string | null>(null);
-const { imageId } = useLocalSearchParams<{ imageId?: string }>();
+const { imageId, imageData: imageDataParam } = useLocalSearchParams<{ imageId?: string; imageData?: string }>();
 
   // Text feedback state
   const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(
@@ -210,6 +210,20 @@ useEffect(() => {
 
 
 useEffect(() => {
+  // First, try to use imageDataParam if available
+  if (imageDataParam) {
+    try {
+      const parsed = JSON.parse(imageDataParam);
+      setImageData(parsed);
+      setEssayTopic(parsed.essay_topic || "");
+      setLoading(false);
+      return;
+    } catch (err) {
+      console.warn("Failed to parse imageDataParam:", err);
+    }
+  }
+
+  // Fallback: fetch by imageId if provided
   if (!imageId) return;
 
   (async () => {
@@ -221,7 +235,7 @@ useEffect(() => {
     setEssayTopic(freshImage.essay_topic || "");
     setLoading(false);
   })();
-}, [imageId]);
+}, [imageId, imageDataParam]);
 
 
 

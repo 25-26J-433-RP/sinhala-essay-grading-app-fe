@@ -47,8 +47,8 @@ export async function scoreSinhala(
       );
     }
 
-    // Add the /bias-aware-scoring-engine microservice prefix
-    const url = `${GATEWAY_BASE.replace(/\/+$|\s+$/g, "")}/bias-aware-scoring-engine/score-sinhala-ml`;
+    // Build URL directly without duplicate prefix
+    const url = `${GATEWAY_BASE.replace(/\/+$|\s+$/g, "")}/score-sinhala-ml`;
     
     const res = await api.post(url, payload);
     return res.data as SinhalaScoreResponse;
