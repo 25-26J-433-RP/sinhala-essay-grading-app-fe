@@ -542,9 +542,14 @@ const refreshImageData = async () => {
               setIsScoring(true);
 
               try {
+                // Extract grade number from "Grade X" format (e.g., "Grade 8" -> 8)
+                const gradeStr = imageData.studentGrade?.toString() || "";
+                const gradeMatch = gradeStr.match(/\d+/);
+                const gradeNumber = gradeMatch ? Number(gradeMatch[0]) : 6;
+
                 const result = await scoreSinhala({
                   text: inputText,  // âœ… Changed from essay_text to text
-                  grade: Number(imageData.studentGrade) || 6,
+                  grade: gradeNumber,
                   topic: essayTopic || undefined,
                   dyslexic_flag: false,  // âœ… Added dyslexic_flag
                   error_tags: [],        // âœ… Added error_tags
@@ -578,6 +583,7 @@ const refreshImageData = async () => {
 
                   essay_text: inputText,
                   essay_topic: essayTopic || null,
+                  studentGrade: imageData.studentGrade || null,
 
                   scored_at: new Date().toISOString(),
                 });

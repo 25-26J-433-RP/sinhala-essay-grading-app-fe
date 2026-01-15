@@ -46,7 +46,7 @@
   "student": {
     "collection": "ශිෂ්‍ය එකතුව",
     "students": "ශිෂ්‍යයන්",
-    "noStudentsYet": "තවම ශිෂ්‍යයන් නැත",
+    "noStudentsYet": "තවම ශිෂ්‍ය ඉදිරිපත් කිරීම් නැත",
     "noStudentsText": "රචනා උඩුගත කළ පසු ශිෂ්‍ය ඉදිරිපත් කිරීම් මෙහි පෙන්වනු ඇත.",
     "loadingStudents": "ශිෂ්‍යයන් පූරණය වෙමින්...",
     "essayCount": "රචනා {{count}}",

@@ -5,10 +5,12 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React from "react";
 import {
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -43,6 +45,8 @@ export default function ProfileScreen() {
     });
   };
 
+  const { width } = useWindowDimensions();
+
   if (profileLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -51,9 +55,13 @@ export default function ProfileScreen() {
     );
   }
 
+  // Add horizontal padding for mobile view (width < 768)
+  const mobilePadding =
+    Platform.OS !== "web" || width < 768 ? { paddingHorizontal: 16 } : {};
+
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, mobilePadding]}
       contentContainerStyle={styles.contentContainer}
     >
       {/* Header */}
