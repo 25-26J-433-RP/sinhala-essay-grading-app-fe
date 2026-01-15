@@ -14,12 +14,6 @@ import {
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 
-// const OCR_API_BASE_URL = process.env.EXPO_PUBLIC_OCR_API_URL;
-
-// if (!OCR_API_BASE_URL) {
-//   throw new Error("❌ EXPO_PUBLIC_OCR_API_URL is not defined");
-// }
-
 
 
 const DEBUG = __DEV__ === true;
