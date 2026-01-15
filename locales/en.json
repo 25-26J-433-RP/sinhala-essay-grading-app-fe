@@ -331,7 +331,7 @@
     "ctaDescription": "Join hundreds of teachers using our AI-powered essay grading system",
     "signIn": "Sign In / Register",
     "learnMore": "Learn More",
-    "footerText": "© 2024 Essay Grading System. All rights reserved.",
-    "footerDescription": "Empowering teachers with AI-powered essay evaluation for the Sinhala education system."
+    "footerText": "© {{year}} Akura Essay Grading System. All rights reserved.",
+    "footerDescription": "Empowering students and teachers with AI-powered essay evaluation for the Sinhala education system."
   }
 }
