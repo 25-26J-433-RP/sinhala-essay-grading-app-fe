@@ -64,23 +64,6 @@ export default function ProfileScreen() {
         <Text style={styles.displayName}>
           {userProfile?.displayName || user?.email?.split("@")[0] || "User"}
         </Text>
-        <Text style={styles.email}>{user?.email}</Text>
-        {userProfile && (
-          <View style={styles.roleBadgeContainer}>
-            <View
-              style={[
-                styles.roleBadge,
-                role === "teacher" ? styles.teacherBadge : styles.studentBadge,
-              ]}
-            >
-              <Text style={styles.roleBadgeText}>
-                {role === "teacher"
-                  ? `👨‍🏫 ${t("auth.teacher")}`
-                  : `👨‍🎓 ${t("auth.student")}`}
-              </Text>
-            </View>
-          </View>
-        )}
       </View>
 
       {/* Profile Information */}
@@ -209,6 +192,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: 40,
+    maxWidth: 600,
+    alignSelf: "center",
+    width: "100%",
+    marginTop: 20,
   },
   loadingContainer: {
     flex: 1,
@@ -225,6 +212,11 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     paddingHorizontal: 20,
     backgroundColor: "#23262F",
+    maxWidth: 600,
+    alignSelf: "center",
+    width: "100%",
+    borderRadius: 20,
+    marginHorizontal: 20,
   },
   avatarContainer: {
     marginBottom: 16,
@@ -264,6 +256,9 @@ const styles = StyleSheet.create({
   },
   section: {
     margin: 20,
+    maxWidth: 600,
+    alignSelf: "center",
+    width: "100%",
   },
   sectionTitle: {
     color: "#fff",

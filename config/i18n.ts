@@ -40,7 +40,8 @@ i18n
       en: { translation: en },
       si: { translation: si },
     },
-    fallbackLng: 'en',
+    fallbackLng: 'si',
+    lng: 'si',
     interpolation: {
       escapeValue: false,
     },
