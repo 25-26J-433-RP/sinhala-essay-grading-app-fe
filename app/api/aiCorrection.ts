@@ -206,7 +206,7 @@ export async function analyzeText(
     
     const response = await aiCorrectionApi.post<BackendAnalyzeResponse>(
       '/analyze',
-      { text: cleanedText, debug },
+      { text: cleanedText, debug, include_correct_words: true },
       { timeout: TIMEOUT_MS }
     );
 
