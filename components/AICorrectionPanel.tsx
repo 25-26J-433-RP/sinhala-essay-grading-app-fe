@@ -4,6 +4,7 @@
  * 
  * Displays AI-powered dyslexia correction suggestions
  * and allows users to accept/reject/edit corrections.
+ * Matches the app's dark theme UI.
  */
 
 import React, { useState, useEffect } from "react";
@@ -56,16 +57,23 @@ interface CorrectionWithStatus extends CorrectionItem {
 // ===========================
 
 const PATTERN_COLORS: Record<string, string> = {
-  visual_scrambling: "#F59E0B", // Orange
-  phonetic_confusion: "#8B5CF6", // Purple
-  visual_reversal: "#EC4899", // Pink
-  grammar_issue: "#3B82F6", // Blue
-  unknown: "#6B7280", // Gray
+  visual_scrambling: "#F59E0B",
+  visual_sequencing: "#F59E0B",
+  phonetic_confusion: "#8B5CF6",
+  visual_reversal: "#EC4899",
+  grammar_issue: "#3B82F6",
+  grammar: "#3B82F6",
+  unknown: "#6B7280",
 };
 
 const getPatternColor = (pattern: string): string => {
-  const normalizedPattern = pattern.toLowerCase().replace(/\s+/g, "_");
-  return PATTERN_COLORS[normalizedPattern] || PATTERN_COLORS.unknown;
+  const normalizedPattern = pattern.toLowerCase().replace(/[\s()]/g, "_");
+  for (const key of Object.keys(PATTERN_COLORS)) {
+    if (normalizedPattern.includes(key)) {
+      return PATTERN_COLORS[key];
+    }
+  }
+  return PATTERN_COLORS.unknown;
 };
 
 // ===========================
@@ -122,7 +130,7 @@ export default function AICorrectionPanel({
     const textToAnalyze = manualText.trim() || originalText.trim();
     
     if (!textToAnalyze) {
-      Alert.alert("Error", "No text to analyze");
+      Alert.alert(t("common.error"), t("aiCorrection.noResults"));
       return;
     }
 
@@ -147,7 +155,7 @@ export default function AICorrectionPanel({
       onAnalysisComplete?.(result);
     } catch (err: any) {
       console.error("Analysis failed:", err);
-      setError(err.message || "Analysis failed");
+      setError(err.message || t("aiCorrection.noResults"));
     } finally {
       setIsAnalyzing(false);
     }
@@ -192,7 +200,7 @@ export default function AICorrectionPanel({
     if (!analysisResult) return;
 
     // Build corrected text from accepted corrections
-    let correctedText = originalText;
+    let correctedText = manualText.trim() || originalText;
     
     // Get accepted corrections
     const acceptedCorrections = corrections
@@ -230,26 +238,26 @@ export default function AICorrectionPanel({
         onPress={() => setIsCollapsed(!isCollapsed)}
       >
         <View style={styles.headerLeft}>
-          <MaterialIcons name="psychology" size={24} color="#6D28D9" />
-          <Text style={styles.headerTitle}>🧠 AI Dyslexia Correction</Text>
+          <MaterialIcons name="psychology" size={24} color="#8B5CF6" />
+          <Text style={styles.headerTitle}>🧠 {t("aiCorrection.title")}</Text>
         </View>
         <View style={styles.headerRight}>
           {/* Health Status */}
           {isHealthy === null ? (
-            <ActivityIndicator size="small" color="#6D28D9" />
+            <ActivityIndicator size="small" color="#8B5CF6" />
           ) : isHealthy ? (
             <View style={[styles.statusBadge, styles.statusOnline]}>
-              <Text style={styles.statusText}>Online</Text>
+              <Text style={styles.statusText}>සබැඳි</Text>
             </View>
           ) : (
             <View style={[styles.statusBadge, styles.statusOffline]}>
-              <Text style={styles.statusTextOffline}>Offline</Text>
+              <Text style={styles.statusTextOffline}>නොබැඳි</Text>
             </View>
           )}
           <MaterialIcons
             name={isCollapsed ? "expand-more" : "expand-less"}
             size={24}
-            color="#6B7280"
+            color="#9CA3AF"
           />
         </View>
       </TouchableOpacity>
@@ -265,10 +273,10 @@ export default function AICorrectionPanel({
             <MaterialIcons
               name={showManualInput ? "keyboard-hide" : "keyboard"}
               size={20}
-              color="#6D28D9"
+              color="#8B5CF6"
             />
             <Text style={styles.manualInputToggleText}>
-              {showManualInput ? "Hide Manual Input" : "Manual Input"}
+              {showManualInput ? "පෙළ සඟවන්න" : "අතින් පෙළ ඇතුළත් කරන්න"}
             </Text>
           </TouchableOpacity>
 
@@ -278,7 +286,8 @@ export default function AICorrectionPanel({
               style={styles.manualInput}
               value={manualText}
               onChangeText={setManualText}
-              placeholder="Type or paste Sinhala text here..."
+              placeholder={t("aiCorrection.placeholder")}
+              placeholderTextColor="#6B7280"
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -295,12 +304,17 @@ export default function AICorrectionPanel({
             disabled={!isHealthy || isAnalyzing}
           >
             {isAnalyzing ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <>
+                <ActivityIndicator color="#fff" size="small" />
+                <Text style={styles.analyzeButtonText}>
+                  {t("aiCorrection.analyzing")}
+                </Text>
+              </>
             ) : (
               <>
                 <MaterialIcons name="auto-fix-high" size={20} color="#fff" />
                 <Text style={styles.analyzeButtonText}>
-                  විශ්ලේෂණය කරන්න (Analyze)
+                  {t("aiCorrection.analyzeButton")}
                 </Text>
               </>
             )}
@@ -309,7 +323,7 @@ export default function AICorrectionPanel({
           {/* Error Message */}
           {error && (
             <View style={styles.errorContainer}>
-              <MaterialIcons name="error-outline" size={20} color="#DC2626" />
+              <MaterialIcons name="error-outline" size={20} color="#FCA5A5" />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
@@ -320,7 +334,7 @@ export default function AICorrectionPanel({
               {/* Summary */}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryText}>
-                  Found {analysisResult.total_errors} error(s)
+                  {t("aiCorrection.errorFound")}: {analysisResult.total_errors}
                 </Text>
                 <View style={styles.countsRow}>
                   <Text style={styles.countBadgeAccepted}>✓ {acceptedCount}</Text>
@@ -335,13 +349,15 @@ export default function AICorrectionPanel({
                   style={styles.bulkButton}
                   onPress={handleAcceptAll}
                 >
-                  <Text style={styles.bulkButtonTextAccept}>Accept All</Text>
+                  <MaterialIcons name="done-all" size={16} color="#10B981" />
+                  <Text style={styles.bulkButtonTextAccept}>සියල්ල පිළිගන්න</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.bulkButton}
                   onPress={handleRejectAll}
                 >
-                  <Text style={styles.bulkButtonTextReject}>Reject All</Text>
+                  <MaterialIcons name="clear-all" size={16} color="#EF4444" />
+                  <Text style={styles.bulkButtonTextReject}>සියල්ල ප්‍රතික්ෂේප</Text>
                 </TouchableOpacity>
               </View>
 
@@ -359,7 +375,7 @@ export default function AICorrectionPanel({
                     {/* Word Change */}
                     <View style={styles.wordChangeRow}>
                       <Text style={styles.originalWord}>{correction.word}</Text>
-                      <MaterialIcons name="arrow-forward" size={16} color="#6B7280" />
+                      <MaterialIcons name="arrow-forward" size={16} color="#9CA3AF" />
                       {editingId === correction.id ? (
                         <TextInput
                           style={styles.editInput}
@@ -379,7 +395,7 @@ export default function AICorrectionPanel({
                     <View
                       style={[
                         styles.patternBadge,
-                        { backgroundColor: getPatternColor(correction.pattern) + "20" },
+                        { backgroundColor: getPatternColor(correction.pattern) + "30" },
                       ]}
                     >
                       <Text
@@ -408,7 +424,7 @@ export default function AICorrectionPanel({
                         onPress={() => handleAccept(correction.id)}
                       >
                         <MaterialIcons name="check" size={18} color="#10B981" />
-                        <Text style={styles.acceptButtonText}>Accept</Text>
+                        <Text style={styles.acceptButtonText}>{t("aiCorrection.acceptCorrection")}</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -420,15 +436,15 @@ export default function AICorrectionPanel({
                         onPress={() => handleReject(correction.id)}
                       >
                         <MaterialIcons name="close" size={18} color="#EF4444" />
-                        <Text style={styles.rejectButtonText}>Reject</Text>
+                        <Text style={styles.rejectButtonText}>{t("aiCorrection.rejectCorrection")}</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
                         style={[styles.actionButton, styles.editButton]}
                         onPress={() => setEditingId(correction.id)}
                       >
-                        <MaterialIcons name="edit" size={18} color="#6B7280" />
-                        <Text style={styles.editButtonText}>Edit</Text>
+                        <MaterialIcons name="edit" size={18} color="#9CA3AF" />
+                        <Text style={styles.editButtonText}>{t("aiCorrection.editCorrection")}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -446,7 +462,7 @@ export default function AICorrectionPanel({
               >
                 <MaterialIcons name="check-circle" size={20} color="#fff" />
                 <Text style={styles.applyButtonText}>
-                  Apply {acceptedCount} Correction(s)
+                  {t("aiCorrection.saveCorrection")} ({acceptedCount})
                 </Text>
               </TouchableOpacity>
             </View>
@@ -456,9 +472,9 @@ export default function AICorrectionPanel({
           {analysisResult && corrections.length === 0 && (
             <View style={styles.noErrorsContainer}>
               <MaterialIcons name="check-circle" size={48} color="#10B981" />
-              <Text style={styles.noErrorsText}>No errors detected!</Text>
+              <Text style={styles.noErrorsText}>දෝෂ හමු නොවීය!</Text>
               <Text style={styles.noErrorsSubtext}>
-                The text appears to be correct.
+                පෙළ නිවැරදි ලෙස පෙනේ.
               </Text>
             </View>
           )}
@@ -469,16 +485,16 @@ export default function AICorrectionPanel({
 }
 
 // ===========================
-// Styles
+// Styles - Dark Theme
 // ===========================
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#1F2937",
     borderRadius: 12,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#374151",
     overflow: "hidden",
   },
   header: {
@@ -486,7 +502,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#fff",
+    backgroundColor: "#111827",
   },
   headerLeft: {
     flexDirection: "row",
@@ -496,7 +512,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1F2937",
+    color: "#F3F4F6",
   },
   headerRight: {
     flexDirection: "row",
@@ -509,10 +525,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusOnline: {
-    backgroundColor: "#D1FAE5",
+    backgroundColor: "#064E3B",
   },
   statusOffline: {
-    backgroundColor: "#FEE2E2",
+    backgroundColor: "#7F1D1D",
   },
   statusText: {
     fontSize: 12,
@@ -521,7 +537,7 @@ const styles = StyleSheet.create({
   },
   statusTextOffline: {
     fontSize: 12,
-    color: "#EF4444",
+    color: "#FCA5A5",
     fontWeight: "500",
   },
   content: {
@@ -535,16 +551,17 @@ const styles = StyleSheet.create({
   },
   manualInputToggleText: {
     fontSize: 14,
-    color: "#6D28D9",
+    color: "#8B5CF6",
     fontWeight: "500",
   },
   manualInput: {
-    backgroundColor: "#fff",
+    backgroundColor: "#111827",
     borderWidth: 1,
-    borderColor: "#D1D5DB",
+    borderColor: "#374151",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+    color: "#F3F4F6",
     minHeight: 100,
     marginBottom: 12,
   },
@@ -553,7 +570,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#6D28D9",
+    backgroundColor: "#8B5CF6",
     padding: 14,
     borderRadius: 8,
   },
@@ -569,13 +586,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#FEF2F2",
+    backgroundColor: "#7F1D1D",
     padding: 12,
     borderRadius: 8,
     marginTop: 12,
   },
   errorText: {
-    color: "#DC2626",
+    color: "#FCA5A5",
     fontSize: 14,
     flex: 1,
   },
@@ -591,7 +608,7 @@ const styles = StyleSheet.create({
   summaryText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1F2937",
+    color: "#F3F4F6",
   },
   countsRow: {
     flexDirection: "row",
@@ -609,7 +626,7 @@ const styles = StyleSheet.create({
   },
   countBadgePending: {
     fontSize: 12,
-    color: "#6B7280",
+    color: "#9CA3AF",
     fontWeight: "500",
   },
   bulkActions: {
@@ -618,10 +635,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   bulkButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 6,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#374151",
   },
   bulkButtonTextAccept: {
     fontSize: 13,
@@ -637,20 +657,20 @@ const styles = StyleSheet.create({
     maxHeight: 300,
   },
   correctionCard: {
-    backgroundColor: "#fff",
+    backgroundColor: "#111827",
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#374151",
   },
   cardAccepted: {
     borderColor: "#10B981",
-    backgroundColor: "#F0FDF4",
+    backgroundColor: "#064E3B20",
   },
   cardRejected: {
     borderColor: "#EF4444",
-    backgroundColor: "#FEF2F2",
+    backgroundColor: "#7F1D1D20",
     opacity: 0.6,
   },
   wordChangeRow: {
@@ -661,7 +681,7 @@ const styles = StyleSheet.create({
   },
   originalWord: {
     fontSize: 16,
-    color: "#DC2626",
+    color: "#FCA5A5",
     textDecorationLine: "line-through",
     fontWeight: "500",
   },
@@ -692,12 +712,13 @@ const styles = StyleSheet.create({
   },
   explanation: {
     fontSize: 13,
-    color: "#6B7280",
+    color: "#9CA3AF",
     marginBottom: 8,
   },
   actionButtons: {
     flexDirection: "row",
     gap: 8,
+    flexWrap: "wrap",
   },
   actionButton: {
     flexDirection: "row",
@@ -710,15 +731,15 @@ const styles = StyleSheet.create({
   },
   acceptButton: {
     borderColor: "#10B981",
-    backgroundColor: "#F0FDF4",
+    backgroundColor: "#064E3B30",
   },
   rejectButton: {
     borderColor: "#EF4444",
-    backgroundColor: "#FEF2F2",
+    backgroundColor: "#7F1D1D30",
   },
   editButton: {
-    borderColor: "#D1D5DB",
-    backgroundColor: "#F9FAFB",
+    borderColor: "#6B7280",
+    backgroundColor: "#37415130",
   },
   buttonActive: {
     opacity: 1,
@@ -735,7 +756,7 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     fontSize: 12,
-    color: "#6B7280",
+    color: "#9CA3AF",
     fontWeight: "500",
   },
   applyButton: {
@@ -765,7 +786,7 @@ const styles = StyleSheet.create({
   },
   noErrorsSubtext: {
     fontSize: 14,
-    color: "#6B7280",
+    color: "#9CA3AF",
     marginTop: 4,
   },
 });

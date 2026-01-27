@@ -7,6 +7,7 @@
  */
 
 import { api, toMessage } from "./client";
+import axios from "axios";
 
 // ===========================
 // Types & Interfaces
@@ -83,21 +84,46 @@ export interface PatternsResponse {
 // API Service
 // ===========================
 
-const AI_CORRECTION_BASE = "/ai-recorrection-workbench/api/v1";
+// Direct URL to AI Recorrection Workbench backend
+// For local dev: http://localhost:8000/api/v1
+// For production: set via environment or use API gateway
+const AI_CORRECTION_DIRECT_URL = process.env.EXPO_PUBLIC_AI_CORRECTION_URL || "http://localhost:8000/api/v1";
+const AI_CORRECTION_GATEWAY_PATH = "/ai-recorrection-workbench/api/v1";
+
 const TIMEOUT_MS = 60000; // 60 seconds for AI analysis
+
+// Create a separate axios instance for direct AI Correction calls
+const aiCorrectionApi = axios.create({
+  baseURL: AI_CORRECTION_DIRECT_URL,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 /**
  * Check health of the AI Recorrection Workbench service
  */
 export async function checkAICorrectionHealth(): Promise<HealthResponse> {
+  // Try direct connection to localhost
   try {
-    const response = await api.get(`${AI_CORRECTION_BASE}/health`, {
-      timeout: 10000,
-    });
+    console.log("🔍 Checking AI Correction health at:", AI_CORRECTION_DIRECT_URL);
+    const response = await aiCorrectionApi.get('/health');
+    console.log("✅ AI Correction service is healthy:", response.data);
     return response.data;
-  } catch (error) {
-    console.error("❌ AI Correction health check failed:", error);
-    throw new Error(toMessage(error));
+  } catch (directErr: any) {
+    console.log("⚠️ Direct AI Correction connection failed:", directErr.message);
+    
+    // Try via API Gateway as fallback
+    try {
+      const response = await api.get(`${AI_CORRECTION_GATEWAY_PATH}/health`, {
+        timeout: 10000,
+      });
+      return response.data;
+    } catch (gatewayErr) {
+      console.error("❌ AI Correction health check failed on both direct and gateway");
+      throw new Error("AI Correction service unavailable");
+    }
   }
 }
 
@@ -113,10 +139,10 @@ export async function analyzeText(
   debug: boolean = false
 ): Promise<AnalyzeResponse> {
   try {
-    console.log("🧠 Sending text to AI Correction service...");
+    console.log("🧠 Sending text to AI Correction service at:", AI_CORRECTION_DIRECT_URL);
     
-    const response = await api.post<BackendAnalyzeResponse>(
-      `${AI_CORRECTION_BASE}/analyze`,
+    const response = await aiCorrectionApi.post<BackendAnalyzeResponse>(
+      '/analyze',
       { text, debug },
       { timeout: TIMEOUT_MS }
     );
@@ -158,7 +184,7 @@ export async function analyzeText(
  */
 export async function getPatterns(): Promise<PatternsResponse> {
   try {
-    const response = await api.get(`${AI_CORRECTION_BASE}/patterns`, {
+    const response = await api.get(`${AI_CORRECTION_GATEWAY_PATH}/patterns`, {
       timeout: 10000,
     });
     return response.data;
