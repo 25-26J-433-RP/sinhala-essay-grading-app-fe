@@ -35,6 +35,7 @@ import {
 } from "@/app/api/textFeedback";
 
 import { MindmapView } from "@/components/MindmapView";
+import AICorrectionPanel from "@/components/AICorrectionPanel";
 import { Audio } from "expo-av";
 
 // ðŸ”¥ Prevent Firestore from rejecting undefined/null fields
@@ -519,6 +520,21 @@ export default function ImageDetailScreen() {
             </View>
           )}
         </View>
+
+        {/* AI CORRECTION PANEL - After OCR, Before Scoring */}
+        {inputText && inputText.trim().length > 0 && (
+          <AICorrectionPanel
+            originalText={inputText}
+            onCorrectedText={(correctedText) => {
+              setInputText(correctedText);
+              showToast("Corrections applied to essay text", { type: "success" });
+            }}
+            onAnalysisComplete={(result) => {
+              console.log("🧠 AI Correction analysis complete:", result);
+            }}
+            initialCollapsed={false}
+          />
+        )}
 
         {/* SCORING INPUT CARD */}
         <View style={styles.inputCard}>
