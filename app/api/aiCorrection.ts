@@ -200,13 +200,13 @@ export async function analyzeText(
   debug: boolean = false
 ): Promise<AnalyzeResponse> {
   try {
-    // Clean OCR text before sending to AI
-    const cleanedText = cleanOCRText(text);
-    console.log("🧠 Sending cleaned text to AI Correction service at:", AI_CORRECTION_DIRECT_URL);
+    // Send raw text to preserve structure and content
+    // const cleanedText = cleanOCRText(text); 
+    console.log("🧠 Sending text to AI Correction service at:", AI_CORRECTION_DIRECT_URL);
     
     const response = await aiCorrectionApi.post<BackendAnalyzeResponse>(
       '/analyze',
-      { text: cleanedText, debug, include_correct_words: true },
+      { text: text, debug, include_correct_words: true },
       { timeout: TIMEOUT_MS }
     );
 
