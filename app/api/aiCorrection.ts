@@ -15,6 +15,7 @@ import axios from "axios";
 
 export interface CorrectionItem {
   word: string;
+  type?: "error" | "correct" | string;
   suggestion: string;
   pattern: string;
   confidence: number;
@@ -65,8 +66,10 @@ interface BackendAnalyzeResponse {
 export interface HealthResponse {
   status: string;
   ollama_connected?: boolean;
+  ollamaConnected?: boolean;  // Backend can return camelCase
   model_loaded?: boolean;
   model_name?: string;
+  modelStatus?: string;
   version?: string;
 }
 
@@ -127,6 +130,64 @@ export async function checkAICorrectionHealth(): Promise<HealthResponse> {
   }
 }
 
+// ===========================
+// Text Preprocessing
+// ===========================
+
+/**
+ * Clean OCR text before AI analysis
+ * Removes common OCR artifacts and normalizes text
+ * 
+ * @param text - Raw OCR text
+ * @returns Cleaned text ready for AI analysis
+ */
+export function cleanOCRText(text: string): string {
+  if (!text) return "";
+  
+  let cleaned = text;
+  
+  // 1. Normalize whitespace - replace multiple spaces/tabs with single space
+  cleaned = cleaned.replace(/[ \t]+/g, " ");
+  
+  // 2. Normalize line breaks - replace multiple newlines with double newline (paragraph)
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
+  
+  // 3. Remove leading/trailing whitespace from each line
+  cleaned = cleaned.split("\n").map(line => line.trim()).join("\n");
+  
+  // 4. Remove common OCR artifacts
+  // - Stray punctuation at start of lines
+  cleaned = cleaned.replace(/^[.,:;!?]+\s*/gm, "");
+  
+  // 5. Fix common OCR issues with Sinhala characters
+  // - Remove zero-width characters that may interfere
+  cleaned = cleaned.replace(/[\u200B-\u200D\uFEFF]/g, "");
+  
+  // 6. Remove duplicate punctuation
+  cleaned = cleaned.replace(/([.!?])\1+/g, "$1");
+  
+  // 7. Normalize Sinhala punctuation (if applicable)
+  // - Replace ellipsis with proper three dots
+  cleaned = cleaned.replace(/…/g, "...");
+  
+  // 8. Remove lines that are only punctuation or symbols
+  cleaned = cleaned.split("\n").filter(line => {
+    const stripped = line.replace(/[\s\p{P}\p{S}]/gu, "");
+    return stripped.length > 0;
+  }).join("\n");
+  
+  // 9. Final trim
+  cleaned = cleaned.trim();
+  
+  console.log("🧹 Cleaned OCR text:", {
+    originalLength: text.length,
+    cleanedLength: cleaned.length,
+    reduction: `${Math.round((1 - cleaned.length / text.length) * 100)}%`
+  });
+  
+  return cleaned;
+}
+
 /**
  * Analyze Sinhala text for dyslexic writing errors
  * 
@@ -139,11 +200,13 @@ export async function analyzeText(
   debug: boolean = false
 ): Promise<AnalyzeResponse> {
   try {
+    // Send raw text to preserve structure and content
+    // const cleanedText = cleanOCRText(text); 
     console.log("🧠 Sending text to AI Correction service at:", AI_CORRECTION_DIRECT_URL);
     
     const response = await aiCorrectionApi.post<BackendAnalyzeResponse>(
       '/analyze',
-      { text, debug },
+      { text: text, debug, include_correct_words: true },
       { timeout: TIMEOUT_MS }
     );
 
@@ -151,22 +214,22 @@ export async function analyzeText(
     console.log("📥 Backend response:", backendData);
 
     // Map backend response to frontend format
-    const corrections: CorrectionItem[] = (backendData.data || [])
-      .filter((item) => item.type === "error" && item.suggestion)
-      .map((item) => ({
-        word: item.word,
-        suggestion: item.suggestion || item.word,
-        pattern: item.dyslexiaPattern || item.dyslexia_pattern || "Unknown",
-        confidence: item.confidence ?? 0.8,
-        explanation: item.explanation,
-      }));
+    // Map backend response to frontend format - KEEP ALL TOKENS
+    const tokens: CorrectionItem[] = (backendData.data || []).map((item) => ({
+      word: item.word,
+      type: item.type, // 'error' or 'correct'
+      suggestion: item.suggestion || item.word,
+      pattern: item.dyslexiaPattern || item.dyslexia_pattern || "Unknown",
+      confidence: item.confidence ?? 0.8,
+      explanation: item.explanation,
+    }));
 
     const result: AnalyzeResponse = {
       success: backendData.success,
       original_text: backendData.originalText || backendData.original_text || text,
       corrected_text: backendData.correctedText || backendData.corrected_text || text,
-      total_errors: corrections.length,
-      corrections,
+      total_errors: tokens.filter(t => t.type === 'error').length,
+      corrections: tokens, // Now contains ALL tokens
       processing_time_ms: backendData.processingTimeMs || backendData.processing_time_ms,
       model_used: backendData.modelUsed || backendData.model_used,
     };
