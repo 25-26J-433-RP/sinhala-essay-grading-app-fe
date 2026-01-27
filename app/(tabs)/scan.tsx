@@ -1,4 +1,4 @@
-import * as OcrApi from "@/app/api/ocrApi";
+import { runOcr } from "@/app/api/ocr";
 
 import AppHeader from "@/components/AppHeader";
 import { useToast } from "@/components/Toast";
@@ -25,17 +25,17 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
 import ReactWebcam from "react-webcam";
 
 export default function ScanScreen() {
   const [uploading, setUploading] = useState(false);
-  const [uploadingSource, setUploadingSource] =
-    useState<"camera" | "gallery" | null>(null);
+  const [uploadingSource, setUploadingSource] = useState<
+    "camera" | "gallery" | null
+  >(null);
   const [showWebCamera, setShowWebCamera] = useState(false);
-  const [cameraFacing, setCameraFacing] =
-    useState<"front" | "back">("back");
+  const [cameraFacing, setCameraFacing] = useState<"front" | "back">("back");
   const [students, setStudents] = useState<any[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [showStudentDropdown, setShowStudentDropdown] =
@@ -65,7 +65,7 @@ export default function ScanScreen() {
 
       const studentList = querySnapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data(),
+        ...doc.data()
       }));
 
       setStudents(studentList);
@@ -84,14 +84,14 @@ export default function ScanScreen() {
         toValue: 1,
         duration: 220,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: true
       }),
       Animated.timing(cardTranslateY, {
         toValue: 0,
         duration: 220,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
+        useNativeDriver: true
+      })
     ]).start();
   }, [cardOpacity, cardTranslateY]);
 
@@ -119,125 +119,120 @@ export default function ScanScreen() {
   // ===============================
   // 🔥 IMAGE UPLOAD (OCR ADDED HERE)
   // ===============================
- const uploadImage = async (asset: any) => {
-  if (!user || !selectedStudent) return;
+  const uploadImage = async (asset: any) => {
+    if (!user || !selectedStudent) return;
 
-  try {
-    let blob: Blob;
+    try {
+      let blob: Blob;
 
-    if (Platform.OS === "web" && asset.file) {
-      blob = asset.file;
-    } else {
-      const response = await fetch(asset.uri);
-      blob = await response.blob();
+      if (Platform.OS === "web" && asset.file) {
+        blob = asset.file;
+      } else {
+        const response = await fetch(asset.uri);
+        blob = await response.blob();
+      }
+
+      const filename = asset.fileName || `image_${Date.now()}.jpg`;
+
+      // ===============================
+      // ✅ CORRECT ORDER (Firestore → OCR async)
+
+      // ===============================
+
+      // ✅ Upload image only
+      const image_id = `img_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+      // 1️⃣ Save Firestore FIRST
+      const userImageId = await UserImageService.uploadUserImage({
+        userId: user.uid,
+        studentId: selectedStudent.studentId,
+        studentAge: selectedStudent.studentAge,
+        studentGrade: selectedStudent.studentGrade,
+        studentGender: selectedStudent.studentGender,
+        fileName: filename,
+        fileBlob: blob,
+        image_id // 🔑 SAME ID
+      });
+
+      // 2️⃣ Call OCR (background)
+      const ocrFile =
+        blob instanceof File
+          ? blob
+          : new File([blob], filename, { type: "image/jpeg" });
+
+      runOcr(ocrFile, image_id)
+        .then(() => {
+          console.log("🧠 OCR completed for", image_id);
+        })
+        .catch((err) => {
+          console.warn("⚠️ OCR failed", err);
+        });
+
+      const userImages = await UserImageService.getUserImages(user.uid);
+      const studentImages = userImages.filter(
+        (img) => img.studentId === selectedStudent.studentId
+      );
+
+      setUploading(false);
+      setUploadingSource(null);
+
+      router.push({
+        pathname: "/student-essays",
+        params: {
+          studentData: JSON.stringify({
+            studentId: selectedStudent.studentId,
+            studentAge: selectedStudent.studentAge,
+            studentGrade: selectedStudent.studentGrade,
+            studentGender: selectedStudent.studentGender,
+            essayCount: studentImages.length,
+            lastUploadDate: new Date().toISOString(),
+            essays: studentImages.map((essay) => ({
+              ...essay,
+              uploadedAt: essay.uploadedAt.toISOString()
+            }))
+          }),
+          ocrText: ""
+        }
+      });
+
+      setSelectedStudent(null);
+    } catch (err) {
+      console.error("Upload error:", err);
+      setUploading(false);
+      setUploadingSource(null);
     }
-
-    const filename = asset.fileName || `image_${Date.now()}.jpg`;
-
-// ===============================
-// ✅ CORRECT ORDER (OCR → Firestore)
-// ===============================
-
-
-
-// ✅ Upload image only
-const image_id = `img_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-
-// 1️⃣ Save Firestore FIRST
-const userImageId = await UserImageService.uploadUserImage({
-  userId: user.uid,
-  studentId: selectedStudent.studentId,
-  studentAge: selectedStudent.studentAge,
-  studentGrade: selectedStudent.studentGrade,
-  studentGender: selectedStudent.studentGender,
-  fileName: filename,
-  fileBlob: blob,
-  image_id, // 🔑 SAME ID
-});
-
-// 2️⃣ Call OCR (background)
-OcrApi.callOcrApi(blob, filename, image_id)
-  .then(() => {
-    console.log("🧠 OCR completed for", image_id);
-  })
-  .catch((err) => {
-    console.warn("⚠️ OCR failed", err);
-  });
-
-
-
-
-
-
-
-    const userImages = await UserImageService.getUserImages(user.uid);
-    const studentImages = userImages.filter(
-      (img) => img.studentId === selectedStudent.studentId
-    );
-
-    setUploading(false);
-    setUploadingSource(null);
-
-    router.push({
-      pathname: "/student-essays",
-      params: {
-        studentData: JSON.stringify({
-          studentId: selectedStudent.studentId,
-          studentAge: selectedStudent.studentAge,
-          studentGrade: selectedStudent.studentGrade,
-          studentGender: selectedStudent.studentGender,
-          essayCount: studentImages.length,
-          lastUploadDate: new Date().toISOString(),
-          essays: studentImages.map((essay) => ({
-            ...essay,
-            uploadedAt: essay.uploadedAt.toISOString(),
-          })),
-        }),
-        ocrText: "",
-      },
-    });
-
-    setSelectedStudent(null);
-  } catch (err) {
-    console.error("Upload error:", err);
-    setUploading(false);
-    setUploadingSource(null);
-  }
-};
-
+  };
 
   // 🔹 Pick from gallery
-// 🔹 Pick from gallery (FIXED)
-const pickFromLibrary = async () => {
-  if (!selectedStudent) {
-    Alert.alert(t("scan.validation"), t("scan.selectStudentFirst"));
-    return;
-  }
+  // 🔹 Pick from gallery (FIXED)
+  const pickFromLibrary = async () => {
+    if (!selectedStudent) {
+      Alert.alert(t("scan.validation"), t("scan.selectStudentFirst"));
+      return;
+    }
 
-  // ✅ ADD THIS — REQUIRED FOR WEB
-  const permission =
-    await ImagePicker.requestMediaLibraryPermissionsAsync();
+    // ✅ ADD THIS — REQUIRED FOR WEB
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-  if (!permission.granted) {
-    Alert.alert(
-      t("common.permissionDenied"),
-      t("scan.mediaPermissionRequired")
-    );
-    return;
-  }
+    if (!permission.granted) {
+      Alert.alert(
+        t("common.permissionDenied"),
+        t("scan.mediaPermissionRequired")
+      );
+      return;
+    }
 
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    quality: 1,
-  });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1
+    });
 
-  if (!result.canceled && result.assets?.length > 0) {
-    setUploading(true);
-    setUploadingSource("gallery");
-    await uploadImage(result.assets[0]);
-  }
-};
-
+    if (!result.canceled && result.assets?.length > 0) {
+      setUploading(true);
+      setUploadingSource("gallery");
+      await uploadImage(result.assets[0]);
+    }
+  };
 
   // 🔹 Scan with camera
   const scanWithCamera = async () => {
@@ -258,7 +253,7 @@ const pickFromLibrary = async () => {
 
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
+      quality: 1
     });
 
     if (!result.canceled) {
@@ -275,7 +270,7 @@ const pickFromLibrary = async () => {
       if (screenshot) {
         const asset = {
           uri: screenshot,
-          fileName: `webcam_${Date.now()}.jpg`,
+          fileName: `webcam_${Date.now()}.jpg`
         };
         setUploading(true);
         setUploadingSource("camera");
@@ -288,8 +283,6 @@ const pickFromLibrary = async () => {
   // ===============================
   // UI BELOW — COMPLETELY UNCHANGED
   // ===============================
-
-
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -334,8 +327,8 @@ const pickFromLibrary = async () => {
               styles.selectionCardAnimated,
               {
                 opacity: cardOpacity,
-                transform: [{ translateY: cardTranslateY }],
-              },
+                transform: [{ translateY: cardTranslateY }]
+              }
             ]}
           >
             <View style={styles.selectionCard}>
@@ -372,13 +365,13 @@ const pickFromLibrary = async () => {
                     style={({ hovered, pressed }) => [
                       styles.dropdownButton,
                       hovered && styles.dropdownHover,
-                      pressed && styles.dropdownPressed,
+                      pressed && styles.dropdownPressed
                     ]}
                   >
                     <Text
                       style={[
                         styles.dropdownButtonText,
-                        !selectedStudent && styles.placeholderText,
+                        !selectedStudent && styles.placeholderText
                       ]}
                     >
                       {selectedStudent
@@ -399,7 +392,7 @@ const pickFromLibrary = async () => {
                           style={({ pressed, hovered }) => [
                             styles.dropdownItem,
                             hovered && styles.dropdownItemHover,
-                            pressed && styles.dropdownItemPressed,
+                            pressed && styles.dropdownItemPressed
                           ]}
                           onPress={() => {
                             setSelectedStudent(student);
@@ -433,7 +426,7 @@ const pickFromLibrary = async () => {
                       styles.gradientButton,
                       uploading &&
                         uploadingSource === "camera" &&
-                        styles.buttonDisabled,
+                        styles.buttonDisabled
                     ]}
                     pointerEvents="none"
                   >
@@ -453,7 +446,7 @@ const pickFromLibrary = async () => {
                     styles.solidButton,
                     uploading &&
                       uploadingSource === "gallery" &&
-                      styles.buttonDisabled,
+                      styles.buttonDisabled
                   ]}
                 >
                   <MaterialIcons name="photo-library" size={22} color="#fff" />
@@ -480,14 +473,14 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: "#181A20",
     width: "100%",
-    minHeight: "100vh",
+    minHeight: "100vh"
   },
   section: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
-    backgroundColor: "#181A20",
+    backgroundColor: "#181A20"
   },
   cameraContainer: {
     flex: 1,
@@ -496,39 +489,39 @@ const styles = StyleSheet.create({
     height: 500,
     width: "100%",
     borderRadius: 16,
-    overflow: "hidden",
+    overflow: "hidden"
   },
   camera: {
     width: "100%",
     height: 400,
-    borderRadius: 12,
+    borderRadius: 12
   },
   accessDeniedContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 40,
-    maxWidth: 600,
+    maxWidth: 600
   },
   accessDeniedTitle: {
     color: "#fff",
     fontSize: 28,
     fontWeight: "bold",
     marginBottom: 20,
-    textAlign: "center",
+    textAlign: "center"
   },
   accessDeniedText: {
     color: "#B0B3C6",
     fontSize: 18,
     textAlign: "center",
     lineHeight: 28,
-    maxWidth: 500,
+    maxWidth: 500
   },
   selectionCardAnimated: {
     width: "100%",
     maxWidth: 600,
     transform: [{ translateY: 0 }],
-    opacity: 1,
+    opacity: 1
   },
   selectionCard: {
     backgroundColor: "#0F1117",
@@ -539,7 +532,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    elevation: 4
   },
   iconWrap: { alignItems: "center", marginBottom: 8 },
   iconCircle: {
@@ -548,17 +541,17 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: "#2b2f3a",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "center"
   },
   studentForm: {
     width: "100%",
-    marginBottom: 20,
+    marginBottom: 20
   },
   studentLabel: {
     color: "#B0B3C6",
     marginBottom: 10,
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "600"
   },
   studentInput: {
     backgroundColor: "#23262F",
@@ -567,7 +560,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#333640",
+    borderColor: "#333640"
   },
   dropdownButton: {
     backgroundColor: "#2a2d37",
@@ -578,86 +571,86 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#3a3e49",
+    borderColor: "#3a3e49"
   },
   dropdownHover: { borderColor: "#4a4f5c" },
   dropdownPressed: { opacity: 0.9 },
   dropdownButtonText: {
     color: "#fff",
     flex: 1,
-    fontSize: 16,
+    fontSize: 16
   },
   placeholderText: {
-    color: "#888",
+    color: "#888"
   },
   dropdownList: {
     backgroundColor: "#23262F",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#333640",
-    marginTop: 6,
+    marginTop: 6
   },
   dropdownItem: {
     paddingHorizontal: 14,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#333640",
+    borderBottomColor: "#333640"
   },
   dropdownItemHover: { backgroundColor: "#2a2d37" },
   dropdownItemPressed: { opacity: 0.9 },
   dropdownItemText: {
     color: "#fff",
     fontSize: 16,
-    marginBottom: 2,
+    marginBottom: 2
   },
   dropdownItemSubtext: {
     color: "#B0B3C6",
-    fontSize: 12,
+    fontSize: 12
   },
   studentSelection: {
     width: "100%",
-    marginBottom: 24,
+    marginBottom: 24
   },
   sectionTitle: {
     color: "#fff",
     fontSize: 22,
     fontWeight: "bold",
     marginBottom: 18,
-    textAlign: "center",
+    textAlign: "center"
   },
   loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
-    gap: 12,
+    gap: 12
   },
   loadingText: {
     color: "#B0B3C6",
-    fontSize: 14,
+    fontSize: 14
   },
   emptyContainer: {
     alignItems: "center",
-    padding: 32,
+    padding: 32
   },
   emptyText: {
     color: "#fff",
     fontSize: 18,
     fontWeight: "600",
     marginTop: 12,
-    marginBottom: 4,
+    marginBottom: 4
   },
   emptySubtext: {
     color: "#B0B3C6",
     fontSize: 14,
-    textAlign: "center",
+    textAlign: "center"
   },
   actionsRow: {
-    gap: 12,
+    gap: 12
   },
   buttonBase: {
     borderRadius: 12,
-    overflow: "hidden",
+    overflow: "hidden"
   },
   gradientButton: {
     flexDirection: "row",
@@ -665,7 +658,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 14,
     borderRadius: 12,
-    gap: 8,
+    gap: 8
   },
   solidButton: {
     backgroundColor: "#007AFF",
@@ -674,7 +667,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 14,
     borderRadius: 12,
-    gap: 8,
+    gap: 8
   },
   solidButtonHover: { backgroundColor: "#1a8dff" },
   buttonPressed: { transform: [{ scale: 0.98 }] },
@@ -682,6 +675,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
-  },
+    fontWeight: "600"
+  }
 });

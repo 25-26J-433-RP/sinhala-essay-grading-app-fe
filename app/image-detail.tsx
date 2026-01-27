@@ -15,6 +15,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -34,6 +35,7 @@ import {
 } from "@/app/api/textFeedback";
 
 import { MindmapView } from "@/components/MindmapView";
+import AICorrectionPanel from "@/components/AICorrectionPanel";
 import { Audio } from "expo-av";
 
 // ðŸ”¥ Prevent Firestore from rejecting undefined/null fields
@@ -44,7 +46,7 @@ function cleanFirestore(obj: any) {
 }
 
 export default function ImageDetailScreen() {
-  
+
 
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,17 +55,18 @@ export default function ImageDetailScreen() {
   const [imageLoadingError, setImageLoadingError] = useState<string | null>(
     null
   );
-const ocrAppliedRef = useRef(false);
+  const ocrAppliedRef = useRef(false);
 
   const [essayTopic, setEssayTopic] = useState("");
   const [inputText, setInputText] = useState("");
+  const [isDyslexic, setIsDyslexic] = useState(false);
 
   const [isScoring, setIsScoring] = useState(false);
   const [scoreData, setScoreData] = useState<SinhalaScoreResponse | null>(null);
   const [mindmapData, setMindmapData] = useState<MindmapData | null>(null);
   const [mindmapLoading, setMindmapLoading] = useState(false);
   const [mindmapError, setMindmapError] = useState<string | null>(null);
-const { imageId } = useLocalSearchParams<{ imageId?: string }>();
+  const { imageId, imageData: imageDataParam } = useLocalSearchParams<{ imageId?: string; imageData?: string }>();
 
   // Text feedback state
   const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(
@@ -90,44 +93,44 @@ const { imageId } = useLocalSearchParams<{ imageId?: string }>();
   const confirm = useConfirm();
   const { t } = useLanguage();
   // const DEBUG = __DEV__ === true; // not used currently
-  
 
-useEffect(() => {
-  if (!imageData?.id) return;
 
-  if (imageData.essay_text && imageData.essay_text.trim() !== "") {
-    // OCR already present
-    if (!inputText || inputText.trim() === "") {
-      setInputText(imageData.essay_text);
-      console.log("✅ OCR text applied to textbox");
+  useEffect(() => {
+    if (!imageData?.id) return;
+
+    if (imageData.essay_text && imageData.essay_text.trim() !== "") {
+      // OCR already present
+      if (!inputText || inputText.trim() === "") {
+        setInputText(imageData.essay_text);
+        console.log("✅ OCR text applied to textbox");
+      }
+      return;
     }
-    return;
-  }
 
-  // OCR not ready yet → poll Firestore
-  const interval = setInterval(async () => {
-    console.log("⏳ Waiting for OCR result...");
-    const fresh = await UserImageService.getUserImage(imageData.id);
+    // OCR not ready yet → poll Firestore
+    const interval = setInterval(async () => {
+      console.log("⏳ Waiting for OCR result...");
+      const fresh = await UserImageService.getUserImage(imageData.id);
 
-    if (fresh.essay_text && fresh.essay_text.trim() !== "") {
-      setImageData(fresh);
-      setInputText(fresh.essay_text);
-      console.log("🎯 OCR text arrived, textbox updated");
-      clearInterval(interval);
-    }
-  }, 3000); // every 3 seconds
+      if (fresh.essay_text && fresh.essay_text.trim() !== "") {
+        setImageData(fresh);
+        setInputText(fresh.essay_text);
+        console.log("🎯 OCR text arrived, textbox updated");
+        clearInterval(interval);
+      }
+    }, 3000); // every 3 seconds
 
-  return () => clearInterval(interval);
-}, [imageData?.id]);
+    return () => clearInterval(interval);
+  }, [imageData?.id]);
 
 
-useEffect(() => {
-  if (!imageData?.id) return;
+  useEffect(() => {
+    if (!imageData?.id) return;
 
-  console.log("📝 Setting inputText from Firestore:", imageData.essay_text);
+    console.log("📝 Setting inputText from Firestore:", imageData.essay_text);
 
-  setInputText(imageData.essay_text ?? "");
-}, [imageData?.id]);
+    setInputText(imageData.essay_text ?? "");
+  }, [imageData?.id]);
 
 
 
@@ -147,36 +150,36 @@ useEffect(() => {
   // Resolve a valid HTTPS image URL for Firebase Storage if needed
   // ALWAYS regenerate from storagePath to ensure token is fresh, not using potentially stale imageUrl
   useEffect(() => {
-  const resolveUrl = async () => {
-    if (!imageData?.storagePath) return;
+    const resolveUrl = async () => {
+      if (!imageData?.storagePath) return;
 
-    setImageLoading(true);
-    setImageLoadingError(null);
+      setImageLoading(true);
+      setImageLoadingError(null);
 
-    try {
-      let path = imageData.storagePath;
+      try {
+        let path = imageData.storagePath;
 
-      // Handle gs:// paths safely
-      if (path.startsWith("gs://")) {
-        const parts = path.replace("gs://", "").split("/");
-        path = parts.slice(1).join("/");
+        // Handle gs:// paths safely
+        if (path.startsWith("gs://")) {
+          const parts = path.replace("gs://", "").split("/");
+          path = parts.slice(1).join("/");
+        }
+
+        const ref = storageRef(storage, path);
+        const freshUrl = await getDownloadURL(ref);
+
+        setImageUrlResolved(freshUrl);
+      } catch (err) {
+        console.error("❌ Failed to resolve image URL", err);
+        setImageLoadingError("Failed to load image");
+        setImageUrlResolved(null);
+      } finally {
+        setImageLoading(false);
       }
+    };
 
-      const ref = storageRef(storage, path);
-      const freshUrl = await getDownloadURL(ref);
-
-      setImageUrlResolved(freshUrl);
-    } catch (err) {
-      console.error("❌ Failed to resolve image URL", err);
-      setImageLoadingError("Failed to load image");
-      setImageUrlResolved(null);
-    } finally {
-      setImageLoading(false);
-    }
-  };
-
-  resolveUrl();
-}, [imageData?.storagePath]);
+    resolveUrl();
+  }, [imageData?.storagePath]);
 
 
   // Load mindmap once imageData is available (uses essay/image id)
@@ -209,19 +212,33 @@ useEffect(() => {
 
 
 
-useEffect(() => {
-  if (!imageId) return;
+  useEffect(() => {
+    // First, try to use imageDataParam if available
+    if (imageDataParam) {
+      try {
+        const parsed = JSON.parse(imageDataParam);
+        setImageData(parsed);
+        setEssayTopic(parsed.essay_topic || "");
+        setLoading(false);
+        return;
+      } catch (err) {
+        console.warn("Failed to parse imageDataParam:", err);
+      }
+    }
 
-  (async () => {
-    setLoading(true);
-    const freshImage = await UserImageService.getUserImage(imageId);
-    setImageData(freshImage);
-    
+    // Fallback: fetch by imageId if provided
+    if (!imageId) return;
 
-    setEssayTopic(freshImage.essay_topic || "");
-    setLoading(false);
-  })();
-}, [imageId]);
+    (async () => {
+      setLoading(true);
+      const freshImage = await UserImageService.getUserImage(imageId);
+      setImageData(freshImage);
+
+
+      setEssayTopic(freshImage.essay_topic || "");
+      setLoading(false);
+    })();
+  }, [imageId, imageDataParam]);
 
 
 
@@ -263,49 +280,49 @@ useEffect(() => {
 
 
 
-const refreshImageData = async () => {
-  if (!imageData?.id) return;
+  const refreshImageData = async () => {
+    if (!imageData?.id) return;
 
-  try {
-    console.log("🔄 Refreshing image metadata from Firestore...");
+    try {
+      console.log("🔄 Refreshing image metadata from Firestore...");
 
-    const freshImage = await UserImageService.getUserImage(imageData.id);
-    setImageData(freshImage);
+      const freshImage = await UserImageService.getUserImage(imageData.id);
+      setImageData(freshImage);
 
-    setEssayTopic(freshImage.essay_topic || "");
+      setEssayTopic(freshImage.essay_topic || "");
 
-    if (freshImage.score) {
-      setScoreData({
-        score: freshImage.score,
-        details: freshImage.details || {},
-        rubric: freshImage.rubric || {},
-        fairness_report: freshImage.fairness_report || {},
-      });
+      if (freshImage.score) {
+        setScoreData({
+          score: freshImage.score,
+          details: freshImage.details || {},
+          rubric: freshImage.rubric || {},
+          fairness_report: freshImage.fairness_report || {},
+        });
+      }
+
+      if (freshImage.text_feedback) {
+        setTextFeedback(freshImage.text_feedback);
+      }
+
+      if (freshImage.audio_feedback) {
+        setAudioFeedback(freshImage.audio_feedback);
+      }
+
+      // 🔥 THIS WAS MISSING
+      if (
+        freshImage.essay_text &&
+        (!inputText || inputText.trim() === "")
+      ) {
+        setInputText(freshImage.essay_text);
+        ocrAppliedRef.current = true;
+        console.log("🛡 Restored essay text after refresh");
+      }
+
+      console.log("✅ Image metadata refreshed");
+    } catch (err) {
+      console.error("❌ Refresh failed:", err);
     }
-
-    if (freshImage.text_feedback) {
-      setTextFeedback(freshImage.text_feedback);
-    }
-
-    if (freshImage.audio_feedback) {
-      setAudioFeedback(freshImage.audio_feedback);
-    }
-
-    // 🔥 THIS WAS MISSING
-    if (
-      freshImage.essay_text &&
-      (!inputText || inputText.trim() === "")
-    ) {
-      setInputText(freshImage.essay_text);
-      ocrAppliedRef.current = true;
-      console.log("🛡 Restored essay text after refresh");
-    }
-
-    console.log("✅ Image metadata refreshed");
-  } catch (err) {
-    console.error("❌ Refresh failed:", err);
-  }
-};
+  };
 
 
 
@@ -504,6 +521,21 @@ const refreshImageData = async () => {
           )}
         </View>
 
+        {/* AI CORRECTION PANEL - After OCR, Before Scoring */}
+        {inputText && inputText.trim().length > 0 && (
+          <AICorrectionPanel
+            originalText={inputText}
+            onCorrectedText={(correctedText) => {
+              setInputText(correctedText);
+              showToast("Corrections applied to essay text", { type: "success" });
+            }}
+            onAnalysisComplete={(result) => {
+              console.log("🧠 AI Correction analysis complete:", result);
+            }}
+            initialCollapsed={false}
+          />
+        )}
+
         {/* SCORING INPUT CARD */}
         <View style={styles.inputCard}>
           <Text style={styles.cardTitle}>{t("essay.enterSinhalaEssay")}</Text>
@@ -529,6 +561,17 @@ const refreshImageData = async () => {
             style={[styles.textInput, { minHeight: 160 }]}
           />
 
+          {/* Debug Mode Toggle */}
+          <View style={styles.debugRow}>
+            <Text style={styles.debugLabel}>Simulate Dyslexic Student (Debug)</Text>
+            <Switch
+              value={isDyslexic}
+              onValueChange={setIsDyslexic}
+              trackColor={{ false: "#374151", true: "#6D28D9" }}
+              thumbColor={isDyslexic ? "#fff" : "#9CA3AF"}
+            />
+          </View>
+
           {/* Score Button */}
           <TouchableOpacity
             style={[styles.scoreButton, isScoring && { opacity: 0.6 }]}
@@ -542,11 +585,16 @@ const refreshImageData = async () => {
               setIsScoring(true);
 
               try {
+                // Extract grade number from "Grade X" format (e.g., "Grade 8" -> 8)
+                const gradeStr = imageData.studentGrade?.toString() || "";
+                const gradeMatch = gradeStr.match(/\d+/);
+                const gradeNumber = gradeMatch ? Number(gradeMatch[0]) : 6;
+
                 const result = await scoreSinhala({
                   text: inputText,  // âœ… Changed from essay_text to text
-                  grade: Number(imageData.studentGrade) || 6,
+                  grade: gradeNumber,
                   topic: essayTopic || undefined,
-                  dyslexic_flag: false,  // âœ… Added dyslexic_flag
+                  dyslexic_flag: isDyslexic,  // âœ… Added dyslexic_flag
                   error_tags: [],        // âœ… Added error_tags
                 });
 
@@ -578,6 +626,7 @@ const refreshImageData = async () => {
 
                   essay_text: inputText,
                   essay_topic: essayTopic || null,
+                  studentGrade: imageData.studentGrade || null,
 
                   scored_at: new Date().toISOString(),
                 });
@@ -1095,7 +1144,7 @@ const refreshImageData = async () => {
             <View style={styles.mindmapContainer}>
               <MindmapView data={mindmapData} />
               <Text style={styles.mindmapMeta}>
-                {t("mindmap.nodes")}: {mindmapData.metadata.total_nodes} 
+                {t("mindmap.nodes")}: {mindmapData.metadata.total_nodes}
                 {t("mindmap.edges")}: {mindmapData.metadata.total_edges}
               </Text>
               <Text style={styles.mindmapHint}>{t("mindmap.hint")}</Text>
@@ -1738,5 +1787,23 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
     paddingVertical: 12,
+  },
+
+  debugRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: "#2C2F36",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#4B5563",
+  },
+
+  debugLabel: {
+    color: "#E5E7EB",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

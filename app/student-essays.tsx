@@ -206,7 +206,7 @@ export default function StudentEssaysScreen() {
     const total = segments.reduce((s, v) => s + v.value, 0) || 1;
     if (!SvgLib) {
       return (
-        <View style={styles.pieFallback}>
+        <View style={styles.pieFallback as any}>
           <Text style={styles.pieFallbackText}>
             Install react-native-svg to enable the pie chart
           </Text>
@@ -508,18 +508,21 @@ export default function StudentEssaysScreen() {
 
   const renderEssayItem = ({ item }: { item: UserImageUpload }) => (
     <View style={styles.essayCardWrapper}>
-      <View style={styles.essayCardContainer}>
+      <View style={styles.essayCardContainer as any}>
         {/* Main Essay Card */}
         <TouchableOpacity
-          style={styles.essayCard}
+          style={styles.essayCard as any}
           onPress={() => {
             router.push({
-  pathname: "/image-detail",
-  params: {
-    imageId: item.id,
-  },
-});
-
+              pathname: "/image-detail",
+              params: {
+                imageData: JSON.stringify({
+                  ...item,
+                  uploadedAt: item.uploadedAt.toISOString(),
+                  studentGrade: studentInfo.studentGrade || item.studentGrade,
+                }),
+              },
+            });
           }}
           activeOpacity={0.8}
         >
