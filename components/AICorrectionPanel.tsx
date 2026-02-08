@@ -4,10 +4,11 @@
  * 
  * Displays AI-powered dyslexia correction suggestions
  * and allows users to accept/reject/edit corrections.
+ * Shows original vs corrected text comparison.
  * Matches the app's dark theme UI.
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -54,7 +55,7 @@ interface CorrectionWithStatus extends CorrectionItem {
 }
 
 // ===========================
-// Pattern Colors
+// Pattern Colors & Labels
 // ===========================
 
 const PATTERN_COLORS: Record<string, string> = {
@@ -67,6 +68,16 @@ const PATTERN_COLORS: Record<string, string> = {
   unknown: "#6B7280",
 };
 
+const PATTERN_ICONS: Record<string, string> = {
+  visual_scrambling: "shuffle",
+  visual_sequencing: "swap-horiz",
+  phonetic_confusion: "hearing",
+  visual_reversal: "flip",
+  grammar_issue: "spellcheck",
+  grammar: "spellcheck",
+  unknown: "help-outline",
+};
+
 const getPatternColor = (pattern: string): string => {
   const normalizedPattern = pattern.toLowerCase().replace(/[\s()]/g, "_");
   for (const key of Object.keys(PATTERN_COLORS)) {
@@ -77,6 +88,16 @@ const getPatternColor = (pattern: string): string => {
   return PATTERN_COLORS.unknown;
 };
 
+const getPatternIcon = (pattern: string): string => {
+  const normalizedPattern = pattern.toLowerCase().replace(/[\s()]/g, "_");
+  for (const key of Object.keys(PATTERN_ICONS)) {
+    if (normalizedPattern.includes(key)) {
+      return PATTERN_ICONS[key];
+    }
+  }
+  return PATTERN_ICONS.unknown;
+};
+
 export default function AICorrectionPanel({
   originalText,
   onCorrectedText,
@@ -85,13 +106,14 @@ export default function AICorrectionPanel({
   initialCollapsed = false,
 }: AICorrectionPanelProps) {
   const { t } = useLanguage();
+  const hasAutoAnalyzed = useRef(false);
   
   // State
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(null);
-  const [tokens, setTokens] = useState<CorrectionWithStatus[]>([]); // Renamed from corrections
+  const [tokens, setTokens] = useState<CorrectionWithStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
@@ -101,15 +123,19 @@ export default function AICorrectionPanel({
   // Teacher editing state
   const [showFinalEditor, setShowFinalEditor] = useState(false);
   const [finalText, setFinalText] = useState("");
+  
+  // Comparison view state
+  const [showComparison, setShowComparison] = useState(true);
 
   // Check health on mount
   useEffect(() => {
     checkHealth();
   }, []);
 
-  // Auto-analyze if enabled
+  // Auto-analyze if enabled (only once until user applies corrections)
   useEffect(() => {
-    if (autoAnalyze && originalText && originalText.trim().length > 0 && isHealthy) {
+    if (autoAnalyze && originalText && originalText.trim().length > 0 && isHealthy && !hasAutoAnalyzed.current && !analysisResult) {
+      hasAutoAnalyzed.current = true;
       handleAnalyze();
     }
   }, [originalText, isHealthy, autoAnalyze]);
@@ -121,8 +147,7 @@ export default function AICorrectionPanel({
   const checkHealth = async () => {
     try {
       const health = await aiCorrectionService.checkHealth();
-      console.log("🏥 Health check response:", health);
-      // Backend returns status: "healthy" and ollamaConnected: true
+      console.log("Health check response:", health);
       const isOnline = health.status === "healthy" || 
                        health.status === "ok" || 
                        health.ollamaConnected === true ||
@@ -175,8 +200,6 @@ export default function AICorrectionPanel({
     setTokens((prev) =>
       prev.map((c) => (c.id === id ? { ...c, status: "accepted" } : c))
     );
-    // Optionally auto-select next error
-    // findNextError(id);
   };
 
   const handleReject = (id: string) => {
@@ -198,13 +221,13 @@ export default function AICorrectionPanel({
 
   const handleAcceptAll = () => {
     setTokens((prev) =>
-      prev.map((c) => ({ ...c, status: "accepted" }))
+      prev.map((c) => (c.type === 'error' ? { ...c, status: "accepted" } : c))
     );
   };
 
   const handleRejectAll = () => {
     setTokens((prev) =>
-      prev.map((c) => ({ ...c, status: "rejected" }))
+      prev.map((c) => (c.type === 'error' ? { ...c, status: "rejected" } : c))
     );
   };
 
@@ -212,7 +235,6 @@ export default function AICorrectionPanel({
   const getPreviewText = (): string => {
     let previewText = manualText.trim() || originalText;
     
-    // Only process tokens that are errors AND accepted
     const acceptedCorrections = tokens
       .filter((c) => c.type === 'error' && c.status === "accepted")
       .map((c) => ({
@@ -236,7 +258,6 @@ export default function AICorrectionPanel({
   };
 
   const handleApplyCorrections = () => {
-    // Use teacher's edited text if editor is open, otherwise use preview
     const textToApply = showFinalEditor ? finalText : getPreviewText();
     
     onCorrectedText(textToApply);
@@ -246,6 +267,17 @@ export default function AICorrectionPanel({
     setTokens([]);
     setShowFinalEditor(false);
     setFinalText("");
+    hasAutoAnalyzed.current = false;
+  };
+
+  // Get unique error patterns for summary
+  const getErrorPatternSummary = () => {
+    const patterns: Record<string, number> = {};
+    tokens.filter(t => t.type === 'error').forEach(token => {
+      const p = token.pattern || 'Unknown';
+      patterns[p] = (patterns[p] || 0) + 1;
+    });
+    return Object.entries(patterns);
   };
 
   // ===========================
@@ -256,6 +288,9 @@ export default function AICorrectionPanel({
   const pendingCount = errors.filter((c) => c.status === "pending").length;
   const acceptedCount = errors.filter((c) => c.status === "accepted").length;
   const rejectedCount = errors.filter((c) => c.status === "rejected").length;
+  const processingTimeSec = analysisResult?.processing_time_ms 
+    ? (analysisResult.processing_time_ms / 1000).toFixed(1)
+    : null;
 
   return (
     <View style={styles.container}>
@@ -266,19 +301,23 @@ export default function AICorrectionPanel({
       >
         <View style={styles.headerLeft}>
           <MaterialIcons name="psychology" size={24} color="#8B5CF6" />
-          <Text style={styles.headerTitle}>🧠 {t("aiCorrection.title")}</Text>
+          <Text style={styles.headerTitle}>{t("aiCorrection.title")}</Text>
+          {analysisResult && errors.length > 0 && (
+            <View style={styles.headerErrorCount}>
+              <Text style={styles.headerErrorCountText}>{errors.length}</Text>
+            </View>
+          )}
         </View>
         <View style={styles.headerRight}>
-          {/* Health Status */}
           {isHealthy === null ? (
             <ActivityIndicator size="small" color="#8B5CF6" />
           ) : isHealthy ? (
             <View style={[styles.statusBadge, styles.statusOnline]}>
-              <Text style={styles.statusText}>සබැඳි</Text>
+              <Text style={styles.statusText}>Online</Text>
             </View>
           ) : (
             <View style={[styles.statusBadge, styles.statusOffline]}>
-              <Text style={styles.statusTextOffline}>නොබැඳි</Text>
+              <Text style={styles.statusTextOffline}>Offline</Text>
             </View>
           )}
           <MaterialIcons
@@ -303,7 +342,7 @@ export default function AICorrectionPanel({
               color="#8B5CF6"
             />
             <Text style={styles.manualInputToggleText}>
-              {showManualInput ? "පෙළ සඟවන්න" : "අතින් පෙළ ඇතුළත් කරන්න"}
+              {showManualInput ? "Hide Input" : "Manual Text Input"}
             </Text>
           </TouchableOpacity>
 
@@ -355,214 +394,307 @@ export default function AICorrectionPanel({
             </View>
           )}
 
-          {/* Analysis Results */}
+          {/* ===================== */}
+          {/* ANALYSIS RESULTS      */}
+          {/* ===================== */}
           {analysisResult && errors.length > 0 && (
             <View style={styles.resultsContainer}>
-              {/* Summary */}
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryText}>
-                  {t("aiCorrection.errorFound")}: {analysisResult.total_errors}
-                </Text>
-                <View style={styles.countsRow}>
-                  <Text style={styles.countBadgeAccepted}>✓ {acceptedCount}</Text>
-                  <Text style={styles.countBadgeRejected}>✗ {rejectedCount}</Text>
-                  <Text style={styles.countBadgePending}>? {pendingCount}</Text>
+
+              {/* ─── COMPARISON VIEW: Original vs Corrected ─── */}
+              <View style={styles.comparisonContainer}>
+                <TouchableOpacity
+                  style={styles.comparisonHeader}
+                  onPress={() => setShowComparison(!showComparison)}
+                >
+                  <MaterialIcons name="compare-arrows" size={20} color="#8B5CF6" />
+                  <Text style={styles.comparisonHeaderText}>
+                    Original vs Corrected
+                  </Text>
+                  <MaterialIcons
+                    name={showComparison ? "expand-less" : "expand-more"}
+                    size={20}
+                    color="#6B7280"
+                  />
+                </TouchableOpacity>
+
+                {showComparison && (
+                  <View style={styles.comparisonBody}>
+                    {/* Original Text */}
+                    <View style={styles.comparisonSection}>
+                      <View style={styles.comparisonLabelRow}>
+                        <View style={[styles.comparisonDot, { backgroundColor: '#EF4444' }]} />
+                        <Text style={styles.comparisonLabel}>Original Text</Text>
+                      </View>
+                      <View style={styles.comparisonTextBox}>
+                        <Text style={styles.comparisonOriginalText}>
+                          {analysisResult.original_text}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Arrow */}
+                    <View style={styles.comparisonArrow}>
+                      <MaterialIcons name="arrow-downward" size={20} color="#8B5CF6" />
+                    </View>
+
+                    {/* Corrected Text (live preview based on accepted corrections) */}
+                    <View style={styles.comparisonSection}>
+                      <View style={styles.comparisonLabelRow}>
+                        <View style={[styles.comparisonDot, { backgroundColor: '#10B981' }]} />
+                        <Text style={[styles.comparisonLabel, { color: '#10B981' }]}>
+                          Corrected Text
+                          {acceptedCount > 0 && (
+                            <Text style={styles.comparisonAcceptedHint}>
+                              {` (${acceptedCount} accepted)`}
+                            </Text>
+                          )}
+                        </Text>
+                      </View>
+                      <View style={[styles.comparisonTextBox, styles.comparisonCorrectedBox]}>
+                        <Text style={styles.comparisonCorrectedText}>
+                          {getPreviewText()}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Processing Time */}
+                    {processingTimeSec && (
+                      <Text style={styles.processingTime}>
+                        Processing: {processingTimeSec}s | Model: {analysisResult.model_used || 'AI'}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+
+              {/* ─── ERROR PATTERN SUMMARY ─── */}
+              <View style={styles.patternSummaryContainer}>
+                <Text style={styles.patternSummaryTitle}>Error Types Found</Text>
+                <View style={styles.patternSummaryRow}>
+                  {getErrorPatternSummary().map(([pattern, count]) => (
+                    <View
+                      key={pattern}
+                      style={[
+                        styles.patternSummaryBadge,
+                        { backgroundColor: getPatternColor(pattern) + '20', borderColor: getPatternColor(pattern) + '40' }
+                      ]}
+                    >
+                      <MaterialIcons
+                        name={getPatternIcon(pattern) as any}
+                        size={14}
+                        color={getPatternColor(pattern)}
+                      />
+                      <Text style={[styles.patternSummaryText, { color: getPatternColor(pattern) }]}>
+                        {pattern} ({count})
+                      </Text>
+                    </View>
+                  ))}
                 </View>
               </View>
 
-              {/* Bulk Actions */}
+              {/* ─── STATUS SUMMARY & BULK ACTIONS ─── */}
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryText}>
+                  {t("aiCorrection.errorFound")}: {errors.length}
+                </Text>
+                <View style={styles.countsRow}>
+                  <View style={[styles.countBadge, { backgroundColor: '#064E3B' }]}>
+                    <MaterialIcons name="check" size={12} color="#10B981" />
+                    <Text style={styles.countBadgeAccepted}>{acceptedCount}</Text>
+                  </View>
+                  <View style={[styles.countBadge, { backgroundColor: '#7F1D1D' }]}>
+                    <MaterialIcons name="close" size={12} color="#EF4444" />
+                    <Text style={styles.countBadgeRejected}>{rejectedCount}</Text>
+                  </View>
+                  <View style={[styles.countBadge, { backgroundColor: '#374151' }]}>
+                    <MaterialIcons name="help-outline" size={12} color="#9CA3AF" />
+                    <Text style={styles.countBadgePending}>{pendingCount}</Text>
+                  </View>
+                </View>
+              </View>
+
               <View style={styles.bulkActions}>
                 <TouchableOpacity
                   style={styles.bulkButton}
                   onPress={handleAcceptAll}
                 >
                   <MaterialIcons name="done-all" size={16} color="#10B981" />
-                  <Text style={styles.bulkButtonTextAccept}>සියල්ල පිළිගන්න</Text>
+                  <Text style={styles.bulkButtonTextAccept}>Accept All</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.bulkButton}
                   onPress={handleRejectAll}
                 >
                   <MaterialIcons name="clear-all" size={16} color="#EF4444" />
-                  <Text style={styles.bulkButtonTextReject}>සියල්ල ප්‍රතික්ෂේප</Text>
+                  <Text style={styles.bulkButtonTextReject}>Reject All</Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Corrections List */}
-              {/* Interactive Text View */}
-              <View style={styles.interactiveTextContainer}>
-                <View style={styles.textParagraph}>
-                  {tokens.map((token, index) => {
-                    const isError = token.type === 'error';
-                    const isSelected = selectedTokenId === token.id;
-                    const isAccepted = token.status === 'accepted';
-                    const isRejected = token.status === 'rejected';
-                    
-                    const color = isError ? getPatternColor(token.pattern) : "#E5E7EB"; // Default text color
-                    
-                    const displayWord = isAccepted 
-                      ? (token.editedSuggestion || token.suggestion)
-                      : token.word;
+              {/* ─── ERROR CARDS LIST ─── */}
+              <View style={styles.errorCardsContainer}>
+                <Text style={styles.errorCardsTitle}>Corrections</Text>
+                {errors.map((token) => {
+                  const patternColor = getPatternColor(token.pattern);
+                  const isAccepted = token.status === 'accepted';
+                  const isRejected = token.status === 'rejected';
+                  const isPending = token.status === 'pending';
 
-                    // Style for error tokens
-                    const errorStyle = isError ? {
-                      borderBottomWidth: 2,
-                      borderBottomColor: isAccepted ? '#10B981' : isRejected ? '#EF4444' : color,
-                    } : {};
-
-                    const tokenStyle = [
-                      styles.wordToken,
-                      errorStyle,
-                      isSelected && { backgroundColor: (isError ? color : '#FFFFFF') + '20' },
-                      isError && isAccepted && styles.acceptedToken, // Only dim verified errors
-                      isError && isRejected && styles.rejectedToken,
-                    ];
-
-                    return (
-                      <TouchableOpacity
-                        key={token.id || `token-${index}`}
-                        style={tokenStyle}
-                        onPress={() => setSelectedTokenId(token.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[
-                          styles.wordText,
-                          { 
-                            color: isError 
-                              ? (isAccepted ? '#10B981' : isRejected ? '#EF4444' : color) 
-                              : (isAccepted ? '#10B981' : '#E5E7EB'), // Green if manual edit accepted
-                            fontWeight: isError || isAccepted ? "600" : "400"
-                          }
-                        ]}>
-                          {displayWord}
+                  return (
+                    <View
+                      key={token.id}
+                      style={[
+                        styles.errorCard,
+                        isAccepted && { borderColor: '#10B981', borderLeftWidth: 4 },
+                        isRejected && { borderColor: '#EF4444', borderLeftWidth: 4, opacity: 0.5 },
+                        isPending && { borderColor: patternColor, borderLeftWidth: 4 },
+                      ]}
+                    >
+                      {/* Word Change: original -> suggestion */}
+                      <View style={styles.errorCardWordRow}>
+                        <Text style={styles.errorCardOriginal}>{token.word}</Text>
+                        <MaterialIcons name="arrow-forward" size={16} color="#6B7280" />
+                        <Text style={styles.errorCardSuggestion}>
+                          {token.editedSuggestion || token.suggestion}
                         </Text>
-                        
-                        {/* Status Dots for Errors */}
-                        {isError && isAccepted && <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />}
-                        {isError && isRejected && <View style={[styles.statusDot, { backgroundColor: '#EF4444' }]} />}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
+                        {isAccepted && (
+                          <MaterialIcons name="check-circle" size={16} color="#10B981" style={{ marginLeft: 4 }} />
+                        )}
+                        {isRejected && (
+                          <MaterialIcons name="cancel" size={16} color="#EF4444" style={{ marginLeft: 4 }} />
+                        )}
+                      </View>
 
-              {/* Selected Error Detail Card */}
-              {selectedTokenId && (() => {
-                const token = tokens.find(t => t.id === selectedTokenId);
-                if (!token) return null;
-                
-                const isError = token.type === 'error';
-                
-                return (
-                  <View style={styles.detailCard}>
-                    <View style={styles.detailCardHeader}>
-                      <Text style={[
-                        styles.detailOriginalWord,
-                        !isError && { textDecorationLine: 'none', color: '#E5E7EB' }
-                      ]}>
-                        "{token.word}"
-                      </Text>
-                      {isError && (
-                        <>
-                          <MaterialIcons name="arrow-forward" size={16} color="#6B7280" />
-                          <Text style={styles.detailSuggestedWord}>
-                            {token.suggestion}
-                          </Text>
-                        </>
-                      )}
-                      
-                      <TouchableOpacity 
-                        style={styles.closeDetailButton}
-                        onPress={() => setSelectedTokenId(null)}
-                      >
-                        <MaterialIcons name="close" size={20} color="#9CA3AF" />
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Pattern Badge - Only for errors */}
-                    {isError && (
-                      <View style={styles.detailBadgeRow}>
-                        <View style={[styles.patternBadge, { backgroundColor: getPatternColor(token.pattern) + '20' }]}>
-                          <Text style={[styles.patternText, { color: getPatternColor(token.pattern) }]}>
-                            {token.pattern} ({Math.round(token.confidence * 100)}%)
+                      {/* Pattern Badge */}
+                      <View style={styles.errorCardPatternRow}>
+                        <View style={[styles.errorCardPatternBadge, { backgroundColor: patternColor + '20' }]}>
+                          <MaterialIcons name={getPatternIcon(token.pattern) as any} size={12} color={patternColor} />
+                          <Text style={[styles.errorCardPatternText, { color: patternColor }]}>
+                            {token.pattern}
                           </Text>
                         </View>
-                      </View>
-                    )}
-
-                    {token.explanation && (
-                      <Text style={styles.detailExplanation}>{token.explanation}</Text>
-                    )}
-
-                    {/* Quick Actions */}
-                    <View style={styles.detailActions}>
-                      {isError ? (
-                        <>
-                          <TouchableOpacity
-                            style={[
-                              styles.actionButton,
-                              styles.acceptButton,
-                              token.status === 'accepted' && styles.buttonActive
-                            ]}
-                            onPress={() => handleAccept(token.id)}
-                          >
-                             <MaterialIcons name="check" size={18} color="#10B981" />
-                             <Text style={styles.acceptButtonText}>{t("aiCorrection.acceptCorrection")}</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={[
-                              styles.actionButton,
-                              styles.rejectButton,
-                              token.status === 'rejected' && styles.buttonActive
-                            ]}
-                            onPress={() => handleReject(token.id)}
-                          >
-                             <MaterialIcons name="close" size={18} color="#EF4444" />
-                             <Text style={styles.rejectButtonText}>{t("aiCorrection.rejectCorrection")}</Text>
-                          </TouchableOpacity>
-                        </>
-                      ) : (
-                        <Text style={{ color: '#9CA3AF', fontStyle: 'italic', marginBottom: 8 }}>
-                          {token.status === 'accepted' ? 'Manual Edit Applied' : 'Tap Edit Icon above to change text'}
+                        <Text style={styles.errorCardConfidence}>
+                          {Math.round(token.confidence * 100)}% confidence
                         </Text>
+                      </View>
+
+                      {/* Explanation */}
+                      {token.explanation && (
+                        <Text style={styles.errorCardExplanation}>{token.explanation}</Text>
                       )}
-                      
-                      {/* Edit Button is always available via the Input logic or a button if I add it below. 
-                          Wait, previous DetailCard didn't have an Edit BUTTON in the new design?
-                          I only saw Accept/Reject.
-                          I need to ADD an Edit button or Input field to the Detail Card. 
-                          Steps 423 didn't include an Edit button in DetailCard.
-                      */}
-                      
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.editButton]}
-                        onPress={() => setEditingId(token.id)}
-                      >
-                        <MaterialIcons name="edit" size={18} color="#9CA3AF" />
-                        <Text style={styles.editButtonText}>{t("aiCorrection.editCorrection")}</Text>
-                      </TouchableOpacity>
-                    </View>
-                    
-                    {/* Inline Editor for Detail Card (if editingId matches) */}
-                    {editingId === token.id && (
-                       <View style={{ marginTop: 12 }}>
-                         <TextInput
+
+                      {/* Action Buttons */}
+                      <View style={styles.errorCardActions}>
+                        <TouchableOpacity
+                          style={[
+                            styles.errorCardActionBtn,
+                            styles.acceptButton,
+                            isAccepted && styles.buttonActiveAccept,
+                          ]}
+                          onPress={() => handleAccept(token.id)}
+                        >
+                          <MaterialIcons name="check" size={16} color="#10B981" />
+                          <Text style={styles.acceptButtonText}>
+                            {isAccepted ? 'Accepted' : 'Accept'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.errorCardActionBtn,
+                            styles.rejectButton,
+                            isRejected && styles.buttonActiveReject,
+                          ]}
+                          onPress={() => handleReject(token.id)}
+                        >
+                          <MaterialIcons name="close" size={16} color="#EF4444" />
+                          <Text style={styles.rejectButtonText}>
+                            {isRejected ? 'Rejected' : 'Reject'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.errorCardActionBtn, styles.editButton]}
+                          onPress={() => setEditingId(editingId === token.id ? null : token.id)}
+                        >
+                          <MaterialIcons name="edit" size={16} color="#9CA3AF" />
+                          <Text style={styles.editButtonText}>Edit</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Inline Editor */}
+                      {editingId === token.id && (
+                        <View style={styles.inlineEditor}>
+                          <TextInput
                             style={styles.editInput}
                             defaultValue={token.editedSuggestion || token.suggestion || token.word}
                             onSubmitEditing={(e) => handleEdit(token.id, e.nativeEvent.text)}
                             autoFocus
-                            placeholder="Type new word..."
+                            placeholder="Type corrected word..."
                             placeholderTextColor="#6B7280"
-                         />
-                         <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 4 }}>Press Enter to save</Text>
-                       </View>
-                    )}
-                  </View>
-                );
-              })()}
+                          />
+                          <Text style={styles.editHint}>Press Enter to save</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
 
-              {/* Teacher Final Editing Section */}
+              {/* ─── INTERACTIVE TOKEN VIEW (collapsed by default) ─── */}
+              <TouchableOpacity
+                style={styles.tokenViewToggle}
+                onPress={() => setSelectedTokenId(selectedTokenId ? null : 'show')}
+              >
+                <MaterialIcons name="text-fields" size={18} color="#6B7280" />
+                <Text style={styles.tokenViewToggleText}>
+                  {selectedTokenId === 'show' ? 'Hide' : 'Show'} Interactive Text View
+                </Text>
+              </TouchableOpacity>
+
+              {selectedTokenId === 'show' && (
+                <View style={styles.interactiveTextContainer}>
+                  <View style={styles.textParagraph}>
+                    {tokens.map((token, index) => {
+                      const isError = token.type === 'error';
+                      const isAccepted = token.status === 'accepted';
+                      const isRejected = token.status === 'rejected';
+                      
+                      const color = isError ? getPatternColor(token.pattern) : "#E5E7EB";
+                      
+                      const displayWord = isAccepted 
+                        ? (token.editedSuggestion || token.suggestion)
+                        : token.word;
+
+                      const errorStyle = isError ? {
+                        borderBottomWidth: 2,
+                        borderBottomColor: isAccepted ? '#10B981' : isRejected ? '#EF4444' : color,
+                      } : {};
+
+                      return (
+                        <View
+                          key={token.id || `token-${index}`}
+                          style={[styles.wordToken, errorStyle]}
+                        >
+                          <Text style={[
+                            styles.wordText,
+                            { 
+                              color: isError 
+                                ? (isAccepted ? '#10B981' : isRejected ? '#EF4444' : color) 
+                                : '#E5E7EB',
+                              fontWeight: isError ? "600" : "400",
+                              textDecorationLine: isError && isRejected ? 'line-through' : 'none',
+                            }
+                          ]}>
+                            {displayWord}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {/* ─── TEACHER FINAL EDITING ─── */}
               <View style={styles.teacherEditSection}>
                 <TouchableOpacity
                   style={styles.teacherEditToggle}
@@ -574,17 +706,17 @@ export default function AICorrectionPanel({
                     color="#F59E0B" 
                   />
                   <Text style={styles.teacherEditToggleText}>
-                    {showFinalEditor ? "සංස්කාරකය සඟවන්න" : "🧑‍🏫 ගුරු සංස්කරණය"}
+                    {showFinalEditor ? "Hide Editor" : "Teacher Edit"}
                   </Text>
                   <Text style={styles.teacherEditHint}>
-                    {showFinalEditor ? "" : "(අවසාන පෙළ සංස්කරණය කරන්න)"}
+                    {showFinalEditor ? "" : "(Edit final text manually)"}
                   </Text>
                 </TouchableOpacity>
 
                 {showFinalEditor && (
                   <View style={styles.finalEditorContainer}>
                     <Text style={styles.finalEditorLabel}>
-                      නිවැරදි කළ පෙළ (සංස්කරණය කළ හැක):
+                      Corrected Text (editable):
                     </Text>
                     <TextInput
                       style={styles.finalEditorInput}
@@ -593,7 +725,7 @@ export default function AICorrectionPanel({
                       multiline
                       numberOfLines={6}
                       textAlignVertical="top"
-                      placeholder="නිවැරදි කළ පෙළ මෙහි පෙන්වයි..."
+                      placeholder="Corrected text will appear here..."
                       placeholderTextColor="#6B7280"
                     />
                     <View style={styles.finalEditorActions}>
@@ -602,17 +734,17 @@ export default function AICorrectionPanel({
                         onPress={() => setFinalText(getPreviewText())}
                       >
                         <MaterialIcons name="refresh" size={16} color="#8B5CF6" />
-                        <Text style={styles.refreshPreviewText}>යළි පූරණය</Text>
+                        <Text style={styles.refreshPreviewText}>Reload Preview</Text>
                       </TouchableOpacity>
                       <Text style={styles.charCount}>
-                        {finalText.length} අක්ෂර
+                        {finalText.length} chars
                       </Text>
                     </View>
                   </View>
                 )}
               </View>
 
-              {/* Apply Button */}
+              {/* ─── APPLY BUTTON ─── */}
               <TouchableOpacity
                 style={[
                   styles.applyButton,
@@ -624,8 +756,8 @@ export default function AICorrectionPanel({
                 <MaterialIcons name="check-circle" size={20} color="#fff" />
                 <Text style={styles.applyButtonText}>
                   {showFinalEditor 
-                    ? "සංස්කරණය කළ පෙළ යොදන්න" 
-                    : `${t("aiCorrection.saveCorrection")} (${acceptedCount})`
+                    ? "Apply Edited Text"
+                    : `Apply Corrections (${acceptedCount})`
                   }
                 </Text>
               </TouchableOpacity>
@@ -636,10 +768,18 @@ export default function AICorrectionPanel({
           {analysisResult && errors.length === 0 && (
             <View style={styles.noErrorsContainer}>
               <MaterialIcons name="check-circle" size={48} color="#10B981" />
-              <Text style={styles.noErrorsText}>දෝෂ හමු නොවීය!</Text>
+              <Text style={styles.noErrorsText}>No errors found!</Text>
               <Text style={styles.noErrorsSubtext}>
-                පෙළ නිවැරදි ලෙස පෙනේ.
+                The text appears to be correct.
               </Text>
+              {analysisResult.corrected_text && (
+                <View style={styles.noErrorsCorrectedBox}>
+                  <Text style={styles.noErrorsCorrectedLabel}>Corrected Text:</Text>
+                  <Text style={styles.noErrorsCorrectedText}>
+                    {analysisResult.corrected_text}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -677,6 +817,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#F3F4F6",
+  },
+  headerErrorCount: {
+    backgroundColor: "#EF4444",
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerErrorCountText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
   },
   headerRight: {
     flexDirection: "row",
@@ -763,6 +916,123 @@ const styles = StyleSheet.create({
   resultsContainer: {
     marginTop: 16,
   },
+
+  // ─── Comparison View ───
+  comparisonContainer: {
+    backgroundColor: "#111827",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#374151",
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  comparisonHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 12,
+    backgroundColor: "#0D1117",
+  },
+  comparisonHeaderText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#D1D5DB",
+  },
+  comparisonBody: {
+    padding: 12,
+  },
+  comparisonSection: {
+    marginBottom: 8,
+  },
+  comparisonLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6,
+  },
+  comparisonDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  comparisonLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#EF4444",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  comparisonAcceptedHint: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontWeight: "400",
+    textTransform: "none",
+  },
+  comparisonTextBox: {
+    backgroundColor: "#1F2937",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#EF444430",
+  },
+  comparisonCorrectedBox: {
+    borderColor: "#10B98130",
+  },
+  comparisonOriginalText: {
+    fontSize: 15,
+    color: "#F9FAFB",
+    lineHeight: 24,
+  },
+  comparisonCorrectedText: {
+    fontSize: 15,
+    color: "#A7F3D0",
+    lineHeight: 24,
+    fontWeight: "500",
+  },
+  comparisonArrow: {
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  processingTime: {
+    fontSize: 11,
+    color: "#6B7280",
+    textAlign: "right",
+    marginTop: 8,
+  },
+
+  // ─── Pattern Summary ───
+  patternSummaryContainer: {
+    marginBottom: 16,
+  },
+  patternSummaryTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#9CA3AF",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  patternSummaryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  patternSummaryBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  patternSummaryText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  // ─── Summary Row ───
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -776,121 +1046,133 @@ const styles = StyleSheet.create({
   },
   countsRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
+  },
+  countBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
   countBadgeAccepted: {
     fontSize: 12,
     color: "#10B981",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   countBadgeRejected: {
     fontSize: 12,
     color: "#EF4444",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   countBadgePending: {
     fontSize: 12,
     color: "#9CA3AF",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   bulkActions: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   bulkButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
     backgroundColor: "#374151",
   },
   bulkButtonTextAccept: {
     fontSize: 13,
     color: "#10B981",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   bulkButtonTextReject: {
     fontSize: 13,
     color: "#EF4444",
-    fontWeight: "500",
+    fontWeight: "600",
   },
-  correctionsList: {
-    maxHeight: 300,
+
+  // ─── Error Cards ───
+  errorCardsContainer: {
+    marginBottom: 16,
   },
-  correctionCard: {
+  errorCardsTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#9CA3AF",
+    marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  errorCard: {
     backgroundColor: "#111827",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#374151",
   },
-  cardAccepted: {
-    borderColor: "#10B981",
-    backgroundColor: "#064E3B20",
-  },
-  cardRejected: {
-    borderColor: "#EF4444",
-    backgroundColor: "#7F1D1D20",
-    opacity: 0.6,
-  },
-  wordChangeRow: {
+  errorCardWordRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginBottom: 8,
   },
-  originalWord: {
-    fontSize: 16,
+  errorCardOriginal: {
+    fontSize: 17,
     color: "#FCA5A5",
     textDecorationLine: "line-through",
     fontWeight: "500",
   },
-  suggestedWord: {
-    fontSize: 16,
+  errorCardSuggestion: {
+    fontSize: 17,
     color: "#10B981",
-    fontWeight: "600",
+    fontWeight: "700",
   },
-  editInput: {
-    fontSize: 16,
-    color: "#10B981",
-    fontWeight: "600",
-    borderBottomWidth: 1,
-    borderBottomColor: "#10B981",
-    paddingVertical: 2,
-    minWidth: 80,
-  },
-  patternBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+  errorCardPatternRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 8,
   },
-  patternText: {
-    fontSize: 12,
-    fontWeight: "500",
+  errorCardPatternBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  explanation: {
+  errorCardPatternText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  errorCardConfidence: {
+    fontSize: 11,
+    color: "#6B7280",
+  },
+  errorCardExplanation: {
     fontSize: 13,
     color: "#9CA3AF",
-    marginBottom: 8,
+    marginBottom: 10,
+    lineHeight: 18,
   },
-  actionButtons: {
+  errorCardActions: {
     flexDirection: "row",
     gap: 8,
     flexWrap: "wrap",
   },
-  actionButton: {
+  errorCardActionBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     borderWidth: 1,
   },
   acceptButton: {
@@ -905,42 +1187,110 @@ const styles = StyleSheet.create({
     borderColor: "#6B7280",
     backgroundColor: "#37415130",
   },
-  buttonActive: {
-    opacity: 1,
+  buttonActiveAccept: {
+    backgroundColor: "#064E3B",
+    borderColor: "#10B981",
+  },
+  buttonActiveReject: {
+    backgroundColor: "#7F1D1D",
+    borderColor: "#EF4444",
   },
   acceptButtonText: {
     fontSize: 12,
     color: "#10B981",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   rejectButtonText: {
     fontSize: 12,
     color: "#EF4444",
-    fontWeight: "500",
+    fontWeight: "600",
   },
   editButtonText: {
     fontSize: 12,
     color: "#9CA3AF",
+    fontWeight: "600",
+  },
+  inlineEditor: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#374151",
+  },
+  editInput: {
+    fontSize: 16,
+    color: "#10B981",
+    fontWeight: "600",
+    borderBottomWidth: 1,
+    borderBottomColor: "#10B981",
+    paddingVertical: 4,
+    minWidth: 80,
+    backgroundColor: "#1F2937",
+    paddingHorizontal: 8,
+    borderRadius: 4,
+  },
+  editHint: {
+    color: '#6B7280',
+    fontSize: 11,
+    marginTop: 4,
+  },
+
+  // ─── Interactive Token View ───
+  tokenViewToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  tokenViewToggleText: {
+    fontSize: 13,
+    color: "#6B7280",
     fontWeight: "500",
   },
+  interactiveTextContainer: {
+    backgroundColor: "#111827",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#374151",
+    padding: 16,
+    marginBottom: 16,
+    minHeight: 80,
+  },
+  textParagraph: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  wordToken: {
+    marginHorizontal: 1,
+    paddingHorizontal: 2,
+    borderRadius: 4,
+  },
+  wordText: {
+    fontSize: 16,
+    lineHeight: 28,
+  },
+
+  // ─── Apply Button ───
   applyButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     backgroundColor: "#10B981",
-    padding: 14,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 10,
     marginTop: 12,
   },
   applyButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   noErrorsContainer: {
     alignItems: "center",
     padding: 24,
+    marginTop: 16,
   },
   noErrorsText: {
     fontSize: 18,
@@ -953,8 +1303,28 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     marginTop: 4,
   },
-  
-  // Teacher Editing Styles
+  noErrorsCorrectedBox: {
+    marginTop: 16,
+    backgroundColor: "#111827",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#10B98130",
+    width: "100%",
+  },
+  noErrorsCorrectedLabel: {
+    fontSize: 12,
+    color: "#10B981",
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  noErrorsCorrectedText: {
+    fontSize: 15,
+    color: "#A7F3D0",
+    lineHeight: 22,
+  },
+
+  // ─── Teacher Editing ───
   teacherEditSection: {
     marginTop: 16,
     borderTopWidth: 1,
@@ -1022,110 +1392,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6B7280",
   },
-  
-  // Interactive Text View Styles
-  interactiveTextContainer: {
-    backgroundColor: "#111827",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#374151",
-    padding: 16,
-    marginBottom: 16,
-    minHeight: 100,
+
+  // ─── Legacy / Compatibility ───
+  patternBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 8,
   },
-  textParagraph: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-  },
-  wordToken: {
-    marginHorizontal: 1,
-    paddingHorizontal: 2,
-    borderRadius: 4,
-  },
-  wordText: {
-    fontSize: 16,
-    lineHeight: 28,
-  },
-  errorToken: {
-    borderBottomWidth: 2,
-    marginHorizontal: 2,
-    paddingHorizontal: 2,
-    borderRadius: 4,
-    position: 'relative',
-  },
-  errorTokenText: {
-    fontSize: 16,
-    fontWeight: "600",
-    lineHeight: 28,
-  },
-  statusDot: {
-    position: 'absolute',
-    top: -2,
-    right: -4,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  acceptedToken: {
-    backgroundColor: 'transparent',
-  },
-  rejectedToken: {
-    textDecorationLine: 'line-through',
-    opacity: 0.6,
-  },
-  
-  // Detail Card Styles
-  detailCard: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#1F2937",
-    borderTopWidth: 1,
-    borderTopColor: "#374151",
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 8,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    zIndex: 100,
-  },
-  detailCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  detailOriginalWord: {
-    fontSize: 18,
-    color: "#EF4444",
-    textDecorationLine: 'line-through',
-  },
-  detailSuggestedWord: {
-    fontSize: 18,
-    color: "#10B981",
-    fontWeight: "bold",
-  },
-  closeDetailButton: {
-    marginLeft: 'auto',
-    padding: 4,
-  },
-  detailBadgeRow: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  detailExplanation: {
-    fontSize: 14,
-    color: "#D1D5DB",
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  detailActions: {
-    flexDirection: "row",
-    gap: 12,
+  patternText: {
+    fontSize: 12,
+    fontWeight: "500",
   },
 });
