@@ -3,6 +3,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Tabs, useRouter, useSegments } from "expo-router";
 import React from "react";
 import {
+  Alert,
   Platform,
   ScrollView,
   Text,
@@ -32,15 +33,36 @@ export default function TabLayout() {
 
   const currentRoute = segments[segments.length - 1] || "index";
 
+  const confirmLogout = () => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      return Promise.resolve(window.confirm(t("auth.logoutConfirm")));
+    }
+
+    return new Promise<boolean>((resolve) => {
+      Alert.alert(t("auth.logout"), t("auth.logoutConfirm"), [
+        { text: t("common.cancel"), style: "cancel", onPress: () => resolve(false) },
+        {
+          text: t("auth.logout"),
+          style: "destructive",
+          onPress: () => resolve(true),
+        },
+      ]);
+    });
+  };
+
   const handleLogout = async () => {
-    const confirmed = window.confirm(t("auth.logoutConfirm"));
-    if (confirmed) {
-      try {
-        await logout();
-        router.replace("/login");
-      } catch (error) {
-        console.error("Logout error:", error);
-        alert(t("common.error") + ": Failed to logout");
+    const confirmed = await confirmLogout();
+    if (!confirmed) return;
+
+    try {
+      await logout();
+      router.replace("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.alert(t("common.error") + ": Failed to logout");
+      } else {
+        Alert.alert(t("common.error"), "Failed to logout");
       }
     }
   };
