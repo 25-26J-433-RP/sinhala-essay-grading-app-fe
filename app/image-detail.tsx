@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -90,6 +91,20 @@ const { imageId } = useLocalSearchParams<{ imageId?: string }>();
   const confirm = useConfirm();
   const { t } = useLanguage();
   // const DEBUG = __DEV__ === true; // not used currently
+
+  const handlePasteTopic = async () => {
+    const pastedText = await Clipboard.getStringAsync();
+    if (pastedText) {
+      setEssayTopic(pastedText);
+    }
+  };
+
+  const handlePasteEssay = async () => {
+    const pastedText = await Clipboard.getStringAsync();
+    if (pastedText) {
+      setInputText(pastedText);
+    }
+  };
   
 
 useEffect(() => {
@@ -509,7 +524,16 @@ const refreshImageData = async () => {
           <Text style={styles.cardTitle}>{t("essay.enterSinhalaEssay")}</Text>
 
           {/* Topic */}
-          <Text style={styles.detailLabel}>{t("essay.topic")}</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.detailLabel}>{t("essay.topic")}</Text>
+            <TouchableOpacity
+              style={styles.pasteButton}
+              onPress={handlePasteTopic}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.pasteButtonText}>{t("common.paste")}</Text>
+            </TouchableOpacity>
+          </View>
           <TextInput
             value={essayTopic}
             onChangeText={setEssayTopic}
@@ -518,7 +542,34 @@ const refreshImageData = async () => {
           />
 
           {/* Essay */}
-          <Text style={styles.detailLabel}>{t("essay.essayRequired")}</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.detailLabel}>{t("essay.essayRequired")}</Text>
+          labelRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 6,
+          },
+          pasteButton: {
+            paddingHorizontal: 10,
+            paddingVertical: 4,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: "#374151",
+            backgroundColor: "#111827",
+          },
+          pasteButtonText: {
+            color: "#E5E7EB",
+            fontSize: 12,
+            fontWeight: "600",
+          },
+            <TouchableOpacity
+              style={styles.pasteButton}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.pasteButtonText}>{t("common.paste")}</Text>
+            </TouchableOpacity>
+          </View>
           <TextInput
             value={inputText}
             onChangeText={setInputText}
