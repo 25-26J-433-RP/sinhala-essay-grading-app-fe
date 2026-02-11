@@ -3,14 +3,14 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import {
-  Linking,
+  Image, Linking,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   useWindowDimensions,
-  View,
+  View
 } from "react-native";
 
 export default function GuestScreen() {
@@ -105,9 +105,15 @@ export default function GuestScreen() {
 
       {/* Hero Section */}
       <View style={styles.heroSection}>
-        <View style={styles.heroIcon}>
-          <MaterialIcons name="school" size={80} color="#3B82F6" />
+        {/* Akura Logo */}
+        <View style={styles.logoContainer}>
+          <Image
+            source={require("../assets/images/akura-logo.png")}
+            style={[styles.logoImage, { width: 100, height: 100 }]} // Reduced size
+            resizeMode="contain"
+          />
         </View>
+
         <Text style={styles.heroTitle}>{t("guest.welcome")}</Text>
         <Text style={styles.heroDescription}>
           {t("guest.welcomeDescription")}
