@@ -4,20 +4,29 @@ import { useRole } from "@/hooks/useRole";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React from "react";
 import {
-  Alert,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { userProfile, profileLoading, isStudent, isTeacher, role } = useRole();
   const { t } = useLanguage();
+
+  const roleLabel =
+    role === "teacher"
+      ? t("auth.teacher")
+      : role === "student"
+        ? t("auth.student")
+        : role === "parent"
+          ? t("auth.parent")
+          : t("auth.teacher");
 
   const handleLogout = async () => {
     Alert.alert(t("auth.logout"), t("auth.logoutConfirm"), [
@@ -93,9 +102,7 @@ export default function ProfileScreen() {
                 <MaterialIcons name="badge" size={20} color="#007AFF" />
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>{t("profile.role")}</Text>
-                  <Text style={styles.infoValue}>
-                    {role === "teacher" ? t("auth.teacher") : t("auth.student")}
-                  </Text>
+                  <Text style={styles.infoValue}>{roleLabel}</Text>
                 </View>
               </View>
 

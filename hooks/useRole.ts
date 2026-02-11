@@ -19,6 +19,10 @@ export function useRole() {
     return hasRole('teacher');
   };
 
+  const isParent = (): boolean => {
+    return hasRole('parent');
+  };
+
   const isActive = (): boolean => {
     return userProfile?.isActive === true;
   };
@@ -37,6 +41,7 @@ export function useRole() {
     hasRole,
     isStudent,
     isTeacher,
+    isParent,
     isActive,
     canAccessTeacherFeatures,
     canAccessStudentFeatures,

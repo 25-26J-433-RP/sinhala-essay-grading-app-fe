@@ -24,6 +24,7 @@
     "role": "Role",
     "student": "Student",
     "teacher": "Teacher",
+    "parent": "Parent",
     "logoutConfirm": "Are you sure you want to logout?",
     "loginError": "Failed to login. Please try again.",
     "registerError": "Failed to register. Please try again."
