@@ -1,12 +1,12 @@
 import { auth } from '@/config/firebase';
 import { UserProfileService } from '@/services/userProfileService';
-import { UserProfile } from '@/types/auth';
+import { UserProfile, UserRole } from '@/types/auth';
 import {
-    User,
-    createUserWithEmailAndPassword,
-    onAuthStateChanged,
-    signInWithEmailAndPassword,
-    signOut,
+  User,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
 } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
@@ -16,7 +16,7 @@ interface AuthContextType {
   loading: boolean;
   profileLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, role: UserRole) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -72,20 +72,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signInWithEmailAndPassword(auth, email, password);
   };
 
-  const register = async (email: string, password: string) => {
+  const register = async (email: string, password: string, role: UserRole) => {
     if (!auth) {
       throw new Error('Firebase Auth not initialized. Check your Firebase configuration.');
     }
     
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
-    // Create user profile in Firestore with default role (teacher)
-    // Backend can later update the role to student if needed
+    // Create user profile in Firestore with the selected role
     try {
       await UserProfileService.createUserProfile({
         uid: userCredential.user.uid,
         email: userCredential.user.email || email,
-        role: 'teacher', // Default role - backend can change this
+        role,
       });
     } catch (error) {
       console.error('Error creating user profile:', error);
