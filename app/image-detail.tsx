@@ -524,16 +524,7 @@ const refreshImageData = async () => {
           <Text style={styles.cardTitle}>{t("essay.enterSinhalaEssay")}</Text>
 
           {/* Topic */}
-          <View style={styles.labelRow}>
-            <Text style={styles.detailLabel}>{t("essay.topic")}</Text>
-            <TouchableOpacity
-              style={styles.pasteButton}
-              onPress={handlePasteTopic}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.pasteButtonText}>{t("common.paste")}</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.detailLabel}>{t("essay.topic")}</Text>
           <TextInput
             value={essayTopic}
             onChangeText={setEssayTopic}
@@ -542,34 +533,7 @@ const refreshImageData = async () => {
           />
 
           {/* Essay */}
-          <View style={styles.labelRow}>
-            <Text style={styles.detailLabel}>{t("essay.essayRequired")}</Text>
-          labelRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 6,
-          },
-          pasteButton: {
-            paddingHorizontal: 10,
-            paddingVertical: 4,
-            borderRadius: 999,
-            borderWidth: 1,
-            borderColor: "#374151",
-            backgroundColor: "#111827",
-          },
-          pasteButtonText: {
-            color: "#E5E7EB",
-            fontSize: 12,
-            fontWeight: "600",
-          },
-            <TouchableOpacity
-              style={styles.pasteButton}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.pasteButtonText}>{t("common.paste")}</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.detailLabel}>{t("essay.essayRequired")}</Text>
           <TextInput
             value={inputText}
             onChangeText={setInputText}
@@ -593,10 +557,12 @@ const refreshImageData = async () => {
               setIsScoring(true);
 
               try {
+                const trimmedEssay = inputText.trim();
+                const trimmedTopic = essayTopic.trim();
                 const result = await scoreSinhala({
-                  text: inputText,  // âœ… Changed from essay_text to text
+                  text: trimmedEssay,  // âœ… Changed from essay_text to text
                   grade: Number(imageData.studentGrade) || 6,
-                  topic: essayTopic || undefined,
+                  topic: trimmedTopic || undefined,
                   dyslexic_flag: false,  // âœ… Added dyslexic_flag
                   error_tags: [],        // âœ… Added error_tags
                 });
@@ -627,8 +593,8 @@ const refreshImageData = async () => {
                   // ðŸ” Firestore-safe (can be null)
                   fairness_report: result.fairness_report ?? null,
 
-                  essay_text: inputText,
-                  essay_topic: essayTopic || null,
+                  essay_text: trimmedEssay,
+                  essay_topic: trimmedTopic || null,
 
                   scored_at: new Date().toISOString(),
                 });
@@ -729,7 +695,9 @@ const refreshImageData = async () => {
           {scoreData && (
             <View style={styles.scoreBox}>
               <Text style={styles.scoreMain}>
-                {t("essay.score")}: {scoreData.score}
+                {t("essay.score")}: {typeof scoreData.score === "number"
+                  ? scoreData.score.toFixed(2)
+                  : scoreData.score}
               </Text>
 
               {/* <Text style={styles.scoreDetail}>

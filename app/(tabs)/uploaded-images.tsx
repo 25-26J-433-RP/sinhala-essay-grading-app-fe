@@ -61,14 +61,7 @@ export default function UploadedImagesScreen() {
               router.push({
                 pathname: "/student-essays",
                 params: {
-                  studentData: JSON.stringify({
-                    ...studentInfo,
-                    lastUploadDate: studentInfo.lastUploadDate.toISOString(),
-                    essays: studentInfo.essays.map((essay) => ({
-                      ...essay,
-                      uploadedAt: essay.uploadedAt.toISOString(),
-                    })),
-                  }),
+                  studentId: studentInfo.studentId,
                 },
               });
             }}
