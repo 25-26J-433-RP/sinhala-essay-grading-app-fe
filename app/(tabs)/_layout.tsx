@@ -3,13 +3,13 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Tabs, useRouter, useSegments } from "expo-router";
 import React from "react";
 import {
-  Alert,
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    Alert,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 import { HapticTab } from "@/components/HapticTab";

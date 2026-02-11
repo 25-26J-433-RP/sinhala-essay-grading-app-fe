@@ -20,6 +20,8 @@ import {
 export default function AddStudentScreen() {
   const [studentId, setStudentId] = useState("");
   const [studentAge, setStudentAge] = useState("");
+  const [ageHasNonNumeric, setAgeHasNonNumeric] = useState(false);
+  const [ageInputError, setAgeInputError] = useState("");
   const [studentGrade, setStudentGrade] = useState("");
   const [studentGender, setStudentGender] = useState("");
   const [showGradeDropdown, setShowGradeDropdown] = useState(false);
@@ -37,25 +39,44 @@ export default function AddStudentScreen() {
     "Grade 8",
   ];
   const genderOptions = [t("addStudent.male"), t("addStudent.female")];
+  const STUDENT_ID_PATTERN = /^[A-Za-z0-9_-]{1,30}$/;
+  const MIN_STUDENT_AGE = 3;
+  const MAX_STUDENT_AGE = 25;
 
   const handleSaveStudent = async () => {
+    const trimmedId = studentId.trim();
+    const trimmedAge = studentAge.trim();
+    const ageNumber = Number(trimmedAge);
+
     // Validate all fields
-    if (!studentId.trim()) {
+    if (!trimmedId) {
       Alert.alert(t("addStudent.validation"), t("addStudent.enterIdRequired"));
       return;
     }
-    if (!studentAge.trim()) {
+    if (!STUDENT_ID_PATTERN.test(trimmedId)) {
+      Alert.alert(t("addStudent.validation"), t("addStudent.invalidStudentId"));
+      return;
+    }
+    if (ageHasNonNumeric) {
+      Alert.alert(t("addStudent.validation"), t("addStudent.invalidAgeChars"));
+      return;
+    }
+    if (!trimmedAge) {
       Alert.alert(t("addStudent.validation"), t("addStudent.enterAgeRequired"));
       return;
     }
-    if (!studentGrade) {
+    if (!Number.isInteger(ageNumber) || ageNumber < MIN_STUDENT_AGE || ageNumber > MAX_STUDENT_AGE) {
+      Alert.alert(t("addStudent.validation"), t("addStudent.invalidAge"));
+      return;
+    }
+    if (!studentGrade || !gradeOptions.includes(studentGrade)) {
       Alert.alert(
         t("addStudent.validation"),
         t("addStudent.selectGradeRequired")
       );
       return;
     }
-    if (!studentGender) {
+    if (!studentGender || !genderOptions.includes(studentGender)) {
       Alert.alert(
         t("addStudent.validation"),
         t("addStudent.selectGenderRequired")
@@ -94,8 +115,8 @@ export default function AddStudentScreen() {
       // Add new student
       await addDoc(studentsRef, {
         userId: user.uid,
-        studentId: studentId.trim(),
-        studentAge: parseInt(studentAge.trim(), 10),
+        studentId: trimmedId,
+        studentAge: ageNumber,
         studentGrade: studentGrade.trim(),
         studentGender: studentGender.trim(),
         createdAt: new Date(),
@@ -164,13 +185,23 @@ export default function AddStudentScreen() {
               <Text style={styles.label}>{t("addStudent.studentAge")} *</Text>
               <TextInput
                 value={studentAge}
-                onChangeText={setStudentAge}
+                onChangeText={(value) => {
+                  const hasNonNumeric = /[^0-9]/.test(value);
+                  setAgeHasNonNumeric(hasNonNumeric);
+                  setAgeInputError(
+                    hasNonNumeric ? t("addStudent.invalidAgeChars") : ""
+                  );
+                  setStudentAge(value.replace(/[^0-9]/g, ""));
+                }}
                 placeholder={t("addStudent.enterStudentAge")}
                 placeholderTextColor="#888"
                 style={styles.input}
                 keyboardType="numeric"
                 editable={!saving}
               />
+              {!!ageInputError && (
+                <Text style={styles.inputErrorText}>{ageInputError}</Text>
+              )}
             </View>
 
             <View style={styles.formGroup}>
@@ -380,6 +411,11 @@ const styles = StyleSheet.create({
     borderColor: "#333640",
     fontSize: 16,
     transition: "border-color 0.2s ease",
+  },
+  inputErrorText: {
+    color: "#FCA5A5",
+    marginTop: 6,
+    fontSize: 12,
   },
   dropdownButton: {
     backgroundColor: "#23262F",

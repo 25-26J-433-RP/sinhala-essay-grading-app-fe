@@ -228,7 +228,7 @@ export default function StudentListView({
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t("student.collection")}</Text>
         <Text style={styles.headerSubtitle}>
-          {students.length} {t("student.students")}
+          {t("student.totalCount", { count: students.length })}
         </Text>
       </View>
       <FlatList
