@@ -132,24 +132,43 @@ export default function ScanScreen() {
         blob = await response.blob();
       }
 
+      const filename = asset.fileName || `image_${Date.now()}.jpg`;
+      const ocrImageId = `${user.uid}_${Date.now()}`;
 
-    setUploading(false);
-    setUploadingSource(null);
-
-    router.push({
-      pathname: "/student-essays",
-      params: {
+      const uploadedId = await UserImageService.uploadUserImage({
+        userId: user.uid,
         studentId: selectedStudent.studentId,
-      },
-    });
+        studentAge: selectedStudent.studentAge,
+        studentGrade: selectedStudent.studentGrade,
+        studentGender: selectedStudent.studentGender,
+        fileName: filename,
+        fileBlob: blob,
+        image_id: ocrImageId
+      });
 
-    setSelectedStudent(null);
-  } catch (err) {
-    console.error("Upload error:", err);
-    setUploading(false);
-    setUploadingSource(null);
-  }
-};
+      if (Platform.OS === "web" && asset.file) {
+        runOcr(asset.file, ocrImageId).catch((err) => {
+          console.warn("OCR request failed", err);
+        });
+      }
+
+      setUploading(false);
+      setUploadingSource(null);
+
+      router.push({
+        pathname: "/image-detail",
+        params: {
+          imageId: uploadedId
+        }
+      });
+
+      setSelectedStudent(null);
+    } catch (err) {
+      console.error("Upload error:", err);
+      setUploading(false);
+      setUploadingSource(null);
+    }
+  };
 
 
 
