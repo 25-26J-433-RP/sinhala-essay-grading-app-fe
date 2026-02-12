@@ -1,8 +1,8 @@
-import { useLanguage } from "@/contexts/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 
 interface AppHeaderProps {
   title?: string;
@@ -17,7 +17,8 @@ export default function AppHeader({
   onBackPress,
   hideRightSection = false,
 }: AppHeaderProps) {
-  const { t } = useLanguage();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === "web" ? width >= 768 : false;
 
   const handleBackPress = () => {
     if (onBackPress) {
@@ -41,6 +42,11 @@ export default function AppHeader({
           </Text>
         )}
       </View>
+      {!hideRightSection && !isDesktop && (
+        <View style={styles.rightSection}>
+          <LanguageSwitcher />
+        </View>
+      )}
     </View>
   );
 }
@@ -62,6 +68,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     flex: 1,
+  },
+  rightSection: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   backButton: {
     padding: 8,

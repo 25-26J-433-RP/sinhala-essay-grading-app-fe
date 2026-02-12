@@ -2,6 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRole } from "@/hooks/useRole";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   Alert,
@@ -18,23 +19,54 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { userProfile, profileLoading, isStudent, isTeacher, role } = useRole();
   const { t } = useLanguage();
+  const router = useRouter();
+
+  const roleLabel =
+    role === "teacher"
+      ? t("auth.teacher")
+      : role === "student"
+        ? t("auth.student")
+        : role === "parent"
+          ? t("auth.parent")
+          : t("auth.teacher");
+
+  const confirmLogout = () => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      return Promise.resolve(window.confirm(t("auth.logoutConfirm")));
+    }
+
+    return new Promise<boolean>((resolve) => {
+      Alert.alert(t("auth.logout"), t("auth.logoutConfirm"), [
+        { text: t("common.cancel"), style: "cancel", onPress: () => resolve(false) },
+        {
+          text: t("auth.logout"),
+          style: "destructive",
+          onPress: () => resolve(true),
+        },
+      ]);
+    });
+  };
+
+  const showLogoutError = () => {
+    const message = "Failed to logout. Please try again.";
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert(message);
+    } else {
+      Alert.alert(t("common.error"), message);
+    }
+  };
 
   const handleLogout = async () => {
-    Alert.alert(t("auth.logout"), t("auth.logoutConfirm"), [
-      { text: t("common.cancel"), style: "cancel" },
-      {
-        text: t("auth.logout"),
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await logout();
-          } catch (error) {
-            console.error("Logout error:", error);
-            Alert.alert("Error", "Failed to logout. Please try again.");
-          }
-        },
-      },
-    ]);
+    const confirmed = await confirmLogout();
+    if (!confirmed) return;
+
+    try {
+      await logout();
+      router.replace("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      showLogoutError();
+    }
   };
 
   const formatDate = (date: Date) => {
@@ -93,9 +125,7 @@ export default function ProfileScreen() {
                 <MaterialIcons name="badge" size={20} color="#007AFF" />
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>{t("profile.role")}</Text>
-                  <Text style={styles.infoValue}>
-                    {role === "teacher" ? t("auth.teacher") : t("auth.student")}
-                  </Text>
+                  <Text style={styles.infoValue}>{roleLabel}</Text>
                 </View>
               </View>
 

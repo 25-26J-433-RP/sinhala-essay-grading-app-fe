@@ -10,8 +10,16 @@ import { StyleSheet, Text, View } from "react-native";
 
 export default function UploadedImagesScreen() {
   const { user } = useAuth();
-  const { isStudent, isTeacher, userProfile, profileLoading } = useRole();
+  const { isStudent, isTeacher, isParent, userProfile, profileLoading } = useRole();
   const { t } = useLanguage();
+
+  const roleLabel = userProfile?.role
+    ? userProfile.role === "teacher"
+      ? t("auth.teacher")
+      : userProfile.role === "student"
+        ? t("auth.student")
+        : t("auth.parent")
+    : t("auth.teacher");
 
   // Debug logging
   console.log("📱 UploadedImagesScreen - Debug Info:", {
@@ -41,7 +49,7 @@ export default function UploadedImagesScreen() {
   }
 
   // Show StudentListView for both students and teachers (teachers manage student essays)
-  if (user && (isStudent() || isTeacher() || !userProfile)) {
+  if (user && (isStudent() || isTeacher() || isParent() || !userProfile)) {
     console.log("📚 Showing StudentListView for user");
     return (
       <View style={styles.fullBg}>
@@ -53,14 +61,7 @@ export default function UploadedImagesScreen() {
               router.push({
                 pathname: "/student-essays",
                 params: {
-                  studentData: JSON.stringify({
-                    ...studentInfo,
-                    lastUploadDate: studentInfo.lastUploadDate.toISOString(),
-                    essays: studentInfo.essays.map((essay) => ({
-                      ...essay,
-                      uploadedAt: essay.uploadedAt.toISOString(),
-                    })),
-                  }),
+                  studentId: studentInfo.studentId,
                 },
               });
             }}
@@ -90,7 +91,7 @@ export default function UploadedImagesScreen() {
               </Text>
               <Text style={styles.profileText}>
                 {t("uploadedImages.role")}:{" "}
-                {userProfile.role || t("auth.teacher")}
+                {roleLabel}
               </Text>
               <Text style={styles.profileText}>
                 {t("uploadedImages.status")}:{" "}

@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -93,6 +94,23 @@ export default function ImageDetailScreen() {
   const confirm = useConfirm();
   const { t } = useLanguage();
   // const DEBUG = __DEV__ === true; // not used currently
+
+
+  const handlePasteTopic = async () => {
+    const pastedText = await Clipboard.getStringAsync();
+    if (pastedText) {
+      setEssayTopic(pastedText);
+    }
+  };
+
+  const handlePasteEssay = async () => {
+    const pastedText = await Clipboard.getStringAsync();
+    if (pastedText) {
+      setInputText(pastedText);
+    }
+  };
+  
+
 
 
   useEffect(() => {
@@ -586,16 +604,15 @@ export default function ImageDetailScreen() {
               setIsScoring(true);
 
               try {
-                // Extract grade number from "Grade X" format (e.g., "Grade 8" -> 8)
-                const gradeStr = imageData.studentGrade?.toString() || "";
-                const gradeMatch = gradeStr.match(/\d+/);
-                const gradeNumber = gradeMatch ? Number(gradeMatch[0]) : 6;
 
+                const trimmedEssay = inputText.trim();
+                const trimmedTopic = essayTopic.trim();
                 const result = await scoreSinhala({
-                  text: inputText,  // âœ… Changed from essay_text to text
-                  grade: gradeNumber,
-                  topic: essayTopic || undefined,
-                  dyslexic_flag: isDyslexic,  // âœ… Added dyslexic_flag
+                  text: trimmedEssay,  // âœ… Changed from essay_text to text
+                  grade: Number(imageData.studentGrade) || 6,
+                  topic: trimmedTopic || undefined,
+                  dyslexic_flag: false,  // âœ… Added dyslexic_flag
+
                   error_tags: [],        // âœ… Added error_tags
                 });
 
@@ -625,9 +642,11 @@ export default function ImageDetailScreen() {
                   // ðŸ” Firestore-safe (can be null)
                   fairness_report: result.fairness_report ?? null,
 
-                  essay_text: inputText,
-                  essay_topic: essayTopic || null,
-                  studentGrade: imageData.studentGrade || null,
+
+                  essay_text: trimmedEssay,
+                  essay_topic: trimmedTopic || null,
+
+
 
                   scored_at: new Date().toISOString(),
                 });
@@ -728,7 +747,9 @@ export default function ImageDetailScreen() {
           {scoreData && (
             <View style={styles.scoreBox}>
               <Text style={styles.scoreMain}>
-                {t("essay.score")}: {scoreData.score}
+                {t("essay.score")}: {typeof scoreData.score === "number"
+                  ? scoreData.score.toFixed(2)
+                  : scoreData.score}
               </Text>
 
               {/* <Text style={styles.scoreDetail}>

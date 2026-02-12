@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { UserRole } from "@/types/auth";
 import React, { useState } from "react";
 import {
   Alert,
@@ -24,9 +25,16 @@ export default function RegisterScreen({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<UserRole>("student");
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const { t } = useLanguage();
+
+  const roleOptions: { value: UserRole; label: string }[] = [
+    { value: "teacher", label: t("auth.teacher") },
+    { value: "parent", label: t("auth.parent") },
+    { value: "student", label: t("auth.student") },
+  ];
 
   const handleRegister = async () => {
     if (!email || !password || !confirmPassword) {
@@ -51,7 +59,7 @@ export default function RegisterScreen({
 
     setLoading(true);
     try {
-      await register(email, password);
+      await register(email, password, role);
       Alert.alert("Success", "Account created successfully!");
     } catch (error: any) {
       console.error("Registration error:", error);
@@ -132,6 +140,33 @@ export default function RegisterScreen({
                   secureTextEntry
                   autoCapitalize="none"
                 />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>{t("auth.role")}</Text>
+                <View style={styles.roleOptions}>
+                  {roleOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.roleOption,
+                        role === option.value && styles.roleOptionSelected,
+                      ]}
+                      onPress={() => setRole(option.value)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.roleOptionText,
+                          role === option.value &&
+                            styles.roleOptionTextSelected,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
 
               <TouchableOpacity
@@ -249,6 +284,33 @@ const styles = StyleSheet.create({
     borderColor: "#333640",
     outlineStyle: "none",
     transition: "border-color 0.2s",
+  },
+  roleOptions: {
+    flexDirection: "row",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  roleOption: {
+    flex: 1,
+    minWidth: 110,
+    backgroundColor: "#1f2128",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#333640",
+  },
+  roleOptionSelected: {
+    borderColor: "#007AFF",
+    backgroundColor: "rgba(0, 122, 255, 0.12)",
+  },
+  roleOptionText: {
+    color: "#B0B3C6",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  roleOptionTextSelected: {
+    color: "#007AFF",
   },
   registerButton: {
     backgroundColor: "#007AFF",

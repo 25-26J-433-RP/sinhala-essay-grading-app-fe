@@ -1,5 +1,5 @@
 // User role types
-export type UserRole = 'student' | 'teacher';
+export type UserRole = 'student' | 'teacher' | 'parent';
 
 // User profile interface that extends Firebase User with additional app-specific data
 export interface UserProfile {

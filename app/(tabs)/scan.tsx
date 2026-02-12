@@ -132,76 +132,26 @@ export default function ScanScreen() {
         blob = await response.blob();
       }
 
-      const filename = asset.fileName || `image_${Date.now()}.jpg`;
 
-      // ===============================
-      // ✅ CORRECT ORDER (Firestore → OCR async)
+    setUploading(false);
+    setUploadingSource(null);
 
-      // ===============================
-
-      // ✅ Upload image only
-      const image_id = `img_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-
-      // 1️⃣ Save Firestore FIRST
-      const userImageId = await UserImageService.uploadUserImage({
-        userId: user.uid,
+    router.push({
+      pathname: "/student-essays",
+      params: {
         studentId: selectedStudent.studentId,
-        studentAge: selectedStudent.studentAge,
-        studentGrade: selectedStudent.studentGrade,
-        studentGender: selectedStudent.studentGender,
-        fileName: filename,
-        fileBlob: blob,
-        image_id // 🔑 SAME ID
-      });
+      },
+    });
 
-      // 2️⃣ Call OCR (background)
-      const ocrFile =
-        blob instanceof File
-          ? blob
-          : new File([blob], filename, { type: "image/jpeg" });
+    setSelectedStudent(null);
+  } catch (err) {
+    console.error("Upload error:", err);
+    setUploading(false);
+    setUploadingSource(null);
+  }
+};
 
-      runOcr(ocrFile, image_id)
-        .then(() => {
-          console.log("🧠 OCR completed for", image_id);
-        })
-        .catch((err) => {
-          console.warn("⚠️ OCR failed", err);
-        });
 
-      const userImages = await UserImageService.getUserImages(user.uid);
-      const studentImages = userImages.filter(
-        (img) => img.studentId === selectedStudent.studentId
-      );
-
-      setUploading(false);
-      setUploadingSource(null);
-
-      router.push({
-        pathname: "/student-essays",
-        params: {
-          studentData: JSON.stringify({
-            studentId: selectedStudent.studentId,
-            studentAge: selectedStudent.studentAge,
-            studentGrade: selectedStudent.studentGrade,
-            studentGender: selectedStudent.studentGender,
-            essayCount: studentImages.length,
-            lastUploadDate: new Date().toISOString(),
-            essays: studentImages.map((essay) => ({
-              ...essay,
-              uploadedAt: essay.uploadedAt.toISOString()
-            }))
-          }),
-          ocrText: ""
-        }
-      });
-
-      setSelectedStudent(null);
-    } catch (err) {
-      console.error("Upload error:", err);
-      setUploading(false);
-      setUploadingSource(null);
-    }
-  };
 
   // 🔹 Pick from gallery
   // 🔹 Pick from gallery (FIXED)
