@@ -10,17 +10,17 @@ import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 
 // Resolve Firebase Storage download URLs when a gs:// path or storagePath is provided
@@ -31,8 +31,8 @@ import { generateAudioFeedback } from "@/app/api/audioFeedback";
 import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
 import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // âœ… FIXED IMPORT
 import {
-    fetchTextFeedback,
-    TextFeedbackResponse,
+  fetchTextFeedback,
+  TextFeedbackResponse,
 } from "@/app/api/textFeedback";
 
 import AICorrectionPanel from "@/components/AICorrectionPanel";
