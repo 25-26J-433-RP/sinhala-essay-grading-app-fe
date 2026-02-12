@@ -550,6 +550,7 @@ export default function ImageDetailScreen() {
             onAnalysisComplete={(result) => {
               console.log("🧠 AI Correction analysis complete:", result);
             }}
+            autoAnalyze={true}
             initialCollapsed={false}
           />
         )}
