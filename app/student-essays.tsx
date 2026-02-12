@@ -2,6 +2,7 @@ import AppHeader from "@/components/AppHeader";
 import { useConfirm } from "@/components/Confirm";
 import { useToast } from "@/components/Toast";
 import { storage } from "@/config/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -147,7 +148,7 @@ const EssayThumbnail: React.FC<EssayThumbnailProps> = ({ essay, style }) => {
 };
 
 export default function StudentEssaysScreen() {
-  const { studentData } = useLocalSearchParams<{ studentData?: string }>();
+  const { studentId } = useLocalSearchParams<{ studentId?: string }>();
   const { width: screenWidth } = useWindowDimensions();
   const [studentInfo, setStudentInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -171,12 +172,15 @@ export default function StudentEssaysScreen() {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const audioPlayerRef = useRef<Audio.Sound | null>(null);
 
+  const { user } = useAuth();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { t } = useLanguage();
   const DEBUG = __DEV__ === true;
-  const initializedRef = useRef(false);
   const PAGE_SIZE = 3;
+  const analyticsValueStyle = {
+    fontSize: screenWidth < 360 ? 22 : screenWidth < 768 ? 26 : 30,
+  };
 
   // Responsive padding based on screen size
   const contentPadding = screenWidth < 480 ? 12 : screenWidth < 768 ? 16 : 24;
@@ -285,25 +289,56 @@ export default function StudentEssaysScreen() {
   };
 
   useEffect(() => {
-    if (initializedRef.current) return;
-    try {
-      if (typeof studentData === "string") {
-        const parsed = JSON.parse(studentData);
-        // Convert date strings back to Date objects
-        parsed.lastUploadDate = new Date(parsed.lastUploadDate);
-        parsed.essays = parsed.essays.map((essay: any) => ({
-          ...essay,
-          uploadedAt: new Date(essay.uploadedAt),
-        }));
-        setStudentInfo(parsed);
+    let isMounted = true;
+
+    const loadStudentEssays = async () => {
+      if (!studentId || !user?.uid) {
+        if (isMounted) {
+          setStudentInfo(null);
+          setLoading(false);
+        }
+        return;
       }
-    } catch (error) {
-      console.error("Error parsing student data:", error);
-    } finally {
-      setLoading(false);
-      initializedRef.current = true;
-    }
-  }, [studentData]);
+
+      setLoading(true);
+      try {
+        const userImages = await UserImageService.getUserImages(user.uid);
+        const essays = userImages.filter(
+          (image) => image.studentId === studentId
+        );
+        const latestEssay = essays[0];
+        const lastUploadDate = latestEssay?.uploadedAt || new Date();
+
+        if (isMounted) {
+          setStudentInfo({
+            id: studentId,
+            studentId,
+            studentAge: latestEssay?.studentAge,
+            studentGrade: latestEssay?.studentGrade,
+            studentGender: latestEssay?.studentGender,
+            essayCount: essays.length,
+            lastUploadDate,
+            essays,
+          });
+        }
+      } catch (error) {
+        console.error("Error loading student essays:", error);
+        if (isMounted) {
+          setStudentInfo(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadStudentEssays();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [studentId, user?.uid]);
 
   // Clamp current page when essays length changes (e.g., after deletion)
   useEffect(() => {
@@ -1120,7 +1155,7 @@ export default function StudentEssaysScreen() {
                         color="#10B981"
                       />
                       <Text style={styles.statCardValue}>
-                        {avgScore.toFixed(1)}
+                        {avgScore.toFixed(2)}
                       </Text>
                       <Text style={styles.statCardLabel}>
                         {t("analytics.avgScore")}
@@ -1132,7 +1167,9 @@ export default function StudentEssaysScreen() {
                         size={24}
                         color="#F59E0B"
                       />
-                      <Text style={styles.statCardValue}>{maxScore}</Text>
+                      <Text style={[styles.statCardValue, analyticsValueStyle]}>
+                        {maxScore.toFixed(2)}
+                      </Text>
                       <Text style={styles.statCardLabel}>
                         {t("analytics.bestScore")}
                       </Text>
@@ -1143,7 +1180,9 @@ export default function StudentEssaysScreen() {
                         size={24}
                         color="#EF4444"
                       />
-                      <Text style={styles.statCardValue}>{minScore}</Text>
+                      <Text style={[styles.statCardValue, analyticsValueStyle]}>
+                        {minScore.toFixed(2)}
+                      </Text>
                       <Text style={styles.statCardLabel}>
                         {t("analytics.lowestScore")}
                       </Text>
@@ -1534,7 +1573,9 @@ export default function StudentEssaysScreen() {
                     </View>
                     <View style={styles.latestEssayInfo}>
                       <Text style={styles.latestEssayScore}>
-                        Score: {latestEssay.score}/14
+                        Score: {typeof latestEssay.score === "number"
+                          ? latestEssay.score.toFixed(2)
+                          : "-"}/14
                       </Text>
                       {latestEssay.details?.topic && (
                         <Text style={styles.latestEssayTopic}>

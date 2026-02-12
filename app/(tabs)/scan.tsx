@@ -170,30 +170,13 @@ OcrApi.callOcrApi(blob, filename, image_id)
 
 
 
-    const userImages = await UserImageService.getUserImages(user.uid);
-    const studentImages = userImages.filter(
-      (img) => img.studentId === selectedStudent.studentId
-    );
-
     setUploading(false);
     setUploadingSource(null);
 
     router.push({
       pathname: "/student-essays",
       params: {
-        studentData: JSON.stringify({
-          studentId: selectedStudent.studentId,
-          studentAge: selectedStudent.studentAge,
-          studentGrade: selectedStudent.studentGrade,
-          studentGender: selectedStudent.studentGender,
-          essayCount: studentImages.length,
-          lastUploadDate: new Date().toISOString(),
-          essays: studentImages.map((essay) => ({
-            ...essay,
-            uploadedAt: essay.uploadedAt.toISOString(),
-          })),
-        }),
-        ocrText: "",
+        studentId: selectedStudent.studentId,
       },
     });
 

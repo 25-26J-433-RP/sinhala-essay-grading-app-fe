@@ -2,22 +2,24 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRole } from "@/hooks/useRole";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
-    Alert,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    useWindowDimensions,
-    View,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
 } from "react-native";
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { userProfile, profileLoading, isStudent, isTeacher, role } = useRole();
   const { t } = useLanguage();
+  const router = useRouter();
 
   const roleLabel =
     role === "teacher"
@@ -28,22 +30,43 @@ export default function ProfileScreen() {
           ? t("auth.parent")
           : t("auth.teacher");
 
-  const handleLogout = async () => {
-    Alert.alert(t("auth.logout"), t("auth.logoutConfirm"), [
-      { text: t("common.cancel"), style: "cancel" },
-      {
-        text: t("auth.logout"),
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await logout();
-          } catch (error) {
-            console.error("Logout error:", error);
-            Alert.alert("Error", "Failed to logout. Please try again.");
-          }
+  const confirmLogout = () => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      return Promise.resolve(window.confirm(t("auth.logoutConfirm")));
+    }
+
+    return new Promise<boolean>((resolve) => {
+      Alert.alert(t("auth.logout"), t("auth.logoutConfirm"), [
+        { text: t("common.cancel"), style: "cancel", onPress: () => resolve(false) },
+        {
+          text: t("auth.logout"),
+          style: "destructive",
+          onPress: () => resolve(true),
         },
-      },
-    ]);
+      ]);
+    });
+  };
+
+  const showLogoutError = () => {
+    const message = "Failed to logout. Please try again.";
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert(message);
+    } else {
+      Alert.alert(t("common.error"), message);
+    }
+  };
+
+  const handleLogout = async () => {
+    const confirmed = await confirmLogout();
+    if (!confirmed) return;
+
+    try {
+      await logout();
+      router.replace("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      showLogoutError();
+    }
   };
 
   const formatDate = (date: Date) => {

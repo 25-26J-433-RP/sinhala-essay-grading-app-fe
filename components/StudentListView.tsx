@@ -189,7 +189,9 @@ export default function StudentListView({
         <View style={styles.statItem}>
           <MaterialIcons name="grade" size={16} color="#10B981" />
           <Text style={styles.statText}>
-            Avg: {item.averageScore !== null ? item.averageScore : "-"}
+            Avg: {item.averageScore !== null
+              ? item.averageScore.toFixed(2)
+              : "-"}
           </Text>
         </View>
         <View style={styles.statItem}>
@@ -226,12 +228,13 @@ export default function StudentListView({
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t("student.collection")}</Text>
         <Text style={styles.headerSubtitle}>
-          {students.length} {t("student.students")}
+          {t("student.totalCount", { count: students.length })}
         </Text>
       </View>
       <FlatList
         data={students}
         renderItem={renderStudentItem}
+        key={`students-${numColumns}`}
         keyExtractor={(item) => item.studentId}
         contentContainerStyle={styles.listContent}
         refreshControl={

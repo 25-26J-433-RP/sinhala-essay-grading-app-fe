@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -90,6 +91,20 @@ const { imageId } = useLocalSearchParams<{ imageId?: string }>();
   const confirm = useConfirm();
   const { t } = useLanguage();
   // const DEBUG = __DEV__ === true; // not used currently
+
+  const handlePasteTopic = async () => {
+    const pastedText = await Clipboard.getStringAsync();
+    if (pastedText) {
+      setEssayTopic(pastedText);
+    }
+  };
+
+  const handlePasteEssay = async () => {
+    const pastedText = await Clipboard.getStringAsync();
+    if (pastedText) {
+      setInputText(pastedText);
+    }
+  };
   
 
 useEffect(() => {
@@ -542,10 +557,12 @@ const refreshImageData = async () => {
               setIsScoring(true);
 
               try {
+                const trimmedEssay = inputText.trim();
+                const trimmedTopic = essayTopic.trim();
                 const result = await scoreSinhala({
-                  text: inputText,  // âœ… Changed from essay_text to text
+                  text: trimmedEssay,  // âœ… Changed from essay_text to text
                   grade: Number(imageData.studentGrade) || 6,
-                  topic: essayTopic || undefined,
+                  topic: trimmedTopic || undefined,
                   dyslexic_flag: false,  // âœ… Added dyslexic_flag
                   error_tags: [],        // âœ… Added error_tags
                 });
@@ -576,8 +593,8 @@ const refreshImageData = async () => {
                   // ðŸ” Firestore-safe (can be null)
                   fairness_report: result.fairness_report ?? null,
 
-                  essay_text: inputText,
-                  essay_topic: essayTopic || null,
+                  essay_text: trimmedEssay,
+                  essay_topic: trimmedTopic || null,
 
                   scored_at: new Date().toISOString(),
                 });
@@ -678,7 +695,9 @@ const refreshImageData = async () => {
           {scoreData && (
             <View style={styles.scoreBox}>
               <Text style={styles.scoreMain}>
-                {t("essay.score")}: {scoreData.score}
+                {t("essay.score")}: {typeof scoreData.score === "number"
+                  ? scoreData.score.toFixed(2)
+                  : scoreData.score}
               </Text>
 
               {/* <Text style={styles.scoreDetail}>
