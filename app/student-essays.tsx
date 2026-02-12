@@ -857,7 +857,6 @@ export default function StudentEssaysScreen() {
                       {batchFeedback.summary.common_suggestions.map(
                         (suggestion, idx) => (
                           <View key={idx} style={styles.commonSuggestionItem}>
-                            <Text style={styles.suggestionBullet}>•</Text>
                             <Text style={styles.commonSuggestionText}>
                               {suggestion}
                             </Text>

@@ -10,17 +10,17 @@ import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
 
 // Resolve Firebase Storage download URLs when a gs:// path or storagePath is provided
@@ -31,12 +31,12 @@ import { generateAudioFeedback } from "@/app/api/audioFeedback";
 import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
 import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // âœ… FIXED IMPORT
 import {
-  fetchTextFeedback,
-  TextFeedbackResponse,
+    fetchTextFeedback,
+    TextFeedbackResponse,
 } from "@/app/api/textFeedback";
 
-import { MindmapView } from "@/components/MindmapView";
 import AICorrectionPanel from "@/components/AICorrectionPanel";
+import { MindmapView } from "@/components/MindmapView";
 import { Audio } from "expo-av";
 
 // ðŸ”¥ Prevent Firestore from rejecting undefined/null fields
@@ -901,7 +901,6 @@ export default function ImageDetailScreen() {
                         </Text>
                         {textFeedback.suggestions.map((suggestion, idx) => (
                           <View key={idx} style={styles.suggestionItem}>
-                            <Text style={styles.suggestionBullet}>â€¢</Text>
                             <Text style={styles.suggestionText}>
                               {suggestion}
                             </Text>
@@ -997,7 +996,10 @@ export default function ImageDetailScreen() {
                   {audioFeedbackLoading ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <MaterialIcons name="music-note" size={16} color="#fff" />
+                    <>
+                      <MaterialIcons name="music-note" size={16} color="#fff" />
+                      <Text style={styles.generateAudioButtonText}>Generate</Text>
+                    </>
                   )}
                 </TouchableOpacity>
               </View>
@@ -1088,13 +1090,32 @@ export default function ImageDetailScreen() {
                     </TouchableOpacity>
                     <View style={styles.audioInfoBox}>
                       <Text style={styles.audioPlayingText}>
-                        {isAudioPlaying ? "Playing" : "Ready to play"}
+                        {isAudioPlaying ? "Playing now" : "Ready to play"}
                       </Text>
-                      {audioFeedback.duration && (
-                        <Text style={styles.audioDurationText}>
-                          Duration: {audioFeedback.duration}s
-                        </Text>
-                      )}
+                      <View style={styles.audioMetaRow}>
+                        <View
+                          style={[
+                            styles.audioStatusBadge,
+                            isAudioPlaying && styles.audioStatusBadgeActive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.audioStatusText,
+                              isAudioPlaying && styles.audioStatusTextActive,
+                            ]}
+                          >
+                            {isAudioPlaying ? "LIVE" : "READY"}
+                          </Text>
+                        </View>
+                        {audioFeedback.duration && (
+                          <View style={styles.audioDurationBadge}>
+                            <Text style={styles.audioDurationText}>
+                              Duration {audioFeedback.duration}s
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </View>
                 )}
@@ -1715,10 +1736,19 @@ const styles = StyleSheet.create({
 
   generateAudioButton: {
     backgroundColor: "#10B981",
-    padding: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
+    flexDirection: "row",
+    gap: 6,
     justifyContent: "center",
     alignItems: "center",
+  },
+  generateAudioButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.2,
   },
 
   audioLoadingBox: {
@@ -1755,9 +1785,11 @@ const styles = StyleSheet.create({
   audioPlayerBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#111827",
-    padding: 12,
+    backgroundColor: "#0F172A",
+    padding: 14,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#1F2937",
     gap: 12,
   },
 
@@ -1768,6 +1800,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
 
   audioInfoBox: {
@@ -1779,11 +1816,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+  audioMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 6,
+    flexWrap: "wrap",
+  },
+  audioStatusBadge: {
+    borderWidth: 1,
+    borderColor: "#334155",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: "#0B1220",
+  },
+  audioStatusBadgeActive: {
+    borderColor: "#10B981",
+    backgroundColor: "#064E3B",
+  },
+  audioStatusText: {
+    color: "#9CA3AF",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+  },
+  audioStatusTextActive: {
+    color: "#D1FAE5",
+  },
+  audioDurationBadge: {
+    borderWidth: 1,
+    borderColor: "#1F2937",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: "#111827",
+  },
 
   audioDurationText: {
     color: "#9CA3AF",
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 11,
   },
 
   audioPlaceholder: {
