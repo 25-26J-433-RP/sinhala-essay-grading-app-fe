@@ -553,11 +553,7 @@ export default function StudentEssaysScreen() {
             router.push({
               pathname: "/image-detail",
               params: {
-                imageData: JSON.stringify({
-                  ...item,
-                  uploadedAt: item.uploadedAt.toISOString(),
-                  studentGrade: studentInfo.studentGrade || item.studentGrade,
-                }),
+                imageId: item.id,
               },
             });
           }}
