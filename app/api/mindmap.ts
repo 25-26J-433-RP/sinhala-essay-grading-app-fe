@@ -6,20 +6,39 @@ export interface MindmapNode {
   label: string;
   level: number;
   type: "root" | "topic" | "subtopic";
-  size: number;
+  size?: number;
+  importance?: number;
+  color?: string;
+  offset?: number;
+  source_text?: string;
+  source_type?: string;
+  position?: {
+    x: number;
+    y: number;
+  };
+  order?: number;
 }
 
 export interface MindmapEdge {
   id: string;
   source: string;
   target: string;
-  type: "hierarchy" | "relation";
+  type: string;
+  weight?: number;
+  confidence?: number;
+  similarity?: number;
+  proximity?: number;
+  style?: string;
 }
 
 export interface MindmapMetadata {
   total_nodes: number;
   total_edges: number;
   text_length: number;
+  entities_found?: number;
+  relationships_found?: number;
+  clusters?: number;
+  intelligence_level?: string;
 }
 
 export interface MindmapData {

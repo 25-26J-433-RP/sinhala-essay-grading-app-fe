@@ -15,25 +15,213 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
   const webViewRef = useRef<WebView>(null);
   const cyRef = useRef<HTMLDivElement>(null);
 
-  // Generate HTML for WebView (mobile)
-  const generateHTML = (mindmapData: MindmapData) => {
-    const cytoscapeElements = {
-      nodes: mindmapData.nodes.map((node) => ({
+  const buildElements = (mindmapData: MindmapData) => {
+    const nodes = mindmapData.nodes || [];
+    const edges = mindmapData.edges || [];
+    if (nodes.length === 0) {
+      return { nodes: [], edges: [] };
+    }
+
+    const rootNode =
+      nodes.find((node) => node.type === "root" || node.level === 0) ||
+      nodes[0];
+    const rootId = rootNode.id;
+
+    const toShortLabel = (label: string) => {
+      const tokens = label
+        .replace(/[\n\r]+/g, " ")
+        .split(/[\s,]+/)
+        .filter(Boolean)
+        .slice(0, 3);
+      return tokens.join(" ") || label;
+    };
+
+    const rootLabelKey = toShortLabel(rootNode.label).toLowerCase();
+    const hierarchyEdges = edges.filter((edge) => edge.type === "hierarchy");
+    const childrenMap = new Map<string, string[]>();
+    const parentMap = new Map<string, string>();
+
+    hierarchyEdges.forEach((edge) => {
+      if (!childrenMap.has(edge.source)) {
+        childrenMap.set(edge.source, []);
+      }
+      childrenMap.get(edge.source)?.push(edge.target);
+      if (!parentMap.has(edge.target)) {
+        parentMap.set(edge.target, edge.source);
+      }
+    });
+
+    const depthMap = new Map<string, number>();
+    const queue: { id: string; depth: number }[] = [{
+      id: rootId,
+      depth: 0,
+    }];
+    const maxDepth = 3;
+
+    while (queue.length) {
+      const current = queue.shift();
+      if (!current) break;
+      if (depthMap.has(current.id)) continue;
+      depthMap.set(current.id, current.depth);
+
+      if (current.depth >= maxDepth) continue;
+      const children = childrenMap.get(current.id) || [];
+      children.forEach((childId) => {
+        queue.push({ id: childId, depth: current.depth + 1 });
+      });
+    }
+
+    const keptNodes = nodes.filter((node) => depthMap.has(node.id));
+    const labelMap = new Map<string, string>();
+    const idMap = new Map<string, string>();
+    const normalizedNodes: {
+      id: string;
+      label: string;
+      level: number;
+      type: string;
+      importance?: number;
+      order?: number;
+    }[] = [];
+
+    keptNodes.forEach((node) => {
+      const shortLabel = toShortLabel(node.label);
+      const labelKey = shortLabel.toLowerCase();
+      if (node.id !== rootId && labelKey === rootLabelKey) {
+        return;
+      }
+      if (node.id === rootId) {
+        labelMap.set(labelKey, node.id);
+        idMap.set(node.id, node.id);
+        normalizedNodes.push({
+          id: node.id,
+          label: shortLabel,
+          level: 0,
+          type: node.type,
+          importance: node.importance,
+          order: node.order,
+        });
+        return;
+      }
+      const existing = labelMap.get(labelKey);
+      if (existing) {
+        idMap.set(node.id, existing);
+        return;
+      }
+
+      labelMap.set(labelKey, node.id);
+      idMap.set(node.id, node.id);
+      normalizedNodes.push({
+        id: node.id,
+        label: shortLabel,
+        level: Math.min(depthMap.get(node.id) || 1, maxDepth),
+        type: node.type,
+        importance: node.importance,
+        order: node.order,
+      });
+    });
+
+    const edgeSet = new Set<string>();
+    const normalizedEdges = hierarchyEdges
+      .map((edge) => {
+        const source = idMap.get(edge.source);
+        const target = idMap.get(edge.target);
+        if (!source || !target || source === target) return null;
+        const key = `${source}->${target}`;
+        if (edgeSet.has(key)) return null;
+        edgeSet.add(key);
+        return {
+          id: edge.id,
+          source,
+          target,
+        };
+      })
+      .filter(Boolean) as { id: string; source: string; target: string }[];
+
+    const branchPalette = [
+      "#4ECDC4",
+      "#FF6B6B",
+      "#FFD93D",
+      "#6C5CE7",
+      "#00B894",
+      "#E17055",
+    ];
+    const rootChildren = normalizedEdges
+      .filter((edge) => edge.source === rootId)
+      .map((edge) => edge.target);
+    const rootChildrenSorted = [...new Set(rootChildren)].sort((a, b) => {
+      const aNode = normalizedNodes.find((node) => node.id === a);
+      const bNode = normalizedNodes.find((node) => node.id === b);
+      const aOrder = aNode?.order ?? 999;
+      const bOrder = bNode?.order ?? 999;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return (aNode?.label || "").localeCompare(bNode?.label || "");
+    });
+    const branchColorMap = new Map<string, string>();
+    rootChildrenSorted.forEach((childId, index) => {
+      branchColorMap.set(childId, branchPalette[index % branchPalette.length]);
+    });
+
+    const parentLookup = new Map<string, string>();
+    normalizedEdges.forEach((edge) => {
+      if (!parentLookup.has(edge.target)) {
+        parentLookup.set(edge.target, edge.source);
+      }
+    });
+
+    const getBranchId = (nodeId: string) => {
+      if (nodeId === rootId) return rootId;
+      let current = nodeId;
+      let parent = parentLookup.get(current);
+      let guard = 0;
+      while (parent && parent !== rootId && guard < 10) {
+        current = parent;
+        parent = parentLookup.get(current);
+        guard += 1;
+      }
+      return parent === rootId ? current : nodeId;
+    };
+
+    const finalNodes = normalizedNodes.map((node) => {
+      const branchId = getBranchId(node.id);
+      const importance = node.importance ?? 0.8;
+      const level = node.level;
+      const baseSize = level === 0 ? 90 : level === 1 ? 70 : 54;
+      const sizeBoost = Math.max(0, importance - 0.7) * 30;
+      const size = Math.round(baseSize + sizeBoost);
+      const fontWeight =
+        level === 0 || level === 1 || importance >= 0.9 ? "700" : "500";
+      const branchColor =
+        node.id === rootId
+          ? "#1E3A8A"
+          : branchColorMap.get(branchId) || "#4ECDC4";
+      return {
         data: {
           id: node.id,
           label: node.label,
           level: node.level,
           type: node.type,
+          size,
+          fontWeight,
+          branchColor,
+          isSection: node.level === 1,
         },
-      })),
-      edges: mindmapData.edges.map((edge) => ({
-        data: {
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-        },
-      })),
-    };
+      };
+    });
+
+    const finalEdges = normalizedEdges.map((edge) => ({
+      data: {
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+      },
+    }));
+
+    return { nodes: finalNodes, edges: finalEdges };
+  };
+
+  // Generate HTML for WebView (mobile)
+  const generateHTML = (mindmapData: MindmapData) => {
+    const cytoscapeElements = buildElements(mindmapData);
     return `
 <!DOCTYPE html>
 <html>
@@ -60,62 +248,56 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
             'label': 'data(label)',
             'text-valign': 'center',
             'text-halign': 'center',
-            'background-color': function(ele) {
-              const type = ele.data('type');
-              if (type === 'root') return '#4A90E2';
-              if (type === 'topic') return '#7ED321';
-              return '#F5A623';
-            },
+            'background-color': 'data(branchColor)',
             'color': '#fff',
-            'text-outline-color': function(ele) {
-              const type = ele.data('type');
-              if (type === 'root') return '#4A90E2';
-              if (type === 'topic') return '#7ED321';
-              return '#F5A623';
-            },
+            'text-outline-color': 'data(branchColor)',
             'text-outline-width': 2,
-            'width': function(ele) {
-              const level = ele.data('level');
-              return level === 0 ? 80 : level === 1 ? 60 : 50;
-            },
-            'height': function(ele) {
-              const level = ele.data('level');
-              return level === 0 ? 80 : level === 1 ? 60 : 50;
-            },
+            'width': 'data(size)',
+            'height': 'data(size)',
             'font-size': function(ele) {
               const level = ele.data('level');
-              return level === 0 ? '16px' : level === 1 ? '14px' : '12px';
+              return level === 0 ? '16px' : level === 1 ? '13px' : '12px';
             },
+            'font-weight': 'data(fontWeight)',
             'text-wrap': 'wrap',
-            'text-max-width': '120px',
+            'text-max-width': '100px',
             'shape': 'ellipse',
             'border-width': 2,
             'border-color': '#333'
           }
         },
         {
+          selector: 'node[isSection]',
+          style: {
+            'border-width': 3
+          }
+        },
+        {
           selector: 'edge',
           style: {
-            'width': 3,
-            'line-color': '#999',
-            'target-arrow-color': '#999',
-            'target-arrow-shape': 'triangle',
+            'width': 2,
+            'line-color': '#B0B3C6',
+            'target-arrow-color': '#B0B3C6',
+            'target-arrow-shape': 'none',
             'curve-style': 'bezier',
             'arrow-scale': 1.5
           }
         }
       ],
       layout: {
-        name: 'breadthfirst',
-        directed: true,
-        spacingFactor: 1.5,
-        padding: 50,
-        animate: true,
-        animationDuration: 500,
+        name: 'concentric',
         fit: true,
-        roots: elements.nodes
-          .filter(n => n.data.level === 0)
-          .map(n => '#' + n.data.id)
+        padding: 40,
+        animate: true,
+        animationDuration: 400,
+        concentric: function(node) {
+          const level = node.data('level') || 0;
+          return 4 - level;
+        },
+        levelWidth: function() {
+          return 1;
+        },
+        minNodeSpacing: 50
       },
       minZoom: 0.5,
       maxZoom: 3,
@@ -174,23 +356,7 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
       console.log('🎨 Rendering Cytoscape graph...');
       // Clear previous
       cyRef.current.innerHTML = "";
-      const elements = {
-        nodes: data.nodes.map((node: any) => ({
-          data: {
-            id: node.id,
-            label: node.label,
-            level: node.level,
-            type: node.type,
-          },
-        })),
-        edges: data.edges.map((edge: any) => ({
-          data: {
-            id: edge.id,
-            source: edge.source,
-            target: edge.target,
-          },
-        })),
-      };
+      const elements = buildElements(data);
       
       console.log(`📍 Rendering ${elements.nodes.length} nodes and ${elements.edges.length} edges`);
       
@@ -205,62 +371,56 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
                 'label': 'data(label)',
                 'text-valign': 'center',
                 'text-halign': 'center',
-                'background-color': function(ele: any) {
-                  const type = ele.data('type');
-                  if (type === 'root') return '#4A90E2';
-                  if (type === 'topic') return '#7ED321';
-                  return '#F5A623';
-                },
+                'background-color': 'data(branchColor)',
                 'color': '#fff',
-                'text-outline-color': function(ele: any) {
-                  const type = ele.data('type');
-                  if (type === 'root') return '#4A90E2';
-                  if (type === 'topic') return '#7ED321';
-                  return '#F5A623';
-                },
+                'text-outline-color': 'data(branchColor)',
                 'text-outline-width': 2,
-                'width': function(ele: any) {
-                  const level = ele.data('level');
-                  return level === 0 ? 80 : level === 1 ? 60 : 50;
-                },
-                'height': function(ele: any) {
-                  const level = ele.data('level');
-                  return level === 0 ? 80 : level === 1 ? 60 : 50;
-                },
+                'width': 'data(size)',
+                'height': 'data(size)',
                 'font-size': function(ele: any) {
                   const level = ele.data('level');
-                  return level === 0 ? '16px' : level === 1 ? '14px' : '12px';
+                  return level === 0 ? '16px' : level === 1 ? '13px' : '12px';
                 },
+                'font-weight': 'data(fontWeight)',
                 'text-wrap': 'wrap',
-                'text-max-width': '120px',
+                'text-max-width': '100px',
                 'shape': 'ellipse',
                 'border-width': 2,
                 'border-color': '#333'
               }
             },
             {
+              selector: 'node[isSection]',
+              style: {
+                'border-width': 3
+              }
+            },
+            {
               selector: 'edge',
               style: {
-                'width': 3,
-                'line-color': '#999',
-                'target-arrow-color': '#999',
-                'target-arrow-shape': 'triangle',
+                'width': 2,
+                'line-color': '#B0B3C6',
+                'target-arrow-color': '#B0B3C6',
+                'target-arrow-shape': 'none',
                 'curve-style': 'bezier',
                 'arrow-scale': 1.5
               }
             }
           ],
           layout: {
-            name: 'breadthfirst',
-            directed: true,
-            spacingFactor: 1.5,
-            padding: 50,
-            animate: true,
-            animationDuration: 500,
+            name: 'concentric',
             fit: true,
-            roots: elements.nodes
-              .filter((n: any) => n.data.level === 0)
-              .map((n: any) => '#' + n.data.id)
+            padding: 40,
+            animate: true,
+            animationDuration: 400,
+            concentric: function(node: any) {
+              const level = node.data('level') || 0;
+              return 4 - level;
+            },
+            levelWidth: function() {
+              return 1;
+            },
+            minNodeSpacing: 50
           },
           minZoom: 0.5,
           maxZoom: 3,
