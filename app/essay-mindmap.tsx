@@ -69,22 +69,7 @@ export default function EssayMindmapScreen() {
           </Text>
         </View>
         
-        {mindmapData && (
-          <View style={styles.metadataContainer}>
-            <View style={styles.metadataItem}>
-              <MaterialIcons name="bubble-chart" size={16} color="#B0B3C6" />
-              <Text style={styles.metadataText}>
-                {mindmapData.metadata.total_nodes} nodes
-              </Text>
-            </View>
-            <View style={styles.metadataItem}>
-              <MaterialIcons name="linear-scale" size={16} color="#B0B3C6" />
-              <Text style={styles.metadataText}>
-                {mindmapData.metadata.total_edges} connections
-              </Text>
-            </View>
-          </View>
-        )}
+        {mindmapData && <View style={styles.metadataContainer} />}
       </View>
 
       {/* Mindmap View */}
