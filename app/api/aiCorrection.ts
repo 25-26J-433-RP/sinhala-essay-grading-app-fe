@@ -93,12 +93,12 @@ export interface PatternsResponse {
 const AI_CORRECTION_DIRECT_URL = process.env.EXPO_PUBLIC_AI_CORRECTION_URL || "http://localhost:8000/api/v1";
 const AI_CORRECTION_GATEWAY_PATH = "/ai-recorrection-workbench/api/v1";
 
-const TIMEOUT_MS = 60000; // 60 seconds for AI analysis
+const TIMEOUT_MS = 0; // No timeout - CPU inference on Azure VM can take 30-80s
 
 // Create a separate axios instance for direct AI Correction calls
 const aiCorrectionApi = axios.create({
   baseURL: AI_CORRECTION_DIRECT_URL,
-  timeout: 30000,
+  timeout: TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
