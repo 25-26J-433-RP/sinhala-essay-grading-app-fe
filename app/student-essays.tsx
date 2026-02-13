@@ -11,23 +11,23 @@ import { router, useLocalSearchParams } from "expo-router";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 import { generateAudioFeedback } from "@/app/api/audioFeedback";
 import {
-  BatchFeedbackRequest,
-  BatchFeedbackResponse,
-  fetchBatchTextFeedback,
+    BatchFeedbackRequest,
+    BatchFeedbackResponse,
+    fetchBatchTextFeedback,
 } from "@/app/api/batchTextFeedback";
 
 // Component to display essay thumbnail with fresh URL resolution (CORS bypass on web)
@@ -181,6 +181,8 @@ export default function StudentEssaysScreen() {
   const analyticsValueStyle = {
     fontSize: screenWidth < 360 ? 22 : screenWidth < 768 ? 26 : 30,
   };
+  const mindmapButtonFontSize =
+    screenWidth < 360 ? 11 : screenWidth < 480 ? 12 : screenWidth < 768 ? 13 : 14;
 
   // Responsive padding based on screen size
   const contentPadding = screenWidth < 480 ? 12 : screenWidth < 768 ? 16 : 24;
@@ -551,11 +553,7 @@ export default function StudentEssaysScreen() {
             router.push({
               pathname: "/image-detail",
               params: {
-                imageData: JSON.stringify({
-                  ...item,
-                  uploadedAt: item.uploadedAt.toISOString(),
-                  studentGrade: studentInfo.studentGrade || item.studentGrade,
-                }),
+                imageId: item.id,
               },
             });
           }}
@@ -588,7 +586,11 @@ export default function StudentEssaysScreen() {
                 }}
               >
                 <MaterialIcons name="account-tree" size={16} color="#007AFF" />
-                <Text style={styles.mindmapButtonText}>
+                <Text
+                  style={[styles.mindmapButtonText, { fontSize: mindmapButtonFontSize }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   {t("studentEssays.viewMindmap")}
                 </Text>
               </TouchableOpacity>
@@ -855,7 +857,6 @@ export default function StudentEssaysScreen() {
                       {batchFeedback.summary.common_suggestions.map(
                         (suggestion, idx) => (
                           <View key={idx} style={styles.commonSuggestionItem}>
-                            <Text style={styles.suggestionBullet}>•</Text>
                             <Text style={styles.commonSuggestionText}>
                               {suggestion}
                             </Text>
@@ -2847,6 +2848,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#007AFF",
     gap: 6,
+    marginRight: 12,
   },
   mindmapButtonText: {
     color: "#007AFF",

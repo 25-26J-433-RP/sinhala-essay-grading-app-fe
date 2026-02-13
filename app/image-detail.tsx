@@ -67,10 +67,12 @@ export default function ImageDetailScreen() {
   const [mindmapData, setMindmapData] = useState<MindmapData | null>(null);
   const [mindmapLoading, setMindmapLoading] = useState(false);
   const [mindmapError, setMindmapError] = useState<string | null>(null);
+
   const { imageId, imageData: imageDataParam } = useLocalSearchParams<{
     imageId?: string;
     imageData?: string;
   }>();
+
 
   // Text feedback state
   const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(
@@ -215,20 +217,6 @@ export default function ImageDetailScreen() {
   }, [imageData?.id]);
 
   useEffect(() => {
-    // First, try to use imageDataParam if available
-    if (imageDataParam) {
-      try {
-        const parsed = JSON.parse(imageDataParam);
-        setImageData(parsed);
-        setEssayTopic(parsed.essay_topic || "");
-        setLoading(false);
-        return;
-      } catch (err) {
-        console.warn("Failed to parse imageDataParam:", err);
-      }
-    }
-
-    // Fallback: fetch by imageId if provided
     if (!imageId) return;
 
     (async () => {
@@ -239,7 +227,7 @@ export default function ImageDetailScreen() {
       setEssayTopic(freshImage.essay_topic || "");
       setLoading(false);
     })();
-  }, [imageId, imageDataParam]);
+  }, [imageId]);
 
   const handleDeleteImage = async () => {
     const ok = await confirm({
@@ -934,7 +922,6 @@ export default function ImageDetailScreen() {
                         </Text>
                         {textFeedback.suggestions.map((suggestion, idx) => (
                           <View key={idx} style={styles.suggestionItem}>
-                            <Text style={styles.suggestionBullet}>â€¢</Text>
                             <Text style={styles.suggestionText}>
                               {suggestion}
                             </Text>
@@ -1030,7 +1017,10 @@ export default function ImageDetailScreen() {
                   {audioFeedbackLoading ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <MaterialIcons name="music-note" size={16} color="#fff" />
+                    <>
+                      <MaterialIcons name="music-note" size={16} color="#fff" />
+                      <Text style={styles.generateAudioButtonText}>Generate</Text>
+                    </>
                   )}
                 </TouchableOpacity>
               </View>
@@ -1121,13 +1111,32 @@ export default function ImageDetailScreen() {
                     </TouchableOpacity>
                     <View style={styles.audioInfoBox}>
                       <Text style={styles.audioPlayingText}>
-                        {isAudioPlaying ? "Playing" : "Ready to play"}
+                        {isAudioPlaying ? "Playing now" : "Ready to play"}
                       </Text>
-                      {audioFeedback.duration && (
-                        <Text style={styles.audioDurationText}>
-                          Duration: {audioFeedback.duration}s
-                        </Text>
-                      )}
+                      <View style={styles.audioMetaRow}>
+                        <View
+                          style={[
+                            styles.audioStatusBadge,
+                            isAudioPlaying && styles.audioStatusBadgeActive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.audioStatusText,
+                              isAudioPlaying && styles.audioStatusTextActive,
+                            ]}
+                          >
+                            {isAudioPlaying ? "LIVE" : "READY"}
+                          </Text>
+                        </View>
+                        {audioFeedback.duration && (
+                          <View style={styles.audioDurationBadge}>
+                            <Text style={styles.audioDurationText}>
+                              Duration {audioFeedback.duration}s
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </View>
                 )}
@@ -1748,10 +1757,19 @@ const styles = StyleSheet.create({
 
   generateAudioButton: {
     backgroundColor: "#10B981",
-    padding: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
+    flexDirection: "row",
+    gap: 6,
     justifyContent: "center",
     alignItems: "center"
+  },
+  generateAudioButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.2,
   },
 
   audioLoadingBox: {
@@ -1788,10 +1806,14 @@ const styles = StyleSheet.create({
   audioPlayerBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#111827",
-    padding: 12,
+    backgroundColor: "#0F172A",
+    padding: 14,
     borderRadius: 8,
-    gap: 12
+
+    borderWidth: 1,
+    borderColor: "#1F2937",
+    gap: 12,
+
   },
 
   playButton: {
@@ -1800,7 +1822,14 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     justifyContent: "center",
-    alignItems: "center"
+
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+
   },
 
   audioInfoBox: {
@@ -1812,11 +1841,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600"
   },
+  audioMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 6,
+    flexWrap: "wrap",
+  },
+  audioStatusBadge: {
+    borderWidth: 1,
+    borderColor: "#334155",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: "#0B1220",
+  },
+  audioStatusBadgeActive: {
+    borderColor: "#10B981",
+    backgroundColor: "#064E3B",
+  },
+  audioStatusText: {
+    color: "#9CA3AF",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+  },
+  audioStatusTextActive: {
+    color: "#D1FAE5",
+  },
+  audioDurationBadge: {
+    borderWidth: 1,
+    borderColor: "#1F2937",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: "#111827",
+  },
 
   audioDurationText: {
     color: "#9CA3AF",
-    fontSize: 12,
-    marginTop: 4
+
+    fontSize: 11,
+
   },
 
   audioPlaceholder: {

@@ -5,16 +5,16 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    useWindowDimensions,
 } from "react-native";
 
 interface StudentInfo {
@@ -324,8 +324,8 @@ const styles = StyleSheet.create({
   },
   studentCardWeb: {
     // On web, cards are narrower and spaced
-    maxWidth: 320,
-    marginHorizontal: 8,
+    maxWidth: "100%",
+    marginHorizontal: 0,
     marginBottom: 16,
     minHeight: 160,
     flexGrow: 1,
@@ -374,6 +374,9 @@ const styles = StyleSheet.create({
   studentFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
+    flexWrap: "wrap",
+    rowGap: 8,
+    columnGap: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: "#333640",
@@ -382,9 +385,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    flexGrow: 1,
+    flexBasis: "48%",
+    minWidth: 140,
   },
   statText: {
     color: "#B0B3C6",
     fontSize: 13,
+    flexShrink: 1,
   },
 });
