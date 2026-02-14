@@ -48,7 +48,9 @@ export async function scoreSinhala(
     }
 
     // Build URL with proper gateway route prefix
-    const url = `${GATEWAY_BASE.replace(/\/+$|\s+$/g, "")}/bias-aware-scoring-engine/score-sinhala-ml`;
+    // Build URL for local testing or remote (Bias-Aware Scoring Engine)
+    const BASE_URL = process.env.EXPO_PUBLIC_BIAS_AWARE_SCORING_URL || "http://localhost:8000";
+    const url = `${BASE_URL.replace(/\/+$|\s+$/g, "")}/score-sinhala-ml`;
 
     const res = await api.post(url, payload, {
       headers: {

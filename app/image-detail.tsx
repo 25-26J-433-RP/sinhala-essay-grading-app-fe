@@ -62,6 +62,7 @@ export default function ImageDetailScreen() {
   const [isDyslexic, setIsDyslexic] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
 
+  const [selectedGrade, setSelectedGrade] = useState<number>(6);
   const [isScoring, setIsScoring] = useState(false);
   const [scoreData, setScoreData] = useState<SinhalaScoreResponse | null>(null);
   const [mindmapData, setMindmapData] = useState<MindmapData | null>(null);
@@ -141,6 +142,12 @@ export default function ImageDetailScreen() {
 
     return () => clearInterval(interval);
   }, [imageData?.id]);
+
+  useEffect(() => {
+    if (imageData?.studentGrade) {
+      setSelectedGrade(Number(imageData.studentGrade));
+    }
+  }, [imageData?.studentGrade]);
 
   useEffect(() => {
     if (!imageData?.id) return;
@@ -606,9 +613,13 @@ export default function ImageDetailScreen() {
                   }));
 
                 // 🧠 STEP 4: Now call scoring engine with REAL dyslexic flag
+                // Fix: Extract number from string like "Grade 4" if necessary
+                const gradeStr = String(imageData.studentGrade || "6");
+                const numericGrade = parseInt(gradeStr.replace(/[^0-9]/g, "")) || 6;
+
                 const result = await scoreSinhala({
                   text: trimmedEssay,
-                  grade: Number(imageData.studentGrade) || 6,
+                  grade: numericGrade,
                   topic: trimmedTopic || null,
                   // ✅ ML-based dyslexia detection result
                   dyslexic_flag: detectedDyslexic,
