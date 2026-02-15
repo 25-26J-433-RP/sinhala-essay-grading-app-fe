@@ -50,17 +50,16 @@ export default function TokenizedText({
 
           // ─── Error word (tappable) ───
           const color = getPatternColor(token.pattern);
-          const bgColor =
-            isAccepted
-              ? "#064E3B40"
-              : isRejected
+          const bgColor = isAccepted
+            ? "#064E3B40"
+            : isRejected
               ? "#7F1D1D40"
               : color + "25";
           const borderBottomColor = isAccepted
             ? "#10B981"
             : isRejected
-            ? "#EF4444"
-            : color;
+              ? "#EF4444"
+              : color;
 
           return (
             <TouchableOpacity
@@ -83,19 +82,21 @@ export default function TokenizedText({
                     color: isAccepted
                       ? "#10B981"
                       : isRejected
-                      ? "#EF4444"
-                      : color,
+                        ? "#EF4444"
+                        : color,
                     textDecorationLine:
-                      showCorrected && isAccepted ? "none" : isRejected ? "line-through" : "none",
+                      showCorrected && isAccepted
+                        ? "none"
+                        : isRejected
+                          ? "line-through"
+                          : "none",
                   },
                 ]}
               >
                 {displayWord}
               </Text>
               {/* Status icon */}
-              {isAccepted && (
-                <Text style={styles.statusIcon}>✓</Text>
-              )}
+              {isAccepted && <Text style={styles.statusIcon}>✓</Text>}
               {isRejected && (
                 <Text style={[styles.statusIcon, { color: "#EF4444" }]}>✗</Text>
               )}

@@ -15,7 +15,11 @@ import {
   Pressable,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { type CorrectionWithStatus, getPatternColor, getPatternIcon } from "./types";
+import {
+  type CorrectionWithStatus,
+  getPatternColor,
+  getPatternIcon,
+} from "./types";
 
 interface CorrectionPopoverProps {
   visible: boolean;
@@ -96,10 +100,17 @@ export default function CorrectionPopover({
             <View
               style={[
                 styles.patternBadge,
-                { backgroundColor: patternColor + "20", borderColor: patternColor + "40" },
+                {
+                  backgroundColor: patternColor + "20",
+                  borderColor: patternColor + "40",
+                },
               ]}
             >
-              <MaterialIcons name={patternIcon as any} size={14} color={patternColor} />
+              <MaterialIcons
+                name={patternIcon as any}
+                size={14}
+                color={patternColor}
+              />
               <Text style={[styles.patternText, { color: patternColor }]}>
                 {token.pattern}
               </Text>
@@ -132,7 +143,9 @@ export default function CorrectionPopover({
               <Text
                 style={[
                   styles.statusText,
-                  { color: token.status === "accepted" ? "#10B981" : "#EF4444" },
+                  {
+                    color: token.status === "accepted" ? "#10B981" : "#EF4444",
+                  },
                 ]}
               >
                 {token.status === "accepted" ? "Accepted" : "Rejected"}
@@ -152,7 +165,10 @@ export default function CorrectionPopover({
                 placeholderTextColor="#6B7280"
                 onSubmitEditing={handleSaveEdit}
               />
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveEdit}>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleSaveEdit}
+              >
                 <Text style={styles.saveButtonText}>Save</Text>
               </TouchableOpacity>
             </View>

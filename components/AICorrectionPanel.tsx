@@ -78,7 +78,9 @@ export default function AICorrectionPanel({
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(
+    null,
+  );
   const [tokens, setTokens] = useState<CorrectionWithStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showManualInput, setShowManualInput] = useState(false);
@@ -159,7 +161,7 @@ export default function AICorrectionPanel({
           ...c,
           id: `token-${idx}`,
           status: "pending" as const,
-        })
+        }),
       );
       setTokens(tokensWithStatus);
       onAnalysisComplete?.(result);
@@ -174,13 +176,13 @@ export default function AICorrectionPanel({
 
   const handleAccept = (id: string) => {
     setTokens((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: "accepted" } : c))
+      prev.map((c) => (c.id === id ? { ...c, status: "accepted" } : c)),
     );
   };
 
   const handleReject = (id: string) => {
     setTokens((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: "rejected" } : c))
+      prev.map((c) => (c.id === id ? { ...c, status: "rejected" } : c)),
     );
   };
 
@@ -189,20 +191,20 @@ export default function AICorrectionPanel({
       prev.map((c) =>
         c.id === id
           ? { ...c, editedSuggestion: newSuggestion, status: "accepted" }
-          : c
-      )
+          : c,
+      ),
     );
   };
 
   const handleAcceptAll = () => {
     setTokens((prev) =>
-      prev.map((c) => (c.type === "error" ? { ...c, status: "accepted" } : c))
+      prev.map((c) => (c.type === "error" ? { ...c, status: "accepted" } : c)),
     );
   };
 
   const handleRejectAll = () => {
     setTokens((prev) =>
-      prev.map((c) => (c.type === "error" ? { ...c, status: "rejected" } : c))
+      prev.map((c) => (c.type === "error" ? { ...c, status: "rejected" } : c)),
     );
   };
 
@@ -254,7 +256,7 @@ export default function AICorrectionPanel({
 
   // ─── Popover helpers ───
   const popoverToken = popoverTokenId
-    ? tokens.find((t) => t.id === popoverTokenId) ?? null
+    ? (tokens.find((t) => t.id === popoverTokenId) ?? null)
     : null;
 
   // ─── Derived counts ───
@@ -428,7 +430,9 @@ export default function AICorrectionPanel({
                 {/* ── Top: Original Text with Error Highlights ── */}
                 <View style={styles.pane}>
                   <View style={styles.paneLabelRow}>
-                    <View style={[styles.paneDot, { backgroundColor: "#EF4444" }]} />
+                    <View
+                      style={[styles.paneDot, { backgroundColor: "#EF4444" }]}
+                    />
                     <Text style={styles.paneLabel}>Original Text</Text>
                     <Text style={styles.paneHint}>(tap errors to review)</Text>
                   </View>
@@ -441,13 +445,19 @@ export default function AICorrectionPanel({
 
                 {/* ── Separator ── */}
                 <View style={styles.separator}>
-                  <MaterialIcons name="arrow-downward" size={18} color="#8B5CF6" />
+                  <MaterialIcons
+                    name="arrow-downward"
+                    size={18}
+                    color="#8B5CF6"
+                  />
                 </View>
 
                 {/* ── Bottom: Live Corrected Preview ── */}
                 <View style={styles.pane}>
                   <View style={styles.paneLabelRow}>
-                    <View style={[styles.paneDot, { backgroundColor: "#10B981" }]} />
+                    <View
+                      style={[styles.paneDot, { backgroundColor: "#10B981" }]}
+                    />
                     <Text style={[styles.paneLabel, { color: "#10B981" }]}>
                       Corrected Preview
                     </Text>
@@ -512,7 +522,11 @@ export default function AICorrectionPanel({
                         style={styles.refreshPreviewButton}
                         onPress={() => setFinalText(getPreviewText())}
                       >
-                        <MaterialIcons name="refresh" size={16} color="#8B5CF6" />
+                        <MaterialIcons
+                          name="refresh"
+                          size={16}
+                          color="#8B5CF6"
+                        />
                         <Text style={styles.refreshPreviewText}>
                           Reload Preview
                         </Text>
@@ -529,7 +543,9 @@ export default function AICorrectionPanel({
               <TouchableOpacity
                 style={[
                   styles.applyButton,
-                  acceptedCount === 0 && !showFinalEditor && styles.buttonDisabled,
+                  acceptedCount === 0 &&
+                    !showFinalEditor &&
+                    styles.buttonDisabled,
                 ]}
                 onPress={handleApplyCorrections}
                 disabled={acceptedCount === 0 && !showFinalEditor}
