@@ -50,16 +50,10 @@ export default function TokenizedText({
                 key={token.id || `t-${index}`}
                 onPress={() => onTokenPress(token.id)}
                 activeOpacity={0.7}
-                style={[
-                  styles.normalToken,
-                  isEdited && styles.editedToken,
-                ]}
+                style={[styles.normalToken, isEdited && styles.editedToken]}
               >
                 <Text
-                  style={[
-                    styles.normalWord,
-                    isEdited && { color: "#60A5FA" },
-                  ]}
+                  style={[styles.normalWord, isEdited && { color: "#60A5FA" }]}
                 >
                   {displayWord}
                 </Text>

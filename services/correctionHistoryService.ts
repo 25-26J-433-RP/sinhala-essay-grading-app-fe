@@ -158,9 +158,7 @@ export interface TrendPoint {
   topPattern: string;
 }
 
-export function computeTrends(
-  history: CorrectionHistoryDoc[],
-): TrendPoint[] {
+export function computeTrends(history: CorrectionHistoryDoc[]): TrendPoint[] {
   return history
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
     .map((h) => {
