@@ -12,6 +12,8 @@ export interface CorrectionWithStatus extends CorrectionItem {
   editedSuggestion?: string;
   /** "error" = flagged word, "correct" = unchanged word */
   type?: "error" | "correct" | string;
+  /** Teacher annotation / comment explaining the decision */
+  annotation?: string;
 }
 
 /** Pattern colour palette. */

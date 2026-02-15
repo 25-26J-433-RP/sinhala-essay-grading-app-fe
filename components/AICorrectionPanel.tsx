@@ -34,8 +34,13 @@ import {
   StatsBar,
   CorrectionPopover,
   TokenizedText,
+  CorrectionHistory,
   type CorrectionWithStatus,
 } from "@/components/correction";
+import {
+  saveCorrectionHistory,
+  type CorrectionRecord,
+} from "@/services/correctionHistoryService";
 
 // ===========================
 // Props Interface
@@ -57,6 +62,12 @@ interface AICorrectionPanelProps {
    * "DYSLEXIC ESSAY" | "NORMAL ESSAY" | undefined
    */
   dyslexiaLabel?: string;
+  /** Student ID — required for saving correction history */
+  studentId?: string;
+  /** Image / essay document ID */
+  imageId?: string;
+  /** Teacher / user ID */
+  teacherId?: string;
 }
 
 // ===========================
@@ -70,6 +81,9 @@ export default function AICorrectionPanel({
   autoAnalyze = false,
   initialCollapsed = false,
   dyslexiaLabel,
+  studentId,
+  imageId,
+  teacherId,
 }: AICorrectionPanelProps) {
   const { t } = useLanguage();
   const hasAutoAnalyzed = useRef(false);
@@ -92,6 +106,10 @@ export default function AICorrectionPanel({
   // Teacher editing
   const [showFinalEditor, setShowFinalEditor] = useState(false);
   const [finalText, setFinalText] = useState("");
+
+  // Correction history
+  const [showHistory, setShowHistory] = useState(false);
+  const [isSavingHistory, setIsSavingHistory] = useState(false);
 
   // ─── Health check on mount ───
   useEffect(() => {
@@ -141,7 +159,12 @@ export default function AICorrectionPanel({
   };
 
   const handleAnalyze = async () => {
-    const textToAnalyze = manualText.trim() || originalText.trim();
+    // Normalize to single paragraph before analysis
+    const textToAnalyze = (manualText.trim() || originalText.trim())
+      .replace(/\r\n/g, " ")
+      .replace(/\n/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
     if (!textToAnalyze) {
       Alert.alert(t("common.error"), t("aiCorrection.noResults"));
       return;
@@ -196,6 +219,12 @@ export default function AICorrectionPanel({
     );
   };
 
+  const handleAnnotate = (id: string, note: string) => {
+    setTokens((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, annotation: note } : c)),
+    );
+  };
+
   const handleAcceptAll = () => {
     setTokens((prev) =>
       prev.map((c) => (c.type === "error" ? { ...c, status: "accepted" } : c)),
@@ -208,19 +237,29 @@ export default function AICorrectionPanel({
     );
   };
 
-  // ─── Preview text with accepted corrections applied ───
+  // ─── Preview text with accepted corrections + manual edits applied ───
   const getPreviewText = (): string => {
     let previewText = manualText.trim() || originalText;
+
+    // Apply accepted error corrections
     const accepted = tokens
       .filter((c) => c.type === "error" && c.status === "accepted")
       .map((c) => ({
         word: c.word,
         suggestion: c.editedSuggestion || c.suggestion,
       }));
-
     for (const correction of accepted) {
       previewText = previewText.replace(correction.word, correction.suggestion);
     }
+
+    // Apply manual edits on normal (correct) words
+    const editedNormal = tokens.filter(
+      (c) => c.type !== "error" && c.editedSuggestion && c.status === "accepted",
+    );
+    for (const token of editedNormal) {
+      previewText = previewText.replace(token.word, token.editedSuggestion!);
+    }
+
     return previewText;
   };
 
@@ -230,9 +269,85 @@ export default function AICorrectionPanel({
     setShowFinalEditor(!showFinalEditor);
   };
 
-  const handleApplyCorrections = () => {
-    const textToApply = showFinalEditor ? finalText : getPreviewText();
+  const handleApplyCorrections = async () => {
+    let textToApply = showFinalEditor ? finalText : getPreviewText();
+    // Normalize to single paragraph — collapse newlines & extra spaces
+    textToApply = textToApply
+      .replace(/\r\n/g, " ")
+      .replace(/\n/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
     onCorrectedText(textToApply);
+
+    // ─── Save correction history to Firestore ───
+    if (studentId && imageId) {
+      try {
+        setIsSavingHistory(true);
+        const errors = tokens.filter((t) => t.type === "error");
+        const correctionRecords: CorrectionRecord[] = errors.map((t) => ({
+          word: t.word,
+          type: t.type || "error",
+          suggestion: t.suggestion,
+          pattern: t.pattern,
+          confidence: t.confidence,
+          explanation: t.explanation,
+          status: t.status,
+          editedSuggestion: t.editedSuggestion,
+          annotation: t.annotation,
+        }));
+
+        // Also save annotations on normal words that were edited
+        const editedNormals: CorrectionRecord[] = tokens
+          .filter(
+            (t) =>
+              t.type !== "error" &&
+              (t.editedSuggestion || t.annotation),
+          )
+          .map((t) => ({
+            word: t.word,
+            type: "correct",
+            suggestion: t.word,
+            pattern: "none",
+            confidence: 1,
+            status: t.editedSuggestion ? "accepted" : "pending",
+            editedSuggestion: t.editedSuggestion,
+            annotation: t.annotation,
+          }));
+
+        const allRecords = [...correctionRecords, ...editedNormals];
+
+        const patternBreakdown: Record<string, number> = {};
+        errors.forEach((t) => {
+          const p = t.pattern || "Unknown";
+          patternBreakdown[p] = (patternBreakdown[p] || 0) + 1;
+        });
+
+        await saveCorrectionHistory({
+          studentId,
+          imageId,
+          teacherId,
+          originalText: manualText.trim() || originalText,
+          correctedText: textToApply,
+          corrections: allRecords,
+          summary: {
+            totalTokens: tokens.length,
+            totalErrors: errors.length,
+            accepted: errors.filter((c) => c.status === "accepted").length,
+            rejected: errors.filter((c) => c.status === "rejected").length,
+            edited: errors.filter((c) => c.editedSuggestion).length,
+            patternBreakdown,
+          },
+          dyslexiaLabel,
+          modelUsed: analysisResult?.model_used,
+          processingTimeMs: analysisResult?.processing_time_ms,
+        });
+        console.log("✅ Correction history saved");
+      } catch (err) {
+        console.warn("⚠️ Failed to save correction history:", err);
+      } finally {
+        setIsSavingHistory(false);
+      }
+    }
 
     // Reset
     setAnalysisResult(null);
@@ -264,6 +379,10 @@ export default function AICorrectionPanel({
   const pendingCount = errors.filter((c) => c.status === "pending").length;
   const acceptedCount = errors.filter((c) => c.status === "accepted").length;
   const rejectedCount = errors.filter((c) => c.status === "rejected").length;
+  const editedNormalCount = tokens.filter(
+    (t) => t.type !== "error" && t.editedSuggestion && t.status === "accepted",
+  ).length;
+  const hasAnyEdits = acceptedCount > 0 || editedNormalCount > 0;
   const processingTimeSec = analysisResult?.processing_time_ms
     ? (analysisResult.processing_time_ms / 1000).toFixed(1)
     : null;
@@ -345,6 +464,36 @@ export default function AICorrectionPanel({
                 </Text>
               </View>
             </View>
+          )}
+
+          {/* ─── History Toggle ─── */}
+          {studentId && (
+            <TouchableOpacity
+              style={styles.historyToggle}
+              onPress={() => setShowHistory(!showHistory)}
+            >
+              <MaterialIcons
+                name="history"
+                size={20}
+                color={showHistory ? "#FFFFFF" : "#8B5CF6"}
+              />
+              <Text
+                style={[
+                  styles.historyToggleText,
+                  showHistory && { color: "#FFFFFF" },
+                ]}
+              >
+                {showHistory ? "Hide History" : "Correction History"}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* ─── Correction History Panel ─── */}
+          {showHistory && studentId && (
+            <CorrectionHistory
+              studentId={studentId}
+              onClose={() => setShowHistory(false)}
+            />
           )}
 
           {/* ─── Manual Input Toggle ─── */}
@@ -434,7 +583,7 @@ export default function AICorrectionPanel({
                       style={[styles.paneDot, { backgroundColor: "#EF4444" }]}
                     />
                     <Text style={styles.paneLabel}>Original Text</Text>
-                    <Text style={styles.paneHint}>(tap errors to review)</Text>
+                    <Text style={styles.paneHint}>(tap any word to edit)</Text>
                   </View>
                   <TokenizedText
                     tokens={tokens}
@@ -543,18 +692,20 @@ export default function AICorrectionPanel({
               <TouchableOpacity
                 style={[
                   styles.applyButton,
-                  acceptedCount === 0 &&
+                  !hasAnyEdits &&
                     !showFinalEditor &&
                     styles.buttonDisabled,
                 ]}
                 onPress={handleApplyCorrections}
-                disabled={acceptedCount === 0 && !showFinalEditor}
+                disabled={!hasAnyEdits && !showFinalEditor}
               >
                 <MaterialIcons name="check-circle" size={20} color="#fff" />
                 <Text style={styles.applyButtonText}>
-                  {showFinalEditor
-                    ? "Apply Edited Text"
-                    : `Apply Corrections (${acceptedCount})`}
+                  {isSavingHistory
+                    ? "Saving…"
+                    : showFinalEditor
+                      ? "Apply Edited Text"
+                      : `Apply Corrections (${acceptedCount}${editedNormalCount > 0 ? ` + ${editedNormalCount} edits` : ""})`}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -598,6 +749,9 @@ export default function AICorrectionPanel({
         onEdit={(newText) => {
           if (popoverTokenId) handleEdit(popoverTokenId, newText);
           setPopoverTokenId(null);
+        }}
+        onAnnotate={(note) => {
+          if (popoverTokenId) handleAnnotate(popoverTokenId, note);
         }}
         onClose={() => setPopoverTokenId(null)}
       />
@@ -696,6 +850,24 @@ const styles = StyleSheet.create({
   bannerSubtitle: {
     fontSize: 12,
     color: "#9CA3AF",
+  },
+
+  // ─── History Toggle ───
+  historyToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+    backgroundColor: "#1F2937",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  historyToggleText: {
+    fontSize: 14,
+    color: "#8B5CF6",
+    fontWeight: "600",
   },
 
   // ─── Manual Input ───

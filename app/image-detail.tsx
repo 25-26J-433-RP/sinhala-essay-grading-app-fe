@@ -562,6 +562,9 @@ export default function ImageDetailScreen() {
             autoAnalyze={false}
             initialCollapsed={dyslexiaLabel !== "DYSLEXIC ESSAY"}
             dyslexiaLabel={dyslexiaLabel}
+            studentId={imageData?.studentId}
+            imageId={imageId}
+            teacherId={imageData?.userId}
           />
         )}
 

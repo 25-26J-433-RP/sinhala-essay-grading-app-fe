@@ -1,8 +1,8 @@
 // components/correction/TokenizedText.tsx
 /**
  * Renders the full text as a flow of word tokens.
- * Error words are highlighted by pattern colour and tappable;
- * correct words are plain text.
+ * ALL words are tappable: error words are highlighted by pattern colour
+ * and open correction review; normal words open a simple edit popover.
  *
  * This replaces the old stacked-error-cards view with an
  * interactive inline display (similar to the sample web frontend).
@@ -32,19 +32,43 @@ export default function TokenizedText({
           const isError = token.type === "error";
           const isAccepted = token.status === "accepted";
           const isRejected = token.status === "rejected";
+          const isEdited =
+            !isError && token.editedSuggestion && token.status === "accepted";
 
           // For corrected preview, use suggestion for accepted errors
           const displayWord =
             showCorrected && isAccepted
               ? token.editedSuggestion || token.suggestion
-              : token.word;
+              : isEdited && showCorrected
+                ? token.editedSuggestion!
+                : token.word;
 
           if (!isError) {
-            // ─── Normal word ───
+            // ─── Normal word (tappable for editing) ───
             return (
-              <Text key={token.id || `t-${index}`} style={styles.normalWord}>
-                {displayWord}
-              </Text>
+              <TouchableOpacity
+                key={token.id || `t-${index}`}
+                onPress={() => onTokenPress(token.id)}
+                activeOpacity={0.7}
+                style={[
+                  styles.normalToken,
+                  isEdited && styles.editedToken,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.normalWord,
+                    isEdited && { color: "#60A5FA" },
+                  ]}
+                >
+                  {displayWord}
+                </Text>
+                {isEdited && (
+                  <Text style={[styles.statusIcon, { color: "#60A5FA" }]}>
+                    ✎
+                  </Text>
+                )}
+              </TouchableOpacity>
             );
           }
 
@@ -122,11 +146,22 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     alignItems: "center",
   },
+  normalToken: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 1,
+    borderRadius: 3,
+    paddingHorizontal: 2,
+  },
+  editedToken: {
+    backgroundColor: "#1E3A5F40",
+    borderBottomColor: "#60A5FA",
+    borderBottomWidth: 1,
+  },
   normalWord: {
     fontSize: 16,
     lineHeight: 30,
     color: "#E5E7EB",
-    marginHorizontal: 1,
   },
   errorToken: {
     flexDirection: "row",

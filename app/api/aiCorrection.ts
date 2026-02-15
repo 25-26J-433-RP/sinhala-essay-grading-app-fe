@@ -192,7 +192,13 @@ export function cleanOCRText(text: string): string {
     })
     .join("\n");
 
-  // 9. Final trim
+  // 9. Collapse into a single paragraph — replace newlines & multiple spaces
+  cleaned = cleaned
+    .replace(/\r\n/g, " ")
+    .replace(/\n/g, " ")
+    .replace(/\s{2,}/g, " ");
+
+  // 10. Final trim
   cleaned = cleaned.trim();
 
   console.log("🧹 Cleaned OCR text:", {
