@@ -89,8 +89,8 @@ export interface PatternsResponse {
 
 // Direct URL to AI Recorrection Workbench backend
 // For local dev: http://localhost:8000/api/v1
-// For production: set via environment or use API gateway
-const AI_CORRECTION_DIRECT_URL = process.env.EXPO_PUBLIC_AI_CORRECTION_URL || "http://localhost:8000/api/v1";
+// For production: GCP Cloud Run
+const AI_CORRECTION_DIRECT_URL = process.env.EXPO_PUBLIC_AI_CORRECTION_URL || "https://akura-ai-1008980279040.us-central1.run.app/api/v1";
 const AI_CORRECTION_GATEWAY_PATH = "/ai-recorrection-workbench/api/v1";
 
 const TIMEOUT_MS = 0; // No timeout - CPU inference on Azure VM can take 30-80s
@@ -120,7 +120,7 @@ export async function checkAICorrectionHealth(): Promise<HealthResponse> {
     // Try via API Gateway as fallback
     try {
       const response = await api.get(`${AI_CORRECTION_GATEWAY_PATH}/health`, {
-        timeout: 10000,
+        timeout: 15000,
       });
       return response.data;
     } catch (gatewayErr) {
@@ -200,17 +200,20 @@ export async function analyzeText(
   debug: boolean = false
 ): Promise<AnalyzeResponse> {
   try {
-    // Send raw text to preserve structure and content
-    // const cleanedText = cleanOCRText(text); 
+    // Clean OCR artefacts before sending to model
+    const cleanedText = cleanOCRText(text); 
     console.log("🧠 Sending text to AI Correction service at:", AI_CORRECTION_DIRECT_URL);
     
-    const response = await aiCorrectionApi.post<BackendAnalyzeResponse>(
+    // Backend returns StreamingResponse with keepalive spaces + final JSON.
+    // Use responseType: 'text' to get raw body, then trim & parse.
+    const response = await aiCorrectionApi.post(
       '/analyze',
-      { text: text, debug, include_correct_words: true },
-      { timeout: TIMEOUT_MS }
+      { text: cleanedText, debug, include_correct_words: true },
+      { timeout: TIMEOUT_MS, responseType: 'text' }
     );
 
-    const backendData = response.data;
+    const rawText = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+    const backendData: BackendAnalyzeResponse = JSON.parse(rawText.trim());
     console.log("📥 Backend response:", backendData);
 
     // Map backend response to frontend format
@@ -247,8 +250,8 @@ export async function analyzeText(
  */
 export async function getPatterns(): Promise<PatternsResponse> {
   try {
-    const response = await api.get(`${AI_CORRECTION_GATEWAY_PATH}/patterns`, {
-      timeout: 10000,
+    const response = await aiCorrectionApi.get('/patterns', {
+      timeout: 15000,
     });
     return response.data;
   } catch (error) {

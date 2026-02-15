@@ -61,6 +61,7 @@ export default function ImageDetailScreen() {
   const [inputText, setInputText] = useState("");
   const [isDyslexic, setIsDyslexic] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
+  const [dyslexiaLabel, setDyslexiaLabel] = useState<string | undefined>(undefined);
 
   const [selectedGrade, setSelectedGrade] = useState<number>(6);
   const [isScoring, setIsScoring] = useState(false);
@@ -95,6 +96,10 @@ export default function ImageDetailScreen() {
 
   // const [isSaving, setIsSaving] = useState(false); // not used currently
   const [isDeleting, setIsDeleting] = useState(false);
+  const [correctionHighlight, setCorrectionHighlight] = useState(false);
+
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scoringCardRef = useRef<View>(null);
 
   const { showToast } = useToast();
   const confirm = useConfirm();
@@ -235,6 +240,29 @@ export default function ImageDetailScreen() {
       setLoading(false);
     })();
   }, [imageId]);
+
+  // ─── Run dyslexia detection when OCR text arrives ───
+  const dyslexiaDetectedRef = useRef(false);
+  useEffect(() => {
+    if (!inputText || inputText.trim().length < 10 || dyslexiaDetectedRef.current) return;
+    dyslexiaDetectedRef.current = true;
+
+    (async () => {
+      try {
+        setIsDetecting(true);
+        const result = await predictDyslexia(inputText.trim());
+        setIsDetecting(false);
+
+        const detectedDyslexic = result.dyslexic_sentences > 0;
+        setIsDyslexic(detectedDyslexic);
+        setDyslexiaLabel(result.essay_label); // "DYSLEXIC ESSAY" | "NORMAL ESSAY"
+        console.log("🧠 Early dyslexia detection:", result.essay_label, "confidence:", result.confidence);
+      } catch (err) {
+        console.warn("Early dyslexia detection failed (non-blocking):", err);
+        setIsDetecting(false);
+      }
+    })();
+  }, [inputText]);
 
   const handleDeleteImage = async () => {
     const ok = await confirm({
@@ -408,7 +436,7 @@ export default function ImageDetailScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} ref={scrollViewRef}>
       <AppHeader hideRightSection />
 
       <View style={styles.content}>
@@ -512,20 +540,46 @@ export default function ImageDetailScreen() {
             originalText={inputText}
             onCorrectedText={(correctedText) => {
               setInputText(correctedText);
-              showToast("Corrections applied to essay text", {
+              showToast("Corrected text applied to scoring field ✓", {
                 type: "success"
               });
+              // Highlight the scoring field briefly & scroll to it
+              setCorrectionHighlight(true);
+              setTimeout(() => setCorrectionHighlight(false), 2000);
+              setTimeout(() => {
+                scoringCardRef.current?.measureLayout?.(
+                  scrollViewRef.current as any,
+                  (_x: number, y: number) => {
+                    scrollViewRef.current?.scrollTo({ y: y - 20, animated: true });
+                  },
+                  () => {}
+                );
+              }, 300);
             }}
             onAnalysisComplete={(result) => {
               console.log("🧠 AI Correction analysis complete:", result);
             }}
-            autoAnalyze={true}
-            initialCollapsed={false}
+            autoAnalyze={false}
+            initialCollapsed={dyslexiaLabel !== "DYSLEXIC ESSAY"}
+            dyslexiaLabel={dyslexiaLabel}
           />
         )}
 
         {/* SCORING INPUT CARD */}
-        <View style={styles.inputCard}>
+        <View
+          ref={scoringCardRef}
+          style={[
+            styles.inputCard,
+            correctionHighlight && {
+              borderColor: '#10B981',
+              borderWidth: 2,
+              shadowColor: '#10B981',
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 4,
+            },
+          ]}
+        >
           <Text style={styles.cardTitle}>{t("essay.enterSinhalaEssay")}</Text>
 
           {/* Topic */}
