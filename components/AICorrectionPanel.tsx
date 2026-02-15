@@ -63,8 +63,8 @@ const PATTERN_COLORS: Record<string, string> = {
   visual_sequencing: "#F59E0B",
   phonetic_confusion: "#8B5CF6",
   visual_reversal: "#EC4899",
-  grammar_issue: "#3B82F6",
-  grammar: "#3B82F6",
+  grammar_issue: "#007AFF",
+  grammar: "#007AFF",
   unknown: "#6B7280",
 };
 
@@ -107,7 +107,7 @@ export default function AICorrectionPanel({
 }: AICorrectionPanelProps) {
   const { t } = useLanguage();
   const hasAutoAnalyzed = useRef(false);
-  
+
   // State
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -119,11 +119,11 @@ export default function AICorrectionPanel({
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualText, setManualText] = useState("");
-  
+
   // Teacher editing state
   const [showFinalEditor, setShowFinalEditor] = useState(false);
   const [finalText, setFinalText] = useState("");
-  
+
   // Comparison view state
   const [showComparison, setShowComparison] = useState(true);
 
@@ -148,10 +148,10 @@ export default function AICorrectionPanel({
     try {
       const health = await aiCorrectionService.checkHealth();
       console.log("Health check response:", health);
-      const isOnline = health.status === "healthy" || 
-                       health.status === "ok" || 
-                       health.ollamaConnected === true ||
-                       health.ollama_connected === true;
+      const isOnline = health.status === "healthy" ||
+        health.status === "ok" ||
+        health.ollamaConnected === true ||
+        health.ollama_connected === true;
       setIsHealthy(isOnline);
     } catch (err) {
       console.error("AI Correction service not available:", err);
@@ -161,7 +161,7 @@ export default function AICorrectionPanel({
 
   const handleAnalyze = async () => {
     const textToAnalyze = manualText.trim() || originalText.trim();
-    
+
     if (!textToAnalyze) {
       Alert.alert(t("common.error"), t("aiCorrection.noResults"));
       return;
@@ -234,7 +234,7 @@ export default function AICorrectionPanel({
   // Generate preview text with accepted corrections applied
   const getPreviewText = (): string => {
     let previewText = manualText.trim() || originalText;
-    
+
     const acceptedCorrections = tokens
       .filter((c) => c.type === 'error' && c.status === "accepted")
       .map((c) => ({
@@ -245,7 +245,7 @@ export default function AICorrectionPanel({
     for (const correction of acceptedCorrections) {
       previewText = previewText.replace(correction.word, correction.suggestion);
     }
-    
+
     return previewText;
   };
 
@@ -259,9 +259,9 @@ export default function AICorrectionPanel({
 
   const handleApplyCorrections = () => {
     const textToApply = showFinalEditor ? finalText : getPreviewText();
-    
+
     onCorrectedText(textToApply);
-    
+
     // Clear state after applying
     setAnalysisResult(null);
     setTokens([]);
@@ -288,7 +288,7 @@ export default function AICorrectionPanel({
   const pendingCount = errors.filter((c) => c.status === "pending").length;
   const acceptedCount = errors.filter((c) => c.status === "accepted").length;
   const rejectedCount = errors.filter((c) => c.status === "rejected").length;
-  const processingTimeSec = analysisResult?.processing_time_ms 
+  const processingTimeSec = analysisResult?.processing_time_ms
     ? (analysisResult.processing_time_ms / 1000).toFixed(1)
     : null;
 
@@ -658,10 +658,10 @@ export default function AICorrectionPanel({
                       const isError = token.type === 'error';
                       const isAccepted = token.status === 'accepted';
                       const isRejected = token.status === 'rejected';
-                      
+
                       const color = isError ? getPatternColor(token.pattern) : "#E5E7EB";
-                      
-                      const displayWord = isAccepted 
+
+                      const displayWord = isAccepted
                         ? (token.editedSuggestion || token.suggestion)
                         : token.word;
 
@@ -677,9 +677,9 @@ export default function AICorrectionPanel({
                         >
                           <Text style={[
                             styles.wordText,
-                            { 
-                              color: isError 
-                                ? (isAccepted ? '#10B981' : isRejected ? '#EF4444' : color) 
+                            {
+                              color: isError
+                                ? (isAccepted ? '#10B981' : isRejected ? '#EF4444' : color)
                                 : '#E5E7EB',
                               fontWeight: isError ? "600" : "400",
                               textDecorationLine: isError && isRejected ? 'line-through' : 'none',
@@ -700,10 +700,10 @@ export default function AICorrectionPanel({
                   style={styles.teacherEditToggle}
                   onPress={toggleFinalEditor}
                 >
-                  <MaterialIcons 
-                    name={showFinalEditor ? "visibility-off" : "edit-note"} 
-                    size={20} 
-                    color="#F59E0B" 
+                  <MaterialIcons
+                    name={showFinalEditor ? "visibility-off" : "edit-note"}
+                    size={20}
+                    color="#F59E0B"
                   />
                   <Text style={styles.teacherEditToggleText}>
                     {showFinalEditor ? "Hide Editor" : "Teacher Edit"}
@@ -755,7 +755,7 @@ export default function AICorrectionPanel({
               >
                 <MaterialIcons name="check-circle" size={20} color="#fff" />
                 <Text style={styles.applyButtonText}>
-                  {showFinalEditor 
+                  {showFinalEditor
                     ? "Apply Edited Text"
                     : `Apply Corrections (${acceptedCount})`
                   }

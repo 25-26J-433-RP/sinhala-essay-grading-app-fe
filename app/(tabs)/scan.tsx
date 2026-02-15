@@ -277,7 +277,7 @@ export default function ScanScreen() {
             style={styles.camera}
             facing={cameraFacing}
           />
-          <Button title={t("scan.capture")} onPress={() => {}} />
+          <Button title={t("scan.capture")} onPress={() => { }} />
           <Button
             title={t("scan.switchCamera")}
             onPress={() =>
@@ -303,7 +303,7 @@ export default function ScanScreen() {
             <View style={styles.selectionCard}>
               <View style={styles.iconWrap}>
                 <View style={styles.iconCircle}>
-                  <MaterialIcons name="school" size={28} color="#fff" />
+                  <MaterialIcons name="grading" size={32} color="#fff" />
                 </View>
               </View>
               <Text style={styles.sectionTitle}>{t("scan.uploadEssays")}</Text>
@@ -326,9 +326,6 @@ export default function ScanScreen() {
                 </View>
               ) : (
                 <View style={styles.studentForm}>
-                  <Text style={styles.studentLabel}>
-                    {t("scan.chooseStudent")} *
-                  </Text>
                   <Pressable
                     onPress={() => setShowStudentDropdown(!showStudentDropdown)}
                     style={({ hovered, pressed }) => [
@@ -387,25 +384,22 @@ export default function ScanScreen() {
                   onPress={scanWithCamera}
                   style={styles.buttonBase}
                 >
-                  <LinearGradient
-                    colors={["#2ecc71", "#27ae60"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+                  <View
                     style={[
                       styles.gradientButton,
                       uploading &&
-                        uploadingSource === "camera" &&
-                        styles.buttonDisabled
+                      uploadingSource === "camera" &&
+                      styles.buttonDisabled
                     ]}
                     pointerEvents="none"
                   >
-                    <MaterialIcons name="photo-camera" size={22} color="#fff" />
-                    <Text style={styles.buttonText}>
+                    <MaterialIcons name="photo-camera" size={22} color="#0F1117" />
+                    <Text style={styles.buttonTextPrimary}>
                       {uploading && uploadingSource === "camera"
                         ? t("scan.uploading")
                         : t("scan.scanWithCamera")}
                     </Text>
-                  </LinearGradient>
+                  </View>
                 </Pressable>
 
                 <Pressable
@@ -414,8 +408,8 @@ export default function ScanScreen() {
                   style={[
                     styles.solidButton,
                     uploading &&
-                      uploadingSource === "gallery" &&
-                      styles.buttonDisabled
+                    uploadingSource === "gallery" &&
+                    styles.buttonDisabled
                   ]}
                 >
                   <MaterialIcons name="photo-library" size={22} color="#fff" />
@@ -437,19 +431,16 @@ export default function ScanScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-    backgroundColor: "#181A20",
+    padding: 20,
+    backgroundColor: "#0F1117",
     width: "100%",
-    minHeight: "100vh"
   },
   section: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
-    backgroundColor: "#181A20"
+    marginTop: 20
   },
   cameraContainer: {
     flex: 1,
@@ -457,13 +448,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     height: 500,
     width: "100%",
-    borderRadius: 16,
-    overflow: "hidden"
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "#000"
   },
   camera: {
     width: "100%",
-    height: 400,
-    borderRadius: 12
+    height: "100%",
+    borderRadius: 20
   },
   accessDeniedContainer: {
     flex: 1,
@@ -488,39 +480,35 @@ const styles = StyleSheet.create({
   },
   selectionCardAnimated: {
     width: "100%",
-    maxWidth: 600,
-    transform: [{ translateY: 0 }],
-    opacity: 1
+    maxWidth: 500,
   },
   selectionCard: {
-    backgroundColor: "#0F1117",
-    borderRadius: 20,
+    backgroundColor: "#1C1E26", // Matched Home screen hero card
+    borderRadius: 32,
     padding: 32,
     width: "100%",
     shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: "#2D313E"
   },
-  iconWrap: { alignItems: "center", marginBottom: 8 },
+  iconWrap: { alignItems: "center", marginBottom: 16 },
   iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#2b2f3a",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#0F1117", // Darker contrast
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#2D313E"
   },
   studentForm: {
     width: "100%",
-    marginBottom: 20
-  },
-  studentLabel: {
-    color: "#B0B3C6",
-    marginBottom: 10,
-    fontSize: 14,
-    fontWeight: "600"
+    marginBottom: 24
   },
   studentInput: {
     backgroundColor: "#23262F",
@@ -532,118 +520,156 @@ const styles = StyleSheet.create({
     borderColor: "#333640"
   },
   dropdownButton: {
-    backgroundColor: "#2a2d37",
+    backgroundColor: "#0F1117",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#3a3e49"
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#2D313E"
   },
-  dropdownHover: { borderColor: "#4a4f5c" },
-  dropdownPressed: { opacity: 0.9 },
+  dropdownHover: { borderColor: "#3B82F6" },
+  dropdownPressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
   dropdownButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     flex: 1,
-    fontSize: 16
+    fontSize: 16,
+    fontWeight: "600"
   },
   placeholderText: {
-    color: "#888"
+    color: "#4B5563"
   },
   dropdownList: {
-    backgroundColor: "#23262F",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#333640",
-    marginTop: 6
+    backgroundColor: "#1C1E26",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#3B82F6",
+    marginTop: 8,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5
   },
   dropdownItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#333640"
+    borderBottomColor: "#2D313E"
   },
-  dropdownItemHover: { backgroundColor: "#2a2d37" },
-  dropdownItemPressed: { opacity: 0.9 },
+  dropdownItemHover: { backgroundColor: "#22252F" },
+  dropdownItemPressed: { backgroundColor: "#3B82F6" },
   dropdownItemText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
-    marginBottom: 2
+    fontWeight: "700",
+    marginBottom: 4
   },
   dropdownItemSubtext: {
-    color: "#B0B3C6",
-    fontSize: 12
+    color: "#9CA3AF",
+    fontSize: 12,
+    fontWeight: "500"
   },
   studentSelection: {
     width: "100%",
     marginBottom: 24
   },
   sectionTitle: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 18,
-    textAlign: "center"
+    color: "#FFFFFF",
+    fontSize: 28, // Slightly larger to match Home titles
+    fontWeight: "800",
+    marginBottom: 24,
+    textAlign: "center",
+    letterSpacing: 0.5
   },
   loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    padding: 32,
     gap: 12
   },
   loadingText: {
-    color: "#B0B3C6",
-    fontSize: 14
+    color: "#9CA3AF",
+    fontSize: 15,
+    fontWeight: "500"
   },
   emptyContainer: {
     alignItems: "center",
-    padding: 32
+    padding: 32,
+    backgroundColor: "#0F1117",
+    borderRadius: 20,
+    marginBottom: 20
   },
   emptyText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 18,
-    fontWeight: "600",
-    marginTop: 12,
-    marginBottom: 4
+    fontWeight: "800",
+    marginTop: 16,
+    marginBottom: 6
   },
   emptySubtext: {
-    color: "#B0B3C6",
+    color: "#6B7280",
     fontSize: 14,
-    textAlign: "center"
+    textAlign: "center",
+    lineHeight: 20
   },
   actionsRow: {
-    gap: 12
+    gap: 16
   },
   buttonBase: {
-    borderRadius: 12,
-    overflow: "hidden"
+    borderRadius: 16,
+    overflow: "hidden",
+    // Premium shadow for the white button
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4
   },
   gradientButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8
+    paddingVertical: 18, // Slightly thicker for premium feel
+    paddingHorizontal: 20,
+    gap: 12,
+    minHeight: 64,
+    backgroundColor: "#FFFFFF", // Matched Home screen primary button
   },
   solidButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#007AFF", // Matched Sinhala language selector blue
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    gap: 12,
+    minHeight: 64,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4
   },
-  solidButtonHover: { backgroundColor: "#1a8dff" },
-  buttonPressed: { transform: [{ scale: 0.98 }] },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: {
-    color: "#fff",
+  buttonTextPrimary: {
+    color: "#0F1117", // Dark text for white button
     fontSize: 16,
-    fontWeight: "600"
-  }
+    fontWeight: "700",
+    letterSpacing: 0.3,
+    textAlign: "center",
+    lineHeight: 22
+  },
+  buttonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+    textAlign: "center",
+    lineHeight: 22
+  },
+  buttonDisabled: { opacity: 0.5 }
 });

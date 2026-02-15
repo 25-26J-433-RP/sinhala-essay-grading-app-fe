@@ -2,6 +2,7 @@ import AppHeader from "@/components/AppHeader";
 import { db } from "@/config/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/components/Toast";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
@@ -30,6 +31,7 @@ export default function AddStudentScreen() {
 
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { showToast } = useToast();
   const gradeOptions = [
     "Grade 3",
     "Grade 4",
@@ -50,47 +52,41 @@ export default function AddStudentScreen() {
 
     // Validate all fields
     if (!trimmedId) {
-      Alert.alert(t("addStudent.validation"), t("addStudent.enterIdRequired"));
+      showToast(t("addStudent.enterIdRequired"), { type: "error" });
       return;
     }
     if (!STUDENT_ID_PATTERN.test(trimmedId)) {
-      Alert.alert(t("addStudent.validation"), t("addStudent.invalidStudentId"));
+      showToast(t("addStudent.invalidStudentId"), { type: "error" });
       return;
     }
     if (ageHasNonNumeric) {
-      Alert.alert(t("addStudent.validation"), t("addStudent.invalidAgeChars"));
+      showToast(t("addStudent.invalidAgeChars"), { type: "error" });
       return;
     }
     if (!trimmedAge) {
-      Alert.alert(t("addStudent.validation"), t("addStudent.enterAgeRequired"));
+      showToast(t("addStudent.enterAgeRequired"), { type: "error" });
       return;
     }
     if (!Number.isInteger(ageNumber) || ageNumber < MIN_STUDENT_AGE || ageNumber > MAX_STUDENT_AGE) {
-      Alert.alert(t("addStudent.validation"), t("addStudent.invalidAge"));
+      showToast(t("addStudent.invalidAge"), { type: "error" });
       return;
     }
     if (!studentGrade || !gradeOptions.includes(studentGrade)) {
-      Alert.alert(
-        t("addStudent.validation"),
-        t("addStudent.selectGradeRequired")
-      );
+      showToast(t("addStudent.selectGradeRequired"), { type: "error" });
       return;
     }
     if (!studentGender || !genderOptions.includes(studentGender)) {
-      Alert.alert(
-        t("addStudent.validation"),
-        t("addStudent.selectGenderRequired")
-      );
+      showToast(t("addStudent.selectGenderRequired"), { type: "error" });
       return;
     }
 
     if (!user) {
-      Alert.alert(t("common.error"), t("addStudent.mustBeLoggedIn"));
+      showToast(t("addStudent.mustBeLoggedIn"), { type: "error" });
       return;
     }
 
     if (!db) {
-      Alert.alert(t("common.error"), t("addStudent.databaseNotInitialized"));
+      showToast(t("addStudent.databaseNotInitialized"), { type: "error" });
       return;
     }
 
@@ -107,7 +103,7 @@ export default function AddStudentScreen() {
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
-        Alert.alert(t("addStudent.duplicate"), t("addStudent.studentExists"));
+        showToast(t("addStudent.studentExists"), { type: "error" });
         setSaving(false);
         return;
       }
@@ -122,12 +118,8 @@ export default function AddStudentScreen() {
         createdAt: new Date(),
       });
 
-      Alert.alert(t("common.success"), t("addStudent.studentAdded"), [
-        {
-          text: "OK",
-          onPress: () => router.back(),
-        },
-      ]);
+      showToast(t("addStudent.studentAdded"), { type: "success" });
+      router.back();
 
       // Clear form
       setStudentId("");
@@ -136,7 +128,7 @@ export default function AddStudentScreen() {
       setStudentGender("");
     } catch (error) {
       console.error("Error adding student:", error);
-      Alert.alert(t("common.error"), t("addStudent.failedToAdd"));
+      showToast(t("addStudent.failedToAdd"), { type: "error" });
     } finally {
       setSaving(false);
     }
@@ -145,28 +137,16 @@ export default function AddStudentScreen() {
   return (
     <View style={styles.fullBg}>
       <ScrollView contentContainerStyle={styles.container}>
-        <AppHeader />
+        <AppHeader showBackButton title={t("addStudent.title")} />
 
         <View style={styles.content}>
-          {/* Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
-            <Text style={styles.backButtonText}>{t("common.back")}</Text>
-          </TouchableOpacity>
-
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <MaterialIcons name="person-add" size={48} color="#007AFF" />
+              <MaterialIcons name="person-add" size={40} color="#007AFF" />
             </View>
-            <Text style={styles.title}>{t("addStudent.title")}</Text>
             <Text style={styles.subtitle}>{t("addStudent.subtitle")}</Text>
           </View>
 
-          {/* Form */}
           <View style={styles.formCard}>
             <View style={styles.formGroup}>
               <Text style={styles.label}>{t("addStudent.studentId")} *</Text>
@@ -174,7 +154,7 @@ export default function AddStudentScreen() {
                 value={studentId}
                 onChangeText={setStudentId}
                 placeholder={t("addStudent.enterStudentId")}
-                placeholderTextColor="#888"
+                placeholderTextColor="#4B5563"
                 style={styles.input}
                 autoCapitalize="none"
                 editable={!saving}
@@ -194,7 +174,7 @@ export default function AddStudentScreen() {
                   setStudentAge(value.replace(/[^0-9]/g, ""));
                 }}
                 placeholder={t("addStudent.enterStudentAge")}
-                placeholderTextColor="#888"
+                placeholderTextColor="#4B5563"
                 style={styles.input}
                 keyboardType="numeric"
                 editable={!saving}
@@ -288,7 +268,6 @@ export default function AddStudentScreen() {
               )}
             </View>
 
-            {/* Save Button */}
             <TouchableOpacity
               style={[styles.saveButton, saving && styles.saveButtonDisabled]}
               onPress={handleSaveStudent}
@@ -315,174 +294,168 @@ export default function AddStudentScreen() {
 const styles = StyleSheet.create({
   fullBg: {
     flex: 1,
-    backgroundColor: "#181A20",
-    minHeight: "100vh",
+    backgroundColor: "#0F1117",
+    minHeight: "100%",
     width: "100%",
   },
   container: {
     flexGrow: 1,
     padding: 0,
-    paddingHorizontal: 16,
-    minHeight: "100vh",
+    minHeight: "100%",
     maxWidth: 1200,
     marginHorizontal: "auto",
     width: "100%",
     backgroundColor: "transparent",
   },
   content: {
-    padding: 20,
+    padding: 24,
     flex: 1,
+    paddingTop: 0,
     justifyContent: "center",
     alignItems: "center",
     paddingBottom: 100,
   },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 24,
-    alignSelf: "flex-start",
-  },
-  backButtonText: {
-    color: "#007AFF",
-    fontSize: 16,
-    marginLeft: 8,
-  },
   header: {
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 40,
+    width: "100%",
   },
   iconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#23262F",
+    backgroundColor: "#1C1E26",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#2D313E",
   },
-  title: {
-    color: "#fff",
-    fontSize: 32,
-    fontWeight: "bold",
-    marginBottom: 8,
-    textAlign: "center",
-  },
+
   subtitle: {
-    color: "#B0B3C6",
+    color: "#9CA3AF",
     fontSize: 16,
     textAlign: "center",
     maxWidth: 400,
+    fontWeight: "500",
+    lineHeight: 24,
   },
   formCard: {
-    backgroundColor: "#181A20",
-    borderRadius: 20,
+    backgroundColor: "#1C1E26",
+    borderRadius: 32,
     padding: 32,
     width: "100%",
     maxWidth: 500,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
     elevation: 8,
     borderWidth: 1,
-    borderColor: "#333640",
+    borderColor: "#2D313E",
   },
   formGroup: {
     marginBottom: 24,
+    width: "100%",
   },
   label: {
-    color: "#B0B3C6",
-    fontSize: 14,
-    marginBottom: 8,
-    fontWeight: "600",
+    color: "#9CA3AF",
+    fontSize: 12,
+    marginBottom: 10,
+    fontWeight: "800",
+    marginLeft: 4,
+    textTransform: "uppercase",
+    letterSpacing: 1.5,
   },
   input: {
-    backgroundColor: "#23262F",
-    color: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#333640",
+    backgroundColor: "#0F1117",
+    color: "#FFFFFF",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#2D313E",
     fontSize: 16,
-    transition: "border-color 0.2s ease",
+    fontWeight: "600",
   },
   inputErrorText: {
-    color: "#FCA5A5",
-    marginTop: 6,
+    color: "#EF4444",
+    marginTop: 8,
     fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
   },
   dropdownButton: {
-    backgroundColor: "#23262F",
+    backgroundColor: "#0F1117",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#333640",
-    transition: "border-color 0.2s ease",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#2D313E",
   },
   dropdownButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     flex: 1,
     fontSize: 16,
+    fontWeight: "600",
   },
   placeholderText: {
-    color: "#888",
+    color: "#4B5563",
   },
   dropdownList: {
-    backgroundColor: "#23262F",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#333640",
+    backgroundColor: "#0F1117",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#007AFF",
     marginTop: 8,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
   },
   dropdownItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#333640",
-    transition: "background-color 0.2s ease",
+    borderBottomColor: "#1C1E26",
   },
   dropdownItemText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
+    fontWeight: "600",
   },
   saveButton: {
     backgroundColor: "#007AFF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 20,
+    borderRadius: 16,
+    gap: 12,
     marginTop: 16,
     shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    transition: "all 0.2s ease",
+    shadowRadius: 16,
+    elevation: 6,
   },
   saveButtonDisabled: {
     opacity: 0.5,
   },
   saveButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
 });

@@ -9,9 +9,11 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Clipboard from "expo-clipboard";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
   Platform,
   ScrollView,
@@ -409,7 +411,7 @@ export default function ImageDetailScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <AppHeader hideRightSection />
+      <AppHeader showBackButton title={t("screenTitles.imageDetail")} />
 
       <View style={styles.content}>
         {/* Image */}
@@ -583,14 +585,6 @@ export default function ImageDetailScreen() {
               try {
                 const trimmedEssay = inputText.trim();
                 const trimmedTopic = essayTopic.trim();
-                // const result = await scoreSinhala({
-                //   text: trimmedEssay, // âœ… Changed from essay_text to text
-                //   grade: Number(imageData.studentGrade) || 6,
-                //   topic: trimmedTopic || undefined,
-                //   dyslexic_flag: false, // âœ… Added dyslexic_flag
-
-                //   error_tags: [] // âœ… Added error_tags
-                // });
                 // 🧠 STEP 1: Run dyslexia detection BEFORE scoring
                 setIsDetecting(true);
 
@@ -620,7 +614,7 @@ export default function ImageDetailScreen() {
                 const result = await scoreSinhala({
                   text: trimmedEssay,
                   grade: numericGrade,
-                  topic: trimmedTopic || null,
+                  topic: trimmedTopic || undefined,
                   // ✅ ML-based dyslexia detection result
                   dyslexic_flag: detectedDyslexic,
                   // 🛑 TEMPORARY FIX:
@@ -634,7 +628,7 @@ export default function ImageDetailScreen() {
                 setScoreData(result);
                 showToast(t("essay.scoreCalculated"), { type: "success" });
 
-                // ðŸ”¥ SAVE TO FIRESTORE (with cleaning)
+                // 🔥 SAVE TO FIRESTORE (with cleaning)
                 const firestoreScorePayload = cleanFirestore({
                   score: result.score,
 
@@ -653,7 +647,7 @@ export default function ImageDetailScreen() {
                     total_14: result.rubric.total_14
                   },
 
-                  // ðŸ” Firestore-safe (can be null)
+                  // 🔥 Firestore-safe (can be null)
                   fairness_report: result.fairness_report ?? null,
 
                   essay_text: trimmedEssay,
@@ -672,14 +666,14 @@ export default function ImageDetailScreen() {
                 // ✅ REFRESH DATA FROM FIRESTORE - This ensures everything is in sync
                 await refreshImageData();
 
-                // âœ… GENERATE MINDMAP
+                // ✅ GENERATE MINDMAP
                 try {
                   console.log(
-                    "ðŸ§  Generating mindmap for essay:",
+                    "🧠 Generating mindmap for essay:",
                     imageData.id
                   );
                   await generateMindmap(imageData.id, inputText);
-                  console.log("âœ… Mindmap generation triggered");
+                  console.log("✅ Mindmap generation triggered");
 
                   // Fetch the generated mindmap
                   setMindmapLoading(true);
@@ -689,7 +683,7 @@ export default function ImageDetailScreen() {
                   setMindmapLoading(false);
                   showToast(t("essay.mindmapGenerated"), { type: "success" });
                 } catch (mindmapErr: any) {
-                  console.error("âŒ Mindmap generation failed:", mindmapErr);
+                  console.error("❌ Mindmap generation failed:", mindmapErr);
                   setMindmapError(
                     mindmapErr?.message || t("mindmap.generationFailed")
                   );
@@ -697,10 +691,10 @@ export default function ImageDetailScreen() {
                   // Don't block the main flow - mindmap is optional
                 }
 
-                // âœ… FETCH TEXT FEEDBACK
+                // ✅ FETCH TEXT FEEDBACK
                 try {
                   console.log(
-                    "ðŸ“¤ Fetching text feedback for essay:",
+                    "📝 Fetching text feedback for essay:",
                     imageData.id
                   );
                   const feedback = await fetchTextFeedback(
@@ -708,13 +702,13 @@ export default function ImageDetailScreen() {
                     inputText
                   );
                   setTextFeedback(feedback);
-                  console.log("âœ… Text feedback received:", feedback);
+                  console.log("✅ Text feedback received:", feedback);
                   showToast("Text feedback generated!", { type: "success" });
                   // Refresh to get the saved feedback from Firestore
                   await refreshImageData();
                 } catch (feedbackErr: any) {
                   console.error(
-                    "âŒ Text feedback generation failed:",
+                    "❌ Text feedback generation failed:",
                     feedbackErr
                   );
                   setTextFeedbackError(
@@ -724,16 +718,16 @@ export default function ImageDetailScreen() {
                 }
               } catch (err: any) {
                 console.log(
-                  "ðŸ”¥ FIREBASE ERROR (full):",
+                  "🔥 FIREBASE ERROR (full):",
                   JSON.stringify(err, null, 2)
                 );
-                console.log("ðŸ”¥ FIREBASE ERROR MESSAGE:", err?.message);
-                console.log("ðŸ”¥ FIREBASE ERROR CODE:", err?.code);
+                console.log("🔥 FIREBASE ERROR MESSAGE:", err?.message);
+                console.log("🔥 FIREBASE ERROR CODE:", err?.code);
 
                 if (
                   err?.message?.includes("Missing or insufficient permissions")
                 ) {
-                  showToast("âŒ Firestore rules blocked the write", {
+                  showToast("❌ Firestore rules blocked the write", {
                     type: "error"
                   });
                 }
@@ -744,13 +738,23 @@ export default function ImageDetailScreen() {
               }
             }}
           >
-            {isScoring ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.scoreButtonText}>
-                {t("essay.scoreEssay")}
-              </Text>
-            )}
+            <LinearGradient
+              colors={["#007AFF", "#2563EB"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.scoreButtonGradient}
+            >
+              {isScoring ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <MaterialIcons name="analytics" size={20} color="#fff" />
+                  <Text style={styles.scoreButtonText}>
+                    {t("essay.scoreEssay")}
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
@@ -789,7 +793,7 @@ export default function ImageDetailScreen() {
               </Text>
 
               <View style={styles.rubricRow}>
-                <Text style={styles.rubricLabel}>Richness (5)</Text>
+                <Text style={styles.rubricLabel}>{t("essay.richness")} (5)</Text>
                 <Text style={styles.rubricValue}>
                   {scoreData.rubric?.richness_5 ?? "â€”"}
                 </Text>
@@ -797,7 +801,7 @@ export default function ImageDetailScreen() {
 
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>
-                  Organization / Creativity (6)
+                  {t("essay.organization")} (6)
                 </Text>
                 <Text style={styles.rubricValue}>
                   {scoreData.rubric?.organization_6 ?? "â€”"}
@@ -805,7 +809,7 @@ export default function ImageDetailScreen() {
               </View>
 
               <View style={styles.rubricRow}>
-                <Text style={styles.rubricLabel}>Technical Skills (3)</Text>
+                <Text style={styles.rubricLabel}>{t("essay.technicalSkills")} (3)</Text>
                 <Text style={styles.rubricValue}>
                   {scoreData.rubric?.technical_3 ?? "â€”"}
                 </Text>
@@ -813,7 +817,7 @@ export default function ImageDetailScreen() {
 
               <View style={styles.rubricTotalRow}>
                 <Text style={[styles.rubricLabel, { fontSize: 16 }]}>
-                  Total (14)
+                  {t("essay.total")} (14)
                 </Text>
                 <Text style={styles.rubricTotalValue}>
                   {scoreData.rubric?.total_14 ?? "â€”"}
@@ -886,9 +890,9 @@ export default function ImageDetailScreen() {
 
               {textFeedbackLoading && (
                 <View style={styles.feedbackStatusBox}>
-                  <ActivityIndicator color="#3B82F6" />
+                  <ActivityIndicator color="#007AFF" />
                   <Text style={styles.feedbackStatusText}>
-                    Generating feedback...
+                    {t("essay.generatingFeedback")}
                   </Text>
                 </View>
               )}
@@ -917,7 +921,7 @@ export default function ImageDetailScreen() {
                       style={styles.feedbackIcon}
                     />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.feedbackLabel}>General Feedback</Text>
+                      <Text style={styles.feedbackLabel}>{t("essay.generalFeedback")}</Text>
                       <Text style={styles.feedbackText}>
                         {textFeedback.feedback}
                       </Text>
@@ -929,7 +933,7 @@ export default function ImageDetailScreen() {
                     textFeedback.suggestions.length > 0 && (
                       <View style={styles.suggestionsBox}>
                         <Text style={styles.suggestionsTitle}>
-                          Suggestions for Improvement:
+                          {t("essay.suggestionsForImprovement")}
                         </Text>
                         {textFeedback.suggestions.map((suggestion, idx) => (
                           <View key={idx} style={styles.suggestionItem}>
@@ -945,24 +949,24 @@ export default function ImageDetailScreen() {
                   {textFeedback.metrics && (
                     <View style={styles.metricsBox}>
                       <Text style={styles.metricsTitle}>
-                        Text Metrics Analysis
+                        {t("essay.textMetricsAnalysis")}
                       </Text>
                       <View style={styles.metricsGrid}>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>Words</Text>
+                          <Text style={styles.metricLabel}>{t("essay.words")}</Text>
                           <Text style={styles.metricValue}>
                             {Math.round(textFeedback.metrics.word_count)}
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>Sentences</Text>
+                          <Text style={styles.metricLabel}>{t("essay.sentences")}</Text>
                           <Text style={styles.metricValue}>
                             {Math.round(textFeedback.metrics.sentence_count)}
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
                           <Text style={styles.metricLabel}>
-                            Avg Words/Sentence
+                            {t("essay.avgWordsSentence")}
                           </Text>
                           <Text style={styles.metricValue}>
                             {textFeedback.metrics.avg_sentence_length.toFixed(
@@ -971,14 +975,14 @@ export default function ImageDetailScreen() {
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>Characters</Text>
+                          <Text style={styles.metricLabel}>{t("essay.characters")}</Text>
                           <Text style={styles.metricValue}>
                             {Math.round(textFeedback.metrics.char_length)}
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
                           <Text style={styles.metricLabel}>
-                            Repetition Ratio
+                            {t("essay.repetitionRatio")}
                           </Text>
                           <Text style={styles.metricValue}>
                             {(
@@ -989,7 +993,7 @@ export default function ImageDetailScreen() {
                         </View>
                         <View style={styles.metricItem}>
                           <Text style={styles.metricLabel}>
-                            Duplicate Words
+                            {t("essay.duplicateWords")}
                           </Text>
                           <Text style={styles.metricValue}>
                             {Math.round(
@@ -1003,7 +1007,7 @@ export default function ImageDetailScreen() {
                 </View>
               ) : (
                 <Text style={styles.feedbackPlaceholder}>
-                  Click refresh to generate AI-powered feedback
+                  {t("essay.clickRefreshFeedback")}
                 </Text>
               )}
             </View>
@@ -1013,10 +1017,12 @@ export default function ImageDetailScreen() {
           {textFeedback && (
             <View style={styles.audioFeedbackCard}>
               <View style={styles.audioFeedbackHeader}>
-                <MaterialIcons name="volume-up" size={20} color="#10B981" />
-                <Text style={styles.audioFeedbackTitle}>
-                  Sinhala Audio Feedback
-                </Text>
+                <View style={styles.audioFeedbackTitleContainer}>
+                  <MaterialIcons name="volume-up" size={22} color="#10B981" style={styles.audioHeaderIcon} />
+                  <Text style={styles.audioFeedbackTitle}>
+                    {t("essay.sinhalaAudioFeedback")}
+                  </Text>
+                </View>
                 <TouchableOpacity
                   style={[
                     styles.generateAudioButton,
@@ -1025,14 +1031,23 @@ export default function ImageDetailScreen() {
                   onPress={handleGenerateAudioFeedback}
                   disabled={audioFeedbackLoading}
                 >
-                  {audioFeedbackLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <>
-                      <MaterialIcons name="music-note" size={16} color="#fff" />
-                      <Text style={styles.generateAudioButtonText}>Generate</Text>
-                    </>
-                  )}
+                  <LinearGradient
+                    colors={["#10B981", "#059669"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.generateAudioGradient}
+                  >
+                    {audioFeedbackLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <MaterialIcons name="music-note" size={16} color="#fff" />
+                        <Text style={styles.generateAudioButtonText}>
+                          {t("essay.generateAudio")}
+                        </Text>
+                      </>
+                    )}
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
 
@@ -1040,7 +1055,7 @@ export default function ImageDetailScreen() {
                 <View style={styles.audioLoadingBox}>
                   <ActivityIndicator color="#10B981" />
                   <Text style={styles.audioLoadingText}>
-                    Generating audio feedback...
+                    {t("essay.audioGenerating")}
                   </Text>
                 </View>
               )}
@@ -1122,7 +1137,9 @@ export default function ImageDetailScreen() {
                     </TouchableOpacity>
                     <View style={styles.audioInfoBox}>
                       <Text style={styles.audioPlayingText}>
-                        {isAudioPlaying ? "Playing now" : "Ready to play"}
+                        {isAudioPlaying
+                          ? t("essay.audioPlayingNow")
+                          : t("essay.audioReadyToPlay")}
                       </Text>
                       <View style={styles.audioMetaRow}>
                         <View
@@ -1137,13 +1154,15 @@ export default function ImageDetailScreen() {
                               isAudioPlaying && styles.audioStatusTextActive,
                             ]}
                           >
-                            {isAudioPlaying ? "LIVE" : "READY"}
+                            {isAudioPlaying ? t("essay.audioLive") : t("essay.audioReady")}
                           </Text>
                         </View>
                         {audioFeedback.duration && (
                           <View style={styles.audioDurationBadge}>
                             <Text style={styles.audioDurationText}>
-                              Duration {audioFeedback.duration}s
+                              {t("essay.audioDuration", {
+                                duration: audioFeedback.duration
+                              })}
                             </Text>
                           </View>
                         )}
@@ -1156,7 +1175,7 @@ export default function ImageDetailScreen() {
                 !audioFeedbackLoading &&
                 !audioFeedbackError && (
                   <Text style={styles.audioPlaceholder}>
-                    Click the button to generate Sinhala audio from feedback
+                    {t("essay.clickToGenerateAudio")}
                   </Text>
                 )}
             </View>
@@ -1210,33 +1229,35 @@ export default function ImageDetailScreen() {
           )}
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.actionButton}>
-            <MaterialIcons name="download" size={24} color="#fff" />
-            <Text style={styles.actionButtonText}>{t("essay.download")}</Text>
+        {/* Proper Nice Button Arrangement */}
+        <View style={styles.actionContainer}>
+          <TouchableOpacity style={styles.primaryActionButton}>
+            <MaterialIcons name="download" size={24} color="#0F1117" />
+            <Text style={styles.actionButtonTextPrimary}>{t("essay.download")}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.actionButton, styles.shareButton]}>
-            <MaterialIcons name="share" size={24} color="#fff" />
-            <Text style={styles.actionButtonText}>{t("essay.share")}</Text>
-          </TouchableOpacity>
+          <View style={styles.actionGrid}>
+            <TouchableOpacity style={styles.secondaryActionButton}>
+              <MaterialIcons name="share" size={20} color="#fff" />
+              <Text style={styles.actionButtonText}>{t("essay.share")}</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={handleDeleteImage}
-          >
-            {isDeleting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <MaterialIcons name="delete" size={24} color="#fff" />
-                <Text style={styles.actionButtonText}>
-                  {t("common.delete")}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.secondaryActionButton, styles.deleteActionButton]}
+              onPress={handleDeleteImage}
+            >
+              {isDeleting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <MaterialIcons name="delete-outline" size={20} color="#fff" />
+                  <Text style={styles.actionButtonText}>
+                    {t("common.delete")}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </ScrollView>
@@ -1244,168 +1265,237 @@ export default function ImageDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#181A20" },
+  container: { flex: 1, backgroundColor: "#0F1117" },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 16
+    padding: 24
   },
-  content: { padding: 12 },
+  content: { padding: 16 },
 
   imageContainer: {
-    backgroundColor: "#23262F",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20
+    backgroundColor: "#1C1E26",
+    padding: 12,
+    borderRadius: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#2D313E",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5
   },
 
-  image: { width: "100%", height: 300, borderRadius: 8 },
+  image: { width: "100%", height: 320, borderRadius: 16 },
   imageFallback: {
     width: "100%",
-    height: 300,
-    borderRadius: 8,
-    backgroundColor: "#1f2128",
+    height: 320,
+    borderRadius: 16,
+    backgroundColor: "#16181F",
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: "#2D313E",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8
+    gap: 12
   },
   imageFallbackText: {
-    color: "#9CA3AF",
-    fontSize: 13
+    color: "#6B7280",
+    fontSize: 14,
+    fontWeight: "500"
   },
 
   cardTitle: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 12
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 16,
+    letterSpacing: 0.5
   },
 
   inputCard: {
-    backgroundColor: "#23262F",
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20
+    backgroundColor: "#1C1E26",
+    padding: 24,
+    borderRadius: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#2D313E"
   },
 
   textInput: {
-    backgroundColor: "#1f2128",
-    color: "#fff",
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 12,
-    borderColor: "#333",
+    backgroundColor: "#0F1117",
+    color: "#FFFFFF",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderColor: "#2D313E",
     borderWidth: 1,
-    fontSize: 16
+    fontSize: 16,
+    lineHeight: 24 // Better for Sinhala
   },
 
   detailLabel: {
     color: "#9CA3AF",
-    marginBottom: 6,
-    fontSize: 13
+    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: "600",
+    letterSpacing: 0.3
   },
 
   scoreButton: {
-    backgroundColor: "#2563eb",
-    padding: 16,
-    borderRadius: 10,
+    padding: 0, // Handled by gradient
+    borderRadius: 12,
+    marginTop: 12,
+    overflow: "hidden"
+  },
+
+  scoreButtonGradient: {
+    padding: 18,
     alignItems: "center",
-    marginTop: 10
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10
   },
 
   scoreButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 17,
+    letterSpacing: 0.5
   },
 
   detailsCard: {
-    backgroundColor: "#23262F",
-    padding: 28,
-    borderRadius: 16,
+    backgroundColor: "#1C1E26",
+    padding: 24,
+    borderRadius: 24,
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#2D313E",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8
   },
 
   scoreBox: {
-    backgroundColor: "#111827",
+    backgroundColor: "#0F1117",
     padding: 24,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#2563eb",
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: "#007AFF",
     marginBottom: 24,
-    shadowColor: "#2563eb",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 10,
+    alignItems: "center"
   },
 
   scoreMain: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: "900",
-    color: "#3B82F6",
-    marginBottom: 12
+    color: "#007AFF",
+    marginBottom: 8,
+    textAlign: "center"
   },
 
   scoreDetail: {
-    color: "#E5E7EB",
-    marginBottom: 6,
-    fontSize: 16
+    color: "#9CA3AF",
+    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: "500"
   },
 
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20
+    marginBottom: 20,
+    backgroundColor: "#22252F",
+    padding: 16,
+    borderRadius: 12
   },
 
   detailContent: { marginLeft: 12, flex: 1 },
 
-  detailValue: { color: "#fff", fontSize: 16 },
+  detailValue: { color: "#fff", fontSize: 16, fontWeight: "600" },
 
-  actionButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 30
+  actionContainer: {
+    gap: 12,
+    marginBottom: 60,
+    marginTop: 20
   },
 
-  actionButton: {
-    flex: 1,
-    backgroundColor: "#2563eb",
-    padding: 16,
-    borderRadius: 10,
+  actionGrid: {
+    flexDirection: "row",
+    gap: 12
+  },
+
+  flexRowItem: {
+    flex: 1
+  },
+
+  primaryActionButton: {
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 18,
+    borderRadius: 20,
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "center",
-    gap: 8
+    gap: 12,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+    minHeight: 64
   },
 
-  shareButton: {
-    backgroundColor: "#10B981"
+  secondaryActionButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 16,
+    borderRadius: 20,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    flex: 1,
+    minHeight: 58,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4
   },
 
-  deleteButton: {
-    backgroundColor: "#EF4444"
+  deleteActionButton: {
+    backgroundColor: "#EF4444",
+    shadowColor: "#EF4444",
+    shadowOpacity: 0.2
   },
 
   actionButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: "600"
+    fontWeight: "700",
+    textAlign: "center",
+    letterSpacing: 0.3
+  },
+
+  actionButtonTextPrimary: {
+    color: "#0F1117",
+    fontSize: 16,
+    fontWeight: "700",
+    textAlign: "center",
+    letterSpacing: 0.3
   },
   loadingText: {
     color: "#9CA3AF",
-    marginTop: 12,
-    fontSize: 16
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: "500"
   },
 
   errorTitle: {
@@ -1476,74 +1566,82 @@ const styles = StyleSheet.create({
     marginBottom: 4
   },
   rubricCard: {
-    backgroundColor: "#1f2128",
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: "#16181F",
+    padding: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#374151",
-    marginBottom: 20
+    borderColor: "#2D313E",
+    marginBottom: 24
   },
 
   rubricTitle: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 14
+    fontWeight: "800",
+    marginBottom: 16,
+    letterSpacing: 0.5
   },
 
   rubricRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 10
+    alignItems: "center", // Fix alignment for Sinhala
+    marginBottom: 12,
+    paddingVertical: 2
   },
 
   rubricLabel: {
     color: "#9CA3AF",
-    fontSize: 14
+    fontSize: 15,
+    fontWeight: "500",
+    flex: 1,
+    marginRight: 8
   },
 
   rubricValue: {
-    color: "#3B82F6",
-    fontSize: 16,
-    fontWeight: "bold"
+    color: "#007AFF",
+    fontSize: 17,
+    fontWeight: "800"
   },
 
   rubricTotalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 10,
-    paddingTop: 10,
+    alignItems: "center",
+    marginTop: 12,
+    paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: "#374151"
+    borderTopColor: "#2D313E"
   },
 
   rubricTotalValue: {
     color: "#10B981",
-    fontSize: 20,
-    fontWeight: "bold"
+    fontSize: 22,
+    fontWeight: "900"
   },
 
   fairnessCard: {
-    backgroundColor: "#1f2128",
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: "#16181F",
+    padding: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#6D28D9",
-    marginBottom: 20
+    marginBottom: 24
   },
 
   fairnessNote: {
-    color: "#D1D5DB",
-    fontSize: 13
+    color: "#9CA3AF",
+    fontSize: 14,
+    lineHeight: 20
   },
 
   feedbackCard: {
-    backgroundColor: "#1f2128",
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: "#16181F",
+    padding: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#10B981",
-    marginBottom: 20
+    marginBottom: 24
   },
 
   feedbackItem: {
@@ -1568,12 +1666,12 @@ const styles = StyleSheet.create({
   feedbackHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 12
   },
 
   feedbackRefreshButton: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#007AFF",
     padding: 8,
     borderRadius: 8,
     justifyContent: "center",
@@ -1591,7 +1689,7 @@ const styles = StyleSheet.create({
   },
 
   feedbackStatusText: {
-    color: "#3B82F6",
+    color: "#007AFF",
     fontSize: 13
   },
 
@@ -1679,7 +1777,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: "#3B82F6",
+    borderLeftColor: "#007AFF",
     marginBottom: 12,
     alignItems: "center"
   },
@@ -1691,7 +1789,7 @@ const styles = StyleSheet.create({
   },
 
   apiScoreValue: {
-    color: "#3B82F6",
+    color: "#007AFF",
     fontSize: 24,
     fontWeight: "bold"
   },
@@ -1752,35 +1850,56 @@ const styles = StyleSheet.create({
   },
 
   audioFeedbackHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: "column",
     alignItems: "center",
-    marginBottom: 12
+    marginBottom: 16,
+    gap: 12
+  },
+
+  audioFeedbackTitleContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    width: "100%"
+  },
+
+  audioHeaderIcon: {
+    marginTop: 2,
+    marginRight: 10
   },
 
   audioFeedbackTitle: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "800",
     flex: 1,
-    marginLeft: 8
+    lineHeight: 28
   },
 
   generateAudioButton: {
-    backgroundColor: "#10B981",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    minWidth: 160
+  },
+
+  generateAudioGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     flexDirection: "row",
-    gap: 6,
+    gap: 10,
     justifyContent: "center",
     alignItems: "center"
   },
+
   generateAudioButtonText: {
     color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 0.2,
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.4
   },
 
   audioLoadingBox: {
