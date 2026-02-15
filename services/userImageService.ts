@@ -31,7 +31,7 @@ function cleanFirestore(obj: any) {
 
 export interface UserImageUpload {
   id: string;
-   // 🔥 ADD THIS
+  // 🔥 ADD THIS
   image_id: string; // FROM OCR BACKEND
 
   userId: string;
@@ -94,162 +94,161 @@ export class UserImageService {
  * 🔗 Link OCR result to a user image
  * (called after OCR microservice finishes)
  */
-// static async updateUserImage(
-//   imageId: string,
-//   data: {
-//     image_id?: string;
-//     image_url?: string;
-//     raw_text?: string;
-//     cleaned_text?: string;
-//     source?: string;
-//   }
-// ): Promise<void> {
-//   if (!db) {
-//     throw new Error("Firestore not initialized");
-//   }
+  // static async updateUserImage(
+  //   imageId: string,
+  //   data: {
+  //     image_id?: string;
+  //     image_url?: string;
+  //     raw_text?: string;
+  //     cleaned_text?: string;
+  //     source?: string;
+  //   }
+  // ): Promise<void> {
+  //   if (!db) {
+  //     throw new Error("Firestore not initialized");
+  //   }
 
-//   const docRef = doc(db, this.COLLECTION, imageId);
+  //   const docRef = doc(db, this.COLLECTION, imageId);
 
-//   await updateDoc(docRef, cleanFirestore({
-//     ...data,
-//     ocr_updated_at: serverTimestamp(),
-//   }));
+  //   await updateDoc(docRef, cleanFirestore({
+  //     ...data,
+  //     ocr_updated_at: serverTimestamp(),
+  //   }));
 
-//   dlog("🔗 OCR linked to userImage:", { imageId, data });
-// }
+  //   dlog("🔗 OCR linked to userImage:", { imageId, data });
+  // }
 
   /**
    * Upload an image for a specific user
    */
- static async uploadUserImage(
-  data: CreateImageUploadData
-): Promise<string> {
-  if (!db || !storage) {
-    throw new Error('Firebase not initialized. Check your Firebase configuration.');
-  }
-
-  const timestamp = Date.now();
-  const fileName = `${data.userId}_${timestamp}_${data.fileName}`;
-  const storagePath = `${this.STORAGE_PATH}/${fileName}`;
-  const storageRef = ref(storage, storagePath);
-
-  // Upload file to Storage
-  await uploadBytes(storageRef, data.fileBlob);
-  const imageUrl = await getDownloadURL(storageRef);
-
-  const uploadData = {
-  userId: data.userId,
-  studentId: data.studentId,
-  studentAge: data.studentAge,
-  studentGrade: data.studentGrade,
-  studentGender: data.studentGender,
-
-  // 🔑 CRITICAL JOIN KEY
-  image_id: data.image_id,
-
-  imageUrl,
-  fileName: data.fileName,
-  storagePath,
-  uploadedAt: serverTimestamp(),
-  fileSize: data.fileBlob.size,
-  mimeType: data.fileBlob.type,
-  description: "",
-
-  // 🔥 LET BACKEND FILL THIS
-  essay_text: "",
-};
-
-
-  const docRef = await addDoc(collection(db, this.COLLECTION), uploadData);
-
-  dlog('✅ Image uploaded to Firestore:', {
-    docId: docRef.id,
-    userId: data.userId,
-    fileName: data.fileName,
-  });
-
-  // 🟢 ADD THIS BLOCK ⬇️⬇️⬇️
-// if (uploadData.image_id) {
-// await fetch(
-//   `${OCR_API_BASE_URL}/sync?image_id=${uploadData.image_id}`,
-//   { method: "POST" }
-// );
-
-// dlog("🔁 OCR sync triggered for image_id:", uploadData.image_id);
-
-// }
-
-// 🔚 THEN return
-return docRef.id;
-}
-
-
-
-/**
- * Get a single image document by ID (source of truth for refresh)
- */
-static async getUserImage(imageId: string): Promise<UserImageUpload> {
-  if (!db) {
-    throw new Error("Firestore not initialized");
-  }
-
-  const docRef = doc(db, this.COLLECTION, imageId);
-  const snap = await getDoc(docRef);
-
-  if (!snap.exists()) {
-    throw new Error(`Image ${imageId} not found`);
-  }
-
-  const data = snap.data();
-
-  // 🔥 Always regenerate fresh image URL
-  let imageUrl = data.imageUrl;
-  if (data.storagePath && storage) {
-    try {
-      const storageRef = ref(storage, data.storagePath);
-      imageUrl = await getDownloadURL(storageRef);
-    } catch (e) {
-      console.warn("Failed to refresh image URL, using stored one");
+  static async uploadUserImage(
+    data: CreateImageUploadData
+  ): Promise<string> {
+    if (!db || !storage) {
+      throw new Error('Firebase not initialized. Check your Firebase configuration.');
     }
+
+    const timestamp = Date.now();
+    const fileName = `${data.userId}_${timestamp}_${data.fileName}`;
+    const storagePath = `${this.STORAGE_PATH}/${fileName}`;
+    const storageRef = ref(storage, storagePath);
+
+    // Upload file to Storage
+    await uploadBytes(storageRef, data.fileBlob);
+    const imageUrl = await getDownloadURL(storageRef);
+
+    const uploadData = {
+      userId: data.userId,
+      studentId: data.studentId,
+      studentAge: data.studentAge,
+      studentGrade: data.studentGrade,
+      studentGender: data.studentGender,
+
+      // 🔑 CRITICAL JOIN KEY
+      image_id: data.image_id,
+
+      imageUrl,
+      fileName: data.fileName,
+      storagePath,
+      uploadedAt: serverTimestamp(),
+      fileSize: data.fileBlob.size,
+      mimeType: data.fileBlob.type,
+      description: "",
+
+      // 🔥 LET BACKEND FILL THIS
+      essay_text: "",
+    };
+
+
+    const docRef = await addDoc(collection(db, this.COLLECTION), uploadData);
+
+    dlog('✅ Image uploaded to Firestore:', {
+      docId: docRef.id,
+      userId: data.userId,
+      fileName: data.fileName,
+    });
+
+    // 🟢 ADD THIS BLOCK ⬇️⬇️⬇️
+    // if (uploadData.image_id) {
+    // await fetch(
+    //   `${OCR_API_BASE_URL}/sync?image_id=${uploadData.image_id}`,
+    //   { method: "POST" }
+    // );
+
+    // dlog("🔁 OCR sync triggered for image_id:", uploadData.image_id);
+
+    // }
+
+    // 🔚 THEN return
+    return docRef.id;
   }
 
-  return {
-  id: snap.id,
-  userId: data.userId,
-  studentId: data.studentId,
-  studentAge: data.studentAge,
-  studentGrade: data.studentGrade,
-  studentGender: data.studentGender,
 
-  imageUrl,
-  fileName: data.fileName,
-  storagePath: data.storagePath,
-  uploadedAt: data.uploadedAt?.toDate?.() || new Date(),
 
-  description: data.description,
+  /**
+   * Get a single image document by ID (source of truth for refresh)
+   */
+  static async getUserImage(imageId: string): Promise<UserImageUpload> {
+    if (!db) {
+      throw new Error("Firestore not initialized");
+    }
 
-  // 🔥 OCR
-  cleaned_text: data.cleaned_text,
-  raw_text: data.raw_text,
-  source: data.source,
+    const docRef = doc(db, this.COLLECTION, imageId);
+    const snap = await getDoc(docRef);
 
-  // Essay
-  essay_text: data.essay_text,
-  essay_topic: data.essay_topic,
+    if (!snap.exists()) {
+      throw new Error(`Image ${imageId} not found`);
+    }
 
-  // Scoring
-  score: data.score,
-  details: data.details,
-  rubric: data.rubric,
-  fairness_report: data.fairness_report,
+    const data = snap.data();
 
-  // Feedback
-  text_feedback: data.text_feedback,
-  audio_feedback: data.audio_feedback,
-};
+    // 🔥 Always regenerate fresh image URL
+    let imageUrl = data.imageUrl;
+    if (data.storagePath && storage) {
+      try {
+        const storageRef = ref(storage, data.storagePath);
+        imageUrl = await getDownloadURL(storageRef);
+      } catch (e) {
+        console.warn("Failed to refresh image URL, using stored one");
+      }
+    }
 
-}
+    return {
+      id: snap.id,
+      userId: data.userId,
+      studentId: data.studentId,
+      studentAge: data.studentAge,
+      studentGrade: data.studentGrade,
+      studentGender: data.studentGender,
 
+      image_id: data.image_id,
+      imageUrl,
+      fileName: data.fileName,
+      storagePath: data.storagePath,
+      uploadedAt: data.uploadedAt?.toDate?.() || new Date(),
+
+      description: data.description,
+
+      // 🔥 OCR
+      cleaned_text: data.cleaned_text,
+      raw_text: data.raw_text,
+      source: data.source,
+
+      // Essay
+      essay_text: data.essay_text,
+      essay_topic: data.essay_topic,
+
+      // Scoring
+      score: data.score,
+      details: data.details,
+      rubric: data.rubric,
+      fairness_report: data.fairness_report,
+
+      // Feedback
+      text_feedback: data.text_feedback,
+      audio_feedback: data.audio_feedback,
+    };
+  }
 
 
   /**
@@ -297,7 +296,7 @@ static async getUserImage(imageId: string): Promise<UserImageUpload> {
         querySnapshot.docs.map(async (doc) => {
           const data = doc.data();
           const storagePath = (data as any).storagePath;
-          
+
           // Regenerate download URL on-the-fly to ensure token is always fresh
           let imageUrl = (data as any).imageUrl;
           if (storagePath && storage) {
@@ -310,7 +309,7 @@ static async getUserImage(imageId: string): Promise<UserImageUpload> {
               // Fall back to stored URL if regeneration fails
             }
           }
-          
+
           return {
             id: doc.id,
             ...(data as any),
@@ -498,7 +497,7 @@ static async getUserImage(imageId: string): Promise<UserImageUpload> {
     }
 
     const docRef = doc(db, this.COLLECTION, imageId);
-    
+
     try {
       // Try to update existing document
       await updateDoc(docRef, {
@@ -556,33 +555,155 @@ static async getUserImage(imageId: string): Promise<UserImageUpload> {
     }
   }
 
-/**
- * Update score results in Firestore
- */
-static async updateImageScore(id: string, scoreData: any): Promise<void> {
-  if (!db) throw new Error("Firestore not initialized");
+  /**
+   * Update score results in Firestore
+   */
+  static async updateImageScore(id: string, scoreData: any): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized");
 
-  const docRef = doc(db, this.COLLECTION, id);
+    const docRef = doc(db, this.COLLECTION, id);
 
-  // 🔥 Save ALL fields from scoreData (including essay_text + essay_topic)
-  const cleanedData = cleanFirestore({
-    ...scoreData,                 // <-- spread EVERYTHING coming in
-    updatedAt: new Date().toISOString(),
-  });
+    // 🔥 Save ALL fields from scoreData (including essay_text + essay_topic)
+    const cleanedData = cleanFirestore({
+      ...scoreData,                 // <-- spread EVERYTHING coming in
+      updatedAt: new Date().toISOString(),
+    });
 
-  await updateDoc(docRef, cleanedData);
+    await updateDoc(docRef, cleanedData);
 
-  dlog("✅ Score updated:", { id, cleanedData });
-}
+    dlog("✅ Score updated:", { id, cleanedData });
+  }
 
-// static listenToOCR(imageId: string, cb: (data: any) => void) {
-//   const ref = doc(db, "ocr_results", imageId);
-//   return onSnapshot(ref, (snap) => {
-//     if (snap.exists()) cb(snap.data());
-//   });
-// }
+  // static listenToOCR(imageId: string, cb: (data: any) => void) {
+  //   const ref = doc(db, "ocr_results", imageId);
+  //   return onSnapshot(ref, (snap) => {
+  //     if (snap.exists()) cb(snap.data());
+  //   });
+  // }
+  /**
+   * Delete a student and all their associated work
+   */
+  static async deleteStudent(userId: string, studentId: string): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized");
 
+    try {
+      dlog(`🗑️ Deleting student ${studentId} for user ${userId}`);
 
+      // 1. Delete student record from 'students' collection
+      const studentsRef = collection(db, "students");
+      const sq = query(
+        studentsRef,
+        where("userId", "==", userId),
+        where("studentId", "==", studentId)
+      );
+      const studentSnap = await getDocs(sq);
 
+      const deletePromises: Promise<any>[] = [];
+      studentSnap.forEach((doc) => {
+        deletePromises.push(deleteDoc(doc.ref));
+      });
 
+      // 2. Delete all essays/images from 'userImages' collection
+      const imagesRef = collection(db, this.COLLECTION);
+      const iq = query(
+        imagesRef,
+        where("userId", "==", userId),
+        where("studentId", "==", studentId)
+      );
+      const imagesSnap = await getDocs(iq);
+
+      for (const imageDoc of imagesSnap.docs) {
+        const imageData = imageDoc.data();
+        // Use existing deleteUserImage to handle Storage deletion too
+        deletePromises.push(this.deleteUserImage(imageDoc.id, imageData.storagePath));
+      }
+
+      await Promise.all(deletePromises);
+      dlog(`✅ Student ${studentId} and all associated data deleted`);
+    } catch (error) {
+      console.error("❌ Error deleting student:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update student details across all collections
+   */
+  static async updateStudentDetails(
+    userId: string,
+    oldStudentId: string,
+    newDetails: {
+      studentId?: string;
+      studentAge?: number;
+      studentGrade?: string;
+      studentGender?: string;
+    }
+  ): Promise<void> {
+    if (!db) throw new Error("Firestore not initialized");
+
+    try {
+      dlog(`📝 Updating student ${oldStudentId} for user ${userId}`);
+
+      // 1. Update student record in 'students' collection
+      const studentsRef = collection(db, "students");
+      const sq = query(
+        studentsRef,
+        where("userId", "==", userId),
+        where("studentId", "==", oldStudentId)
+      );
+      const studentSnap = await getDocs(sq);
+
+      const updatePromises: Promise<any>[] = [];
+      studentSnap.forEach((studentDoc) => {
+        updatePromises.push(updateDoc(studentDoc.ref, {
+          ...cleanFirestore(newDetails),
+          updatedAt: serverTimestamp()
+        }));
+      });
+
+      // 2. Update student details in all their essay records
+      const imagesRef = collection(db, this.COLLECTION);
+      const iq = query(
+        imagesRef,
+        where("userId", "==", userId),
+        where("studentId", "==", oldStudentId)
+      );
+      const imagesSnap = await getDocs(iq);
+
+      imagesSnap.forEach((imageDoc) => {
+        updatePromises.push(updateDoc(imageDoc.ref, {
+          ...cleanFirestore(newDetails),
+          // Don't update image specific timestamps here
+        }));
+      });
+
+      await Promise.all(updatePromises);
+      dlog(`✅ Student ${oldStudentId} details updated`);
+    } catch (error) {
+      console.error("❌ Error updating student details:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all registered students for a user
+   */
+  static async getStudents(userId: string): Promise<any[]> {
+    if (!db) throw new Error("Firestore not initialized");
+
+    try {
+      const studentsRef = collection(db, "students");
+      const q = query(studentsRef, where("userId", "==", userId));
+      const snap = await getDocs(q);
+
+      return snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: (doc.data() as any).createdAt?.toDate?.() || new Date()
+      }));
+    } catch (error) {
+      console.error("❌ Error fetching students:", error);
+      throw error;
+    }
+  }
 }
