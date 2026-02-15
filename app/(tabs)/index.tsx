@@ -32,7 +32,7 @@ export default function HomeScreen() {
             UserImageService.getUserImages(user.uid)
           ]);
           setStats(uStats);
-          setRecentImages(uImages.slice(0, 5));
+          setRecentImages(uImages.slice(0, 10));
         } catch (error) {
           console.error("Dashboard load error:", error);
         } finally {
