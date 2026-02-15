@@ -1,7 +1,7 @@
 // app/api/aiCorrection.ts
 /**
  * AI Correction Service
- * 
+ *
  * Communicates with the AI Recorrection Workbench backend
  * for dyslexia-related text correction.
  */
@@ -66,7 +66,7 @@ interface BackendAnalyzeResponse {
 export interface HealthResponse {
   status: string;
   ollama_connected?: boolean;
-  ollamaConnected?: boolean;  // Backend can return camelCase
+  ollamaConnected?: boolean; // Backend can return camelCase
   model_loaded?: boolean;
   model_name?: string;
   modelStatus?: string;
@@ -89,8 +89,10 @@ export interface PatternsResponse {
 
 // Direct URL to AI Recorrection Workbench backend
 // For local dev: http://localhost:8000/api/v1
-// For production: set via environment or use API gateway
-const AI_CORRECTION_DIRECT_URL = process.env.EXPO_PUBLIC_AI_CORRECTION_URL || "http://localhost:8000/api/v1";
+// For production: GCP Cloud Run
+const AI_CORRECTION_DIRECT_URL =
+  process.env.EXPO_PUBLIC_AI_CORRECTION_URL ||
+  "https://akura-ai-1008980279040.us-central1.run.app/api/v1";
 const AI_CORRECTION_GATEWAY_PATH = "/ai-recorrection-workbench/api/v1";
 
 const TIMEOUT_MS = 0; // No timeout - CPU inference on Azure VM can take 30-80s
@@ -100,7 +102,7 @@ const aiCorrectionApi = axios.create({
   baseURL: AI_CORRECTION_DIRECT_URL,
   timeout: TIMEOUT_MS,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -110,21 +112,29 @@ const aiCorrectionApi = axios.create({
 export async function checkAICorrectionHealth(): Promise<HealthResponse> {
   // Try direct connection to localhost
   try {
-    console.log("🔍 Checking AI Correction health at:", AI_CORRECTION_DIRECT_URL);
-    const response = await aiCorrectionApi.get('/health');
+    console.log(
+      "🔍 Checking AI Correction health at:",
+      AI_CORRECTION_DIRECT_URL,
+    );
+    const response = await aiCorrectionApi.get("/health");
     console.log("✅ AI Correction service is healthy:", response.data);
     return response.data;
   } catch (directErr: any) {
-    console.log("⚠️ Direct AI Correction connection failed:", directErr.message);
-    
+    console.log(
+      "⚠️ Direct AI Correction connection failed:",
+      directErr.message,
+    );
+
     // Try via API Gateway as fallback
     try {
       const response = await api.get(`${AI_CORRECTION_GATEWAY_PATH}/health`, {
-        timeout: 10000,
+        timeout: 15000,
       });
       return response.data;
     } catch (gatewayErr) {
-      console.error("❌ AI Correction health check failed on both direct and gateway");
+      console.error(
+        "❌ AI Correction health check failed on both direct and gateway",
+      );
       throw new Error("AI Correction service unavailable");
     }
   }
@@ -137,80 +147,101 @@ export async function checkAICorrectionHealth(): Promise<HealthResponse> {
 /**
  * Clean OCR text before AI analysis
  * Removes common OCR artifacts and normalizes text
- * 
+ *
  * @param text - Raw OCR text
  * @returns Cleaned text ready for AI analysis
  */
 export function cleanOCRText(text: string): string {
   if (!text) return "";
-  
+
   let cleaned = text;
-  
+
   // 1. Normalize whitespace - replace multiple spaces/tabs with single space
   cleaned = cleaned.replace(/[ \t]+/g, " ");
-  
+
   // 2. Normalize line breaks - replace multiple newlines with double newline (paragraph)
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
-  
+
   // 3. Remove leading/trailing whitespace from each line
-  cleaned = cleaned.split("\n").map(line => line.trim()).join("\n");
-  
+  cleaned = cleaned
+    .split("\n")
+    .map((line) => line.trim())
+    .join("\n");
+
   // 4. Remove common OCR artifacts
   // - Stray punctuation at start of lines
   cleaned = cleaned.replace(/^[.,:;!?]+\s*/gm, "");
-  
+
   // 5. Fix common OCR issues with Sinhala characters
   // - Remove zero-width characters that may interfere
   cleaned = cleaned.replace(/[\u200B-\u200D\uFEFF]/g, "");
-  
+
   // 6. Remove duplicate punctuation
   cleaned = cleaned.replace(/([.!?])\1+/g, "$1");
-  
+
   // 7. Normalize Sinhala punctuation (if applicable)
   // - Replace ellipsis with proper three dots
   cleaned = cleaned.replace(/…/g, "...");
-  
+
   // 8. Remove lines that are only punctuation or symbols
-  cleaned = cleaned.split("\n").filter(line => {
-    const stripped = line.replace(/[\s\p{P}\p{S}]/gu, "");
-    return stripped.length > 0;
-  }).join("\n");
-  
-  // 9. Final trim
+  cleaned = cleaned
+    .split("\n")
+    .filter((line) => {
+      const stripped = line.replace(/[\s\p{P}\p{S}]/gu, "");
+      return stripped.length > 0;
+    })
+    .join("\n");
+
+  // 9. Collapse into a single paragraph — replace newlines & multiple spaces
+  cleaned = cleaned
+    .replace(/\r\n/g, " ")
+    .replace(/\n/g, " ")
+    .replace(/\s{2,}/g, " ");
+
+  // 10. Final trim
   cleaned = cleaned.trim();
-  
+
   console.log("🧹 Cleaned OCR text:", {
     originalLength: text.length,
     cleanedLength: cleaned.length,
-    reduction: `${Math.round((1 - cleaned.length / text.length) * 100)}%`
+    reduction: `${Math.round((1 - cleaned.length / text.length) * 100)}%`,
   });
-  
+
   return cleaned;
 }
 
 /**
  * Analyze Sinhala text for dyslexic writing errors
- * 
+ *
  * @param text - The Sinhala text to analyze
  * @param debug - Enable debug mode for additional info
  * @returns Analysis result with corrections
  */
 export async function analyzeText(
   text: string,
-  debug: boolean = false
+  debug: boolean = false,
 ): Promise<AnalyzeResponse> {
   try {
-    // Send raw text to preserve structure and content
-    // const cleanedText = cleanOCRText(text); 
-    console.log("🧠 Sending text to AI Correction service at:", AI_CORRECTION_DIRECT_URL);
-    
-    const response = await aiCorrectionApi.post<BackendAnalyzeResponse>(
-      '/analyze',
-      { text: text, debug, include_correct_words: true },
-      { timeout: TIMEOUT_MS }
+    // Clean OCR artefacts before sending to model
+    const cleanedText = cleanOCRText(text);
+    console.log(
+      "🧠 Sending text to AI Correction service at:",
+      AI_CORRECTION_DIRECT_URL,
     );
 
-    const backendData = response.data;
+    // Backend returns StreamingResponse with keepalive spaces + final JSON.
+    // Use responseType: 'text' to get raw body, then trim & parse.
+    const response = await aiCorrectionApi.post(
+      "/analyze",
+      { text: cleanedText, debug, include_correct_words: true },
+      { timeout: TIMEOUT_MS, responseType: "text" },
+    );
+
+    const rawText =
+      typeof response.data === "string"
+        ? response.data
+        : JSON.stringify(response.data);
+    const backendData: BackendAnalyzeResponse = JSON.parse(rawText.trim());
     console.log("📥 Backend response:", backendData);
 
     // Map backend response to frontend format
@@ -226,11 +257,14 @@ export async function analyzeText(
 
     const result: AnalyzeResponse = {
       success: backendData.success,
-      original_text: backendData.originalText || backendData.original_text || text,
-      corrected_text: backendData.correctedText || backendData.corrected_text || text,
-      total_errors: tokens.filter(t => t.type === 'error').length,
+      original_text:
+        backendData.originalText || backendData.original_text || text,
+      corrected_text:
+        backendData.correctedText || backendData.corrected_text || text,
+      total_errors: tokens.filter((t) => t.type === "error").length,
       corrections: tokens, // Now contains ALL tokens
-      processing_time_ms: backendData.processingTimeMs || backendData.processing_time_ms,
+      processing_time_ms:
+        backendData.processingTimeMs || backendData.processing_time_ms,
       model_used: backendData.modelUsed || backendData.model_used,
     };
 
@@ -247,8 +281,8 @@ export async function analyzeText(
  */
 export async function getPatterns(): Promise<PatternsResponse> {
   try {
-    const response = await api.get(`${AI_CORRECTION_GATEWAY_PATH}/patterns`, {
-      timeout: 10000,
+    const response = await aiCorrectionApi.get("/patterns", {
+      timeout: 15000,
     });
     return response.data;
   } catch (error) {
@@ -259,20 +293,20 @@ export async function getPatterns(): Promise<PatternsResponse> {
 
 /**
  * Apply accepted corrections to text
- * 
+ *
  * @param originalText - The original text
  * @param corrections - List of corrections with accept/reject status
  * @returns The corrected text
  */
 export function applyCorrections(
   originalText: string,
-  corrections: Array<CorrectionItem & { accepted: boolean }>
+  corrections: Array<CorrectionItem & { accepted: boolean }>,
 ): string {
   let result = originalText;
-  
+
   // Sort by position descending to maintain correct indices
   const sortedCorrections = [...corrections]
-    .filter(c => c.accepted)
+    .filter((c) => c.accepted)
     .sort((a, b) => {
       if (a.position && b.position) {
         return b.position.start - a.position.start;
@@ -283,7 +317,7 @@ export function applyCorrections(
   // Apply corrections from end to start to preserve positions
   for (const correction of sortedCorrections) {
     if (correction.position) {
-      result = 
+      result =
         result.slice(0, correction.position.start) +
         correction.suggestion +
         result.slice(correction.position.end);
