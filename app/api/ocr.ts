@@ -16,18 +16,14 @@ export async function runOcr(
   file: File,
   image_id: string
 ): Promise<OcrResponse> {
-  // Build URL: use local override or fallback to gateway
-  const BASE_URL = process.env.EXPO_PUBLIC_OCR_URL || process.env.EXPO_PUBLIC_API_GATEWAY?.trim();
+  const API_BASE = process.env.EXPO_PUBLIC_API_GATEWAY?.trim();
 
-  if (!BASE_URL) {
-    throw new Error("OCR URL or Gateway not configured.");
+  if (!API_BASE) {
+    throw new Error("EXPO_PUBLIC_API_GATEWAY not configured.");
   }
 
-  // If using local override, path is just /ocr. If gateway, it's prefixed.
-  const isLocal = BASE_URL.includes("localhost") || BASE_URL.includes("127.0.0.1");
-  const path = isLocal ? "/ocr" : "/sinhala-ocr-service/ocr";
-
-  const url = `${BASE_URL.replace(/\/+$/, "")}${path}`;
+  // Build gateway URL
+  const url = `${API_BASE.replace(/\/+$/, "")}/sinhala-ocr-service/ocr`;
 
   // Prepare multipart/form-data
   const formData = new FormData();

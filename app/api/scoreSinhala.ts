@@ -47,10 +47,13 @@ export async function scoreSinhala(
       );
     }
 
-    // Build URL with proper gateway route prefix
-    // Build URL for local testing or remote (Bias-Aware Scoring Engine)
-    const BASE_URL = process.env.EXPO_PUBLIC_BIAS_AWARE_SCORING_URL || "http://localhost:8000";
-    const url = `${BASE_URL.replace(/\/+$|\s+$/g, "")}/score-sinhala-ml`;
+    // Use the remote API gateway for the base URL
+    const BASE_URL = GATEWAY_BASE;
+
+    // Define the path for the remote scoring engine
+    const path = "/bias-aware-scoring-engine/score-sinhala-ml";
+
+    const url = `${BASE_URL.replace(/\/+$|\s+$/g, "")}${path}`;
 
     const res = await api.post(url, payload, {
       headers: {
