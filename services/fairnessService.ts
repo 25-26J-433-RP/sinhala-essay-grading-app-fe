@@ -70,28 +70,36 @@ export async function getFairnessReports(): Promise<FairnessReport[]> {
   });
 }
 
-// -----------------------------
-// Trigger Analysis
-// -----------------------------
 export async function runFairnessAnalysis(): Promise<void> {
-  // Assuming backend runs on port 8080 (Cloud Run or local Python)
-  // If running via Expo Go on device, use your machine IP instead of localhost
-  const API_URL = "http://localhost:8080";
-  const API_KEY = "akura-research-secret-2026";
+  // Use the gateway from env if available (production), fallback to localhost for dev
+  const GATEWAY_URL = process.env.EXPO_PUBLIC_API_GATEWAY;
+  const API_KEY = process.env.EXPO_PUBLIC_INTERNAL_API_KEY || "akura-research-secret-2026";
+
+  // Construction of the final URL
+  // If gateway is used, we need the service prefix. 
+  // If localhost is used, we hit the port directly.
+  const FINAL_URL = GATEWAY_URL
+    ? `${GATEWAY_URL}/bias-aware-scoring-engine/run-analysis`
+    : "http://localhost:8080/run-analysis";
 
   try {
-    const res = await fetch(`${API_URL}/run-analysis`, {
+    console.log(`[FAIRNESS] Triggering analysis via: ${FINAL_URL}`);
+
+    const res = await fetch(FINAL_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-API-KEY": API_KEY, // Note: Python backend uses X-API-KEY header
+        "X-API-KEY": API_KEY,
       },
     });
 
     if (!res.ok) {
       const err = await res.text();
+      console.error(`[FAIRNESS] Backend Error: ${err}`);
       throw new Error(`Analysis failed: ${err}`);
     }
+
+    console.log("[FAIRNESS] Analysis triggered successfully");
   } catch (error) {
     console.error("Fairness analysis error:", error);
     throw error;
