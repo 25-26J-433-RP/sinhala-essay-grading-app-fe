@@ -1,4 +1,4 @@
-import { db, storage } from '@/config/firebase';
+import { db, storage } from "@/config/firebase";
 import {
   addDoc,
   collection,
@@ -11,27 +11,32 @@ import {
   serverTimestamp,
   updateDoc,
   where
-} from 'firebase/firestore';
-import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
-
-
+} from "firebase/firestore";
+import {
+  deleteObject,
+  getDownloadURL,
+  listAll,
+  ref,
+  uploadBytes
+} from "firebase/storage";
 
 const DEBUG = __DEV__ === true;
-const dlog = (...args: any[]) => { if (DEBUG) console.log(...args); };
-const dwarn = (...args: any[]) => { if (DEBUG) console.warn(...args); };
+const dlog = (...args: any[]) => {
+  if (DEBUG) console.log(...args);
+};
+const dwarn = (...args: any[]) => {
+  if (DEBUG) console.warn(...args);
+};
 
 // 🔥 Clean object so Firestore does NOT reject undefined or nested unsupported values
 function cleanFirestore(obj: any) {
   return JSON.parse(
-    JSON.stringify(obj, (key, value) =>
-      value === undefined ? null : value
-    )
+    JSON.stringify(obj, (key, value) => (value === undefined ? null : value))
   );
 }
 
 export interface UserImageUpload {
   id: string;
-  // 🔥 ADD THIS
   image_id: string; // FROM OCR BACKEND
 
   userId: string;
@@ -49,7 +54,7 @@ export interface UserImageUpload {
   mimeType?: string;
   description?: string;
 
-  // 🔥 OCR FIELDS (MISSING)
+  // OCR FIELDS
   cleaned_text?: string;
   raw_text?: string;
   source?: string;
@@ -71,8 +76,25 @@ export interface UserImageUpload {
     duration?: number;
     generated_at?: string;
   };
+  // Dyslexia detection result
+  dyslexia_result?: {
+    essay_label?: string;
+    confidence?: number;
+    total_sentences?: number;
+    dyslexic_sentences?: number;
+    sentences?: any[];
+    detected_at?: string;
+    model_version?: string;
+  };
+  writing_patterns?: {
+    dominant_pattern?: string;
+    risk_level?: string;
+    severity?: string;
+    explanation?: string;
+    pattern_distribution?: Record<string, number>;
+    analyzed_at?: string;
+  };
 }
-
 
 export interface CreateImageUploadData {
   userId: string;
@@ -86,14 +108,13 @@ export interface CreateImageUploadData {
 }
 
 export class UserImageService {
-  private static readonly COLLECTION = 'userImages';
-  private static readonly STORAGE_PATH = 'user-images';
-
+  private static readonly COLLECTION = "userImages";
+  private static readonly STORAGE_PATH = "user-images";
 
   /**
- * 🔗 Link OCR result to a user image
- * (called after OCR microservice finishes)
- */
+   * 🔗 Link OCR result to a user image
+   * (called after OCR microservice finishes)
+   */
   // static async updateUserImage(
   //   imageId: string,
   //   data: {
@@ -121,11 +142,11 @@ export class UserImageService {
   /**
    * Upload an image for a specific user
    */
-  static async uploadUserImage(
-    data: CreateImageUploadData
-  ): Promise<string> {
+  static async uploadUserImage(data: CreateImageUploadData): Promise<string> {
     if (!db || !storage) {
-      throw new Error('Firebase not initialized. Check your Firebase configuration.');
+      throw new Error(
+        "Firebase not initialized. Check your Firebase configuration."
+      );
     }
 
     const timestamp = Date.now();
@@ -156,16 +177,15 @@ export class UserImageService {
       description: "",
 
       // 🔥 LET BACKEND FILL THIS
-      essay_text: "",
+      essay_text: ""
     };
-
 
     const docRef = await addDoc(collection(db, this.COLLECTION), uploadData);
 
-    dlog('✅ Image uploaded to Firestore:', {
+    dlog("✅ Image uploaded to Firestore:", {
       docId: docRef.id,
       userId: data.userId,
-      fileName: data.fileName,
+      fileName: data.fileName
     });
 
     // 🟢 ADD THIS BLOCK ⬇️⬇️⬇️
@@ -182,8 +202,6 @@ export class UserImageService {
     // 🔚 THEN return
     return docRef.id;
   }
-
-
 
   /**
    * Get a single image document by ID (source of truth for refresh)
@@ -229,7 +247,7 @@ export class UserImageService {
 
       description: data.description,
 
-      // 🔥 OCR
+      //OCR
       cleaned_text: data.cleaned_text,
       raw_text: data.raw_text,
       source: data.source,
@@ -247,18 +265,23 @@ export class UserImageService {
       // Feedback
       text_feedback: data.text_feedback,
       audio_feedback: data.audio_feedback,
+
+      // Pattern + Dyslexia
+      writing_patterns: data.writing_patterns,
+      dyslexia_result: data.dyslexia_result
     };
   }
-
 
   /**
    * Get all images uploaded by a specific user (includes migration from old system)
    */
   static async getUserImages(userId: string): Promise<UserImageUpload[]> {
-    dlog('🔍 getUserImages called for userId:', userId);
+    dlog("🔍 getUserImages called for userId:", userId);
 
     if (!db) {
-      throw new Error('Firestore not initialized. Check your Firebase configuration.');
+      throw new Error(
+        "Firestore not initialized. Check your Firebase configuration."
+      );
     }
 
     try {
@@ -268,26 +291,31 @@ export class UserImageService {
       // First try simple query without orderBy to avoid potential index issues
       let q = query(
         collection(db, this.COLLECTION),
-        where('userId', '==', userId)
+        where("userId", "==", userId)
       );
 
-      dlog('📝 Executing Firestore query (without orderBy)...');
+      dlog("📝 Executing Firestore query (without orderBy)...");
       let querySnapshot = await getDocs(q);
-      dlog(`📄 Simple query completed, found ${querySnapshot.docs.length} documents`);
+      dlog(
+        `📄 Simple query completed, found ${querySnapshot.docs.length} documents`
+      );
 
       // If simple query works, try with orderBy
       if (querySnapshot.docs.length > 0) {
         try {
-          dlog('📝 Trying query with orderBy...');
+          dlog("📝 Trying query with orderBy...");
           q = query(
             collection(db, this.COLLECTION),
-            where('userId', '==', userId),
-            orderBy('uploadedAt', 'desc')
+            where("userId", "==", userId),
+            orderBy("uploadedAt", "desc")
           );
           querySnapshot = await getDocs(q);
-          dlog('✅ OrderBy query successful');
+          dlog("✅ OrderBy query successful");
         } catch (orderError) {
-          dwarn('⚠️ OrderBy query failed, using simple query results:', orderError);
+          dwarn(
+            "⚠️ OrderBy query failed, using simple query results:",
+            orderError
+          );
           // Continue with simple query results
         }
       }
@@ -305,7 +333,10 @@ export class UserImageService {
               imageUrl = await getDownloadURL(storageRef);
               dlog(`✅ Regenerated fresh download URL for ${storagePath}`);
             } catch (err) {
-              dwarn(`⚠️ Failed to regenerate URL for ${storagePath}, using stored URL:`, err);
+              dwarn(
+                `⚠️ Failed to regenerate URL for ${storagePath}, using stored URL:`,
+                err
+              );
               // Fall back to stored URL if regeneration fails
             }
           }
@@ -314,12 +345,14 @@ export class UserImageService {
             id: doc.id,
             ...(data as any),
             imageUrl, // Use freshly generated or fallback URL
-            uploadedAt: (data as any).uploadedAt?.toDate() || new Date(),
+            uploadedAt: (data as any).uploadedAt?.toDate() || new Date()
           } as UserImageUpload;
         })
       );
 
-      dlog(`📊 Found ${firestoreImages.length} images in Firestore for user ${userId}`);
+      dlog(
+        `📊 Found ${firestoreImages.length} images in Firestore for user ${userId}`
+      );
 
       // Also check for old images in the legacy `images/` folder
       // Note: This is a temporary migration - in production you'd want to migrate these properly
@@ -327,10 +360,12 @@ export class UserImageService {
 
       if (storage) {
         try {
-          const legacyRef = ref(storage, 'images/');
+          const legacyRef = ref(storage, "images/");
           const legacyResult = await listAll(legacyRef);
 
-          dlog(`📁 Found ${legacyResult.items.length} legacy images in storage`);
+          dlog(
+            `📁 Found ${legacyResult.items.length} legacy images in storage`
+          );
 
           // Create placeholder entries for legacy images
           legacyImages = await Promise.all(
@@ -341,30 +376,33 @@ export class UserImageService {
               return {
                 id: `legacy_${fileName}`,
                 userId: userId, // Assume current user owns these for now
-                studentId: 'LEGACY',
+                studentId: "LEGACY",
                 imageUrl: url,
                 fileName: fileName,
                 storagePath: `images/${fileName}`,
-                uploadedAt: new Date(Date.now() - (index * 60000)), // Fake timestamps
+                uploadedAt: new Date(Date.now() - index * 60000), // Fake timestamps
                 fileSize: 0,
-                mimeType: 'image/jpeg',
-                description: 'Legacy upload (migrated)',
+                mimeType: "image/jpeg",
+                description: "Legacy upload (migrated)"
               } as UserImageUpload;
             })
           );
         } catch (legacyError) {
-          dwarn('No legacy images found or error accessing them:', legacyError);
+          dwarn("No legacy images found or error accessing them:", legacyError);
         }
       }
 
       // Combine and sort all images
       const allImages = [...firestoreImages, ...legacyImages];
-      dlog(`✅ Returning ${allImages.length} total images (${firestoreImages.length} new + ${legacyImages.length} legacy)`);
+      dlog(
+        `✅ Returning ${allImages.length} total images (${firestoreImages.length} new + ${legacyImages.length} legacy)`
+      );
 
-      return allImages.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
-
+      return allImages.sort(
+        (a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime()
+      );
     } catch (error) {
-      console.error('❌ Error getting user images:', error);
+      console.error("❌ Error getting user images:", error);
       return [];
     }
   }
@@ -372,43 +410,50 @@ export class UserImageService {
   /**
    * Delete a user's image (both from Storage and Firestore, handles legacy images)
    */
-  static async deleteUserImage(imageId: string, storagePath: string): Promise<void> {
-    dlog('🗑️ deleteUserImage called:', { imageId, storagePath });
+  static async deleteUserImage(
+    imageId: string,
+    storagePath: string
+  ): Promise<void> {
+    dlog("🗑️ deleteUserImage called:", { imageId, storagePath });
 
     if (!db || !storage) {
-      console.error('❌ Firebase not initialized');
-      throw new Error('Firebase not initialized. Check your Firebase configuration.');
+      console.error("❌ Firebase not initialized");
+      throw new Error(
+        "Firebase not initialized. Check your Firebase configuration."
+      );
     }
 
     try {
       // Delete from Storage
-      dlog('🗑️ Deleting from Storage:', storagePath);
+      dlog("🗑️ Deleting from Storage:", storagePath);
       const storageRef = ref(storage, storagePath);
       try {
         await deleteObject(storageRef);
-        dlog('✅ Deleted from Storage');
+        dlog("✅ Deleted from Storage");
       } catch (storageErr: any) {
         // If the object doesn't exist, continue to delete the Firestore doc
-        if (storageErr?.code === 'storage/object-not-found') {
-          dwarn('⚠️ Storage object not found, continuing with Firestore delete');
+        if (storageErr?.code === "storage/object-not-found") {
+          dwarn(
+            "⚠️ Storage object not found, continuing with Firestore delete"
+          );
         } else {
-          console.error('❌ Storage delete failed:', storageErr);
+          console.error("❌ Storage delete failed:", storageErr);
           throw storageErr;
         }
       }
 
       // Delete from Firestore (only if it's not a legacy image)
-      if (!imageId.startsWith('legacy_')) {
-        dlog('🗑️ Deleting from Firestore:', imageId);
+      if (!imageId.startsWith("legacy_")) {
+        dlog("🗑️ Deleting from Firestore:", imageId);
         await deleteDoc(doc(db, this.COLLECTION, imageId));
-        dlog('✅ Deleted from Firestore');
+        dlog("✅ Deleted from Firestore");
       } else {
-        dlog('⏭️ Skipping Firestore delete (legacy image)');
+        dlog("⏭️ Skipping Firestore delete (legacy image)");
       }
 
-      dlog('✅ Image deletion complete');
+      dlog("✅ Image deletion complete");
     } catch (error) {
-      console.error('❌ Error during deletion:', error);
+      console.error("❌ Error during deletion:", error);
       throw error;
     }
   }
@@ -416,18 +461,23 @@ export class UserImageService {
   /**
    * Check if user owns an image
    */
-  static async checkImageOwnership(imageId: string, userId: string): Promise<boolean> {
+  static async checkImageOwnership(
+    imageId: string,
+    userId: string
+  ): Promise<boolean> {
     if (!db) {
-      throw new Error('Firestore not initialized. Check your Firebase configuration.');
+      throw new Error(
+        "Firestore not initialized. Check your Firebase configuration."
+      );
     }
 
     const q = query(
       collection(db, this.COLLECTION),
-      where('userId', '==', userId)
+      where("userId", "==", userId)
     );
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.some(doc => doc.id === imageId);
+    return querySnapshot.docs.some((doc) => doc.id === imageId);
   }
 
   /**
@@ -443,57 +493,72 @@ export class UserImageService {
 
     const totalSize = images.reduce((sum, img) => sum + (img.fileSize || 0), 0);
     const uploadDates = images
-      .map(img => img.uploadedAt)
-      .filter(date => date)
+      .map((img) => img.uploadedAt)
+      .filter((date) => date)
       .sort((a, b) => a.getTime() - b.getTime());
 
     return {
       totalImages: images.length,
       totalSize,
       firstUpload: uploadDates[0],
-      lastUpload: uploadDates[uploadDates.length - 1],
+      lastUpload: uploadDates[uploadDates.length - 1]
     };
   }
 
   /**
    * (id:) the description/notes for an image
    */
-  static async updateImageDescription(imageId: string, description: string): Promise<void> {
+  static async updateImageDescription(
+    imageId: string,
+    description: string
+  ): Promise<void> {
     if (!db) {
-      throw new Error('Firestore not initialized. Check your Firebase configuration.');
+      throw new Error(
+        "Firestore not initialized. Check your Firebase configuration."
+      );
     }
 
     const docRef = doc(db, this.COLLECTION, imageId);
     await updateDoc(docRef, {
-      description,
+      description
     });
 
-    dlog('✅ Image description updated:', { imageId, description });
+    dlog("✅ Image description updated:", { imageId, description });
   }
 
   /**
    * Update text feedback for an image (generated from API)
    */
-  static async updateImageTextFeedback(imageId: string, textFeedback: any): Promise<void> {
+  static async updateImageTextFeedback(
+    imageId: string,
+    textFeedback: any
+  ): Promise<void> {
     if (!db) {
-      throw new Error('Firestore not initialized. Check your Firebase configuration.');
+      throw new Error(
+        "Firestore not initialized. Check your Firebase configuration."
+      );
     }
 
     const docRef = doc(db, this.COLLECTION, imageId);
     await updateDoc(docRef, {
-      text_feedback: cleanFirestore(textFeedback),
+      text_feedback: cleanFirestore(textFeedback)
     });
 
-    dlog('✅ Image text feedback updated:', { imageId, textFeedback });
+    dlog("✅ Image text feedback updated:", { imageId, textFeedback });
   }
 
   /**
    * Update audio feedback for an image (generated from TTS API)
    * Creates document if it doesn't exist (for batch feedback)
    */
-  static async updateImageAudioFeedback(imageId: string, audioFeedback: any): Promise<void> {
+  static async updateImageAudioFeedback(
+    imageId: string,
+    audioFeedback: any
+  ): Promise<void> {
     if (!db) {
-      throw new Error('Firestore not initialized. Check your Firebase configuration.');
+      throw new Error(
+        "Firestore not initialized. Check your Firebase configuration."
+      );
     }
 
     const docRef = doc(db, this.COLLECTION, imageId);
@@ -503,54 +568,63 @@ export class UserImageService {
       await updateDoc(docRef, {
         audio_feedback: cleanFirestore({
           ...audioFeedback,
-          generated_at: new Date().toISOString(),
-        }),
+          generated_at: new Date().toISOString()
+        })
       });
-      dlog('✅ Image audio feedback updated:', { imageId, audioFeedback });
+      dlog("✅ Image audio feedback updated:", { imageId, audioFeedback });
     } catch (error: any) {
       // If document doesn't exist (batch feedback case), create it
-      if (error.code === 'not-found') {
-        dlog('📝 Document not found, creating new document for batch feedback:', { imageId });
+      if (error.code === "not-found") {
+        dlog(
+          "📝 Document not found, creating new document for batch feedback:",
+          { imageId }
+        );
         await addDoc(collection(db, this.COLLECTION), {
           id: imageId,
           isBatchFeedback: true,
           audio_feedback: cleanFirestore({
             ...audioFeedback,
-            generated_at: new Date().toISOString(),
+            generated_at: new Date().toISOString()
           }),
-          createdAt: serverTimestamp(),
+          createdAt: serverTimestamp()
         });
-        dlog('✅ Batch feedback audio created:', { imageId, audioFeedback });
+        dlog("✅ Batch feedback audio created:", { imageId, audioFeedback });
       } else {
         throw error;
       }
     }
   }
 
-
   /**
    * Debug method to check all documents in the collection
    */
   static async debugGetAllImages(): Promise<any[]> {
     if (!db) {
-      throw new Error('Firestore not initialized. Check your Firebase configuration.');
+      throw new Error(
+        "Firestore not initialized. Check your Firebase configuration."
+      );
     }
 
     try {
-      dlog('🚨 DEBUG: Getting ALL documents from userImages collection...');
+      dlog("🚨 DEBUG: Getting ALL documents from userImages collection...");
       const querySnapshot = await getDocs(collection(db, this.COLLECTION));
-      const allDocs = querySnapshot.docs.map(doc => ({
+      const allDocs = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data()
       }));
-      dlog(`🚨 DEBUG: Found ${allDocs.length} total documents in ${this.COLLECTION} collection`);
-      allDocs.forEach(doc => {
+      dlog(
+        `🚨 DEBUG: Found ${allDocs.length} total documents in ${this.COLLECTION} collection`
+      );
+      allDocs.forEach((doc) => {
         const data = doc as any;
-        dlog(`🚨 DEBUG Doc ${doc.id}:`, { userId: data.userId, fileName: data.fileName });
+        dlog(`🚨 DEBUG Doc ${doc.id}:`, {
+          userId: data.userId,
+          fileName: data.fileName
+        });
       });
       return allDocs;
     } catch (error) {
-      console.error('🚨 DEBUG: Error getting all images:', error);
+      console.error("🚨 DEBUG: Error getting all images:", error);
       throw error;
     }
   }
@@ -565,8 +639,8 @@ export class UserImageService {
 
     // 🔥 Save ALL fields from scoreData (including essay_text + essay_topic)
     const cleanedData = cleanFirestore({
-      ...scoreData,                 // <-- spread EVERYTHING coming in
-      updatedAt: new Date().toISOString(),
+      ...scoreData, // <-- spread EVERYTHING coming in
+      updatedAt: new Date().toISOString()
     });
 
     await updateDoc(docRef, cleanedData);
@@ -615,7 +689,9 @@ export class UserImageService {
       for (const imageDoc of imagesSnap.docs) {
         const imageData = imageDoc.data();
         // Use existing deleteUserImage to handle Storage deletion too
-        deletePromises.push(this.deleteUserImage(imageDoc.id, imageData.storagePath));
+        deletePromises.push(
+          this.deleteUserImage(imageDoc.id, imageData.storagePath)
+        );
       }
 
       await Promise.all(deletePromises);
@@ -655,10 +731,12 @@ export class UserImageService {
 
       const updatePromises: Promise<any>[] = [];
       studentSnap.forEach((studentDoc) => {
-        updatePromises.push(updateDoc(studentDoc.ref, {
-          ...cleanFirestore(newDetails),
-          updatedAt: serverTimestamp()
-        }));
+        updatePromises.push(
+          updateDoc(studentDoc.ref, {
+            ...cleanFirestore(newDetails),
+            updatedAt: serverTimestamp()
+          })
+        );
       });
 
       // 2. Update student details in all their essay records
@@ -671,10 +749,12 @@ export class UserImageService {
       const imagesSnap = await getDocs(iq);
 
       imagesSnap.forEach((imageDoc) => {
-        updatePromises.push(updateDoc(imageDoc.ref, {
-          ...cleanFirestore(newDetails),
-          // Don't update image specific timestamps here
-        }));
+        updatePromises.push(
+          updateDoc(imageDoc.ref, {
+            ...cleanFirestore(newDetails)
+            // Don't update image specific timestamps here
+          })
+        );
       });
 
       await Promise.all(updatePromises);
@@ -696,7 +776,7 @@ export class UserImageService {
       const q = query(studentsRef, where("userId", "==", userId));
       const snap = await getDocs(q);
 
-      return snap.docs.map(doc => ({
+      return snap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
         createdAt: (doc.data() as any).createdAt?.toDate?.() || new Date()
@@ -705,5 +785,50 @@ export class UserImageService {
       console.error("❌ Error fetching students:", error);
       throw error;
     }
+  }
+
+  /**
+   * Update dyslexia detection result for an image
+   */
+  static async updateImageDyslexiaResult(
+    imageId: string,
+    dyslexiaData: any
+  ): Promise<void> {
+    if (!db) {
+      throw new Error("Firestore not initialized");
+    }
+
+    const docRef = doc(db, this.COLLECTION, imageId);
+
+    await updateDoc(docRef, {
+      dyslexia_result: cleanFirestore({
+        ...dyslexiaData,
+        detected_at: new Date().toISOString()
+      })
+    });
+
+    dlog("✅ Dyslexia result updated:", { imageId });
+  }
+  /**
+   * Update writing pattern analysis result for an image
+   */
+  static async updateImagePatterns(
+    imageId: string,
+    patternData: any
+  ): Promise<void> {
+    if (!db) {
+      throw new Error("Firestore not initialized");
+    }
+
+    const docRef = doc(db, this.COLLECTION, imageId);
+
+    await updateDoc(docRef, {
+      writing_patterns: cleanFirestore({
+        ...patternData,
+        analyzed_at: new Date().toISOString()
+      })
+    });
+
+    dlog("✅ Writing patterns updated:", { imageId });
   }
 }
