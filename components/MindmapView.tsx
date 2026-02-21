@@ -181,29 +181,28 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
       return parent === rootId ? current : nodeId;
     };
 
-    const clamp = (value: number, min: number, max: number) =>
-      Math.max(min, Math.min(max, value));
-
     const finalNodes = normalizedNodes.map((node) => {
+      const branchId = getBranchId(node.id);
       const importance = node.importance ?? 0.8;
       const level = node.level;
+      const baseSize = level === 0 ? 90 : level === 1 ? 70 : 54;
+      const sizeBoost = Math.max(0, importance - 0.7) * 30;
+      const size = Math.round(baseSize + sizeBoost);
       const fontWeight =
         level === 0 || level === 1 || importance >= 0.9 ? "700" : "500";
-      const labelLength = node.label.length;
-      const charsPerLine = 18;
-      const lines = Math.max(1, Math.ceil(labelLength / charsPerLine));
-      const baseWidth = level === 0 ? 140 : level === 1 ? 120 : 100;
-      const width = clamp(baseWidth + labelLength * 5, 90, 240);
-      const height = clamp(30 + lines * 18, 36, 140);
+      const branchColor =
+        node.id === rootId
+          ? "#1E3A8A"
+          : branchColorMap.get(branchId) || "#4ECDC4";
       return {
         data: {
           id: node.id,
           label: node.label,
           level: node.level,
           type: node.type,
-          width,
-          height,
+          size,
           fontWeight,
+          branchColor,
           isSection: node.level === 1,
         },
       };
@@ -231,7 +230,7 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
   <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #ffffff; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; }
     #cy { width: 100%; height: 100vh; background-color: #ffffff; }
   </style>
 </head>
@@ -249,39 +248,39 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
             'label': 'data(label)',
             'text-valign': 'center',
             'text-halign': 'center',
-            'background-color': '#007AFF',
-            'color': '#ffffff',
-            'text-outline-width': 0,
-            'width': 'label',
-            'height': 'label',
-            'padding': '10px',
+            'background-color': 'data(branchColor)',
+            'color': '#fff',
+            'text-outline-color': 'data(branchColor)',
+            'text-outline-width': 2,
+            'width': 'data(size)',
+            'height': 'data(size)',
             'font-size': function(ele) {
               const level = ele.data('level');
-              return level === 0 ? '14px' : level === 1 ? '13px' : '12px';
+              return level === 0 ? '16px' : level === 1 ? '13px' : '12px';
             },
             'font-weight': 'data(fontWeight)',
             'text-wrap': 'wrap',
-            'text-max-width': '200px',
-            'shape': 'rectangle',
-            'border-width': 1.5,
-            'border-color': '#007AFF'
+            'text-max-width': '100px',
+            'shape': 'ellipse',
+            'border-width': 2,
+            'border-color': '#333'
           }
         },
         {
           selector: 'node[isSection]',
           style: {
-            'border-width': 2
+            'border-width': 3
           }
         },
         {
           selector: 'edge',
           style: {
-            'width': 1.5,
-            'line-color': '#000000',
-            'target-arrow-color': '#000000',
+            'width': 2,
+            'line-color': '#B0B3C6',
+            'target-arrow-color': '#B0B3C6',
             'target-arrow-shape': 'none',
             'curve-style': 'bezier',
-            'arrow-scale': 1.2
+            'arrow-scale': 1.5
           }
         }
       ],
@@ -372,39 +371,39 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
                 'label': 'data(label)',
                 'text-valign': 'center',
                 'text-halign': 'center',
-                'background-color': '#007AFF',
-                'color': '#ffffff',
-                'text-outline-width': 0,
-                'width': 'label',
-                'height': 'label',
-                'padding': '10px',
+                'background-color': 'data(branchColor)',
+                'color': '#fff',
+                'text-outline-color': 'data(branchColor)',
+                'text-outline-width': 2,
+                'width': 'data(size)',
+                'height': 'data(size)',
                 'font-size': function(ele: any) {
                   const level = ele.data('level');
-                  return level === 0 ? '14px' : level === 1 ? '13px' : '12px';
+                  return level === 0 ? '16px' : level === 1 ? '13px' : '12px';
                 },
                 'font-weight': 'data(fontWeight)',
                 'text-wrap': 'wrap',
-                'text-max-width': '200px',
-                'shape': 'rectangle',
-                'border-width': 1.5,
-                'border-color': '#007AFF'
+                'text-max-width': '100px',
+                'shape': 'ellipse',
+                'border-width': 2,
+                'border-color': '#333'
               }
             },
             {
               selector: 'node[isSection]',
               style: {
-                'border-width': 2
+                'border-width': 3
               }
             },
             {
               selector: 'edge',
               style: {
-                'width': 1.5,
-                'line-color': '#000000',
-                'target-arrow-color': '#000000',
+                'width': 2,
+                'line-color': '#B0B3C6',
+                'target-arrow-color': '#B0B3C6',
                 'target-arrow-shape': 'none',
                 'curve-style': 'bezier',
-                'arrow-scale': 1.2
+                'arrow-scale': 1.5
               }
             }
           ],

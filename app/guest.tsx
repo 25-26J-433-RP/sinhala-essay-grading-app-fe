@@ -24,7 +24,7 @@ export default function GuestScreen() {
         icon: "assessment",
         title: t("guest.aiScoring"),
         description: t("guest.aiScoringDesc"),
-        color: "#007AFF",
+        color: "#3B82F6",
       },
       {
         icon: "chat-bubble-outline",

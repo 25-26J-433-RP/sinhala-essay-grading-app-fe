@@ -3,14 +3,13 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Tabs, useRouter, useSegments } from "expo-router";
 import React from "react";
 import {
-  Alert,
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-  Image,
+    Alert,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 import { HapticTab } from "@/components/HapticTab";
@@ -84,168 +83,133 @@ export default function TabLayout() {
   const headerComponent = isDesktop ? (
     <View
       style={{
-        height: 72,
-        backgroundColor: "#0F1117",
+        height: 64,
+        backgroundColor: Colors[colorScheme ?? "light"].background,
         borderBottomWidth: 1,
-        borderBottomColor: "#2D313E",
-        paddingHorizontal: 24,
+        borderBottomColor: Colors[colorScheme ?? "light"].tabIconDefault,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 10,
-        zIndex: 10,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-        <TouchableOpacity
-          onPress={() => router.push("/(tabs)")}
-          style={{
-            marginRight: 24,
-            width: 44,
-            height: 44,
-            backgroundColor: "#1C1E26",
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: "#2D313E",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
-          }}
-        >
-          <Image
-            source={require("../../assets/images/akura-logo.png")}
-            style={{ width: 32, height: 32 }}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            gap: 12,
-            flexDirection: "row",
-            alignItems: "center",
-          }}
-        >
-          {navTabs.map((tab) => {
-            const isActive = currentRoute === tab.name;
-            return (
-              <TouchableOpacity
-                key={tab.name}
-                onPress={() => {
-                  if (tab.name === "index") {
-                    router.push("/(tabs)");
-                  } else {
-                    router.push(`/(tabs)/${tab.name}` as any);
-                  }
-                }}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          gap: 8,
+          flexDirection: "row",
+          alignItems: "center",
+        }}
+      >
+        {navTabs.map((tab) => {
+          const isActive = currentRoute === tab.name;
+          return (
+            <TouchableOpacity
+              key={tab.name}
+              onPress={() => {
+                if (tab.name === "index") {
+                  router.push("/(tabs)");
+                } else {
+                  router.push(`/(tabs)/${tab.name}`);
+                }
+              }}
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 6,
+                backgroundColor: isActive
+                  ? Colors[colorScheme ?? "light"].tint
+                  : Colors[colorScheme ?? "light"].tint + "15",
+                borderBottomWidth: isActive ? 3 : 0,
+                borderBottomColor: Colors[colorScheme ?? "light"].tint,
+              }}
+            >
+              <Text
                 style={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  borderRadius: 12,
-                  backgroundColor: isActive ? "#FFFFFF" : "transparent",
-                  borderWidth: 1,
-                  borderColor: isActive ? "#FFFFFF" : "transparent",
+                  color: isActive
+                    ? Colors[colorScheme ?? "light"].background
+                    : Colors[colorScheme ?? "light"].text,
+                  fontSize: 14,
+                  fontWeight: isActive ? "600" : "500",
                 }}
               >
-                <Text
-                  style={{
-                    color: isActive ? "#0F1117" : "#FFFFFF",
-                    fontSize: 14,
-                    fontWeight: isActive ? "700" : "600",
-                  }}
-                >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       <View
         style={{
           flexDirection: "row",
           alignItems: "center",
-          gap: 16,
-          marginLeft: 24,
+          gap: 12,
+          marginLeft: 12,
         }}
       >
-        {/* Language Switcher */}
-        <TouchableOpacity
-          onPress={toggleLanguage}
-          style={{
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            borderRadius: 12,
-            backgroundColor: "#1C1E26",
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            borderWidth: 1,
-            borderColor: "#2D313E",
-          }}
-        >
-          <MaterialIcons name="language" size={18} color="#007AFF" />
-          <Text
-            style={{
-              color: "#FFFFFF",
-              fontSize: 14,
-              fontWeight: "600",
-            }}
-          >
-            {language === "en" ? "සිංහල" : "English"}
-          </Text>
-        </TouchableOpacity>
-
         {/* Profile Button */}
         <TouchableOpacity
           onPress={() => router.push("/profile")}
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: "#1C1E26",
-            alignItems: "center",
-            justifyContent: "center",
-            borderWidth: 1,
-            borderColor: "#2D313E",
+            padding: 8,
+            borderRadius: 6,
+            backgroundColor: Colors[colorScheme ?? "light"].tint + "15",
           }}
         >
-          <MaterialIcons name="account-circle" size={26} color="#9CA3AF" />
+          <MaterialIcons
+            name="account-circle"
+            size={24}
+            color={Colors[colorScheme ?? "light"].tint}
+          />
         </TouchableOpacity>
 
-        {/* Divider */}
-        <View
+        {/* Language Switcher */}
+        <TouchableOpacity
+          onPress={toggleLanguage}
           style={{
-            width: 1,
-            height: 24,
-            backgroundColor: "#2D313E",
-            marginHorizontal: 4,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 6,
+            backgroundColor: Colors[colorScheme ?? "light"].tint + "15",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
           }}
-        />
+        >
+          <MaterialIcons
+            name="language"
+            size={18}
+            color={Colors[colorScheme ?? "light"].tint}
+          />
+          <Text
+            style={{
+              color: Colors[colorScheme ?? "light"].tint,
+              fontSize: 13,
+              fontWeight: "500",
+            }}
+          >
+            {language === "en" ? "සි" : "EN"}
+          </Text>
+        </TouchableOpacity>
 
         {/* Logout Button */}
         <TouchableOpacity
           onPress={handleLogout}
           style={{
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            borderRadius: 12,
-            backgroundColor: "#EF444420",
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 6,
+            backgroundColor: "#EF4444",
             flexDirection: "row",
             alignItems: "center",
-            gap: 8,
-            borderWidth: 1,
-            borderColor: "#EF444440",
+            gap: 6,
           }}
         >
-          <MaterialIcons name="logout" size={18} color="#EF4444" />
-          <Text style={{ color: "#EF4444", fontSize: 14, fontWeight: "700" }}>
+          <MaterialIcons name="logout" size={18} color="#fff" />
+          <Text style={{ color: "#fff", fontSize: 13, fontWeight: "500" }}>
             {t("auth.logout")}
           </Text>
         </TouchableOpacity>
@@ -258,38 +222,24 @@ export default function TabLayout() {
       {headerComponent}
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: "#FFFFFF",
-          tabBarInactiveTintColor: "#9CA3AF",
+          tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
           headerShown: false,
           tabBarButton: HapticTab,
           tabBarBackground: TabBarBackground,
-          tabBarShowLabel: true,
           tabBarStyle: Platform.select({
             ios: {
+              // Use a transparent background on iOS to show the blur effect
               position: "absolute",
-              backgroundColor: "#0F1117",
-              borderTopWidth: 1,
-              borderTopColor: "#2D313E",
-              height: 90,
-              paddingBottom: 30,
-              paddingTop: 10,
+              paddingTop: 8,
+              height: 74,
               display: isDesktop ? "none" : "flex",
             },
             default: {
-              backgroundColor: "#0F1117",
-              borderTopWidth: 1,
-              borderTopColor: "#2D313E",
-              height: 76,
-              paddingBottom: 10,
               paddingTop: 8,
+              height: 64,
               display: isDesktop ? "none" : "flex",
             },
           }),
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: "600",
-            marginBottom: 4,
-          },
         }}
       >
         {
@@ -328,20 +278,16 @@ export default function TabLayout() {
               switch (name) {
                 case "index":
                   commonOptions.title = t("tabs.home");
-                  commonOptions.tabBarIcon = ({ color, focused }: { color: string, focused: boolean }) => (
-                    <MaterialCommunityIcons
-                      name={focused ? "home-variant" : "home-variant-outline"}
-                      size={24}
-                      color={color}
-                    />
+                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
+                    <IconSymbol size={28} name="house.fill" color={color} />
                   );
                   break;
                 case "scan":
                   commonOptions.title = t("tabs.scan");
-                  commonOptions.tabBarIcon = ({ color, focused }: { color: string, focused: boolean }) => (
+                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
                     <MaterialCommunityIcons
-                      name={focused ? "camera" : "camera-outline"}
-                      size={24}
+                      name="camera-outline"
+                      size={26}
                       color={color}
                     />
                   );
@@ -349,30 +295,26 @@ export default function TabLayout() {
 
                 case "uploaded-images":
                   commonOptions.title = t("tabs.collection");
-                  commonOptions.tabBarIcon = ({ color, focused }: { color: string, focused: boolean }) => (
-                    <MaterialCommunityIcons
-                      name={focused ? "folder-multiple-image" : "folder-multiple-outline"}
-                      size={24}
+                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
+                    <MaterialIcons
+                      name="photo-library"
+                      size={26}
                       color={color}
                     />
                   );
                   break;
                 case "add-student":
-                  commonOptions.title = t("tabs.addStudent");
-                  commonOptions.tabBarIcon = ({ color, focused }: { color: string, focused: boolean }) => (
-                    <MaterialCommunityIcons
-                      name={focused ? "account-plus" : "account-plus-outline"}
-                      size={24}
-                      color={color}
-                    />
+                  commonOptions.title = "Add Student";
+                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
+                    <MaterialIcons name="person-add" size={26} color={color} />
                   );
                   break;
                 case "profile":
                   commonOptions.title = t("profile.title");
-                  commonOptions.tabBarIcon = ({ color, focused }: { color: string, focused: boolean }) => (
-                    <MaterialCommunityIcons
-                      name={focused ? "account-circle" : "account-circle-outline"}
-                      size={24}
+                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
+                    <MaterialIcons
+                      name="account-circle"
+                      size={26}
                       color={color}
                     />
                   );

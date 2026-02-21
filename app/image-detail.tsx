@@ -7,7 +7,6 @@ import { UserImageService, UserImageUpload } from "@/services/userImageService";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Clipboard from "expo-clipboard";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -28,16 +27,13 @@ import { storage } from "@/config/firebase";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 
 import { generateAudioFeedback } from "@/app/api/audioFeedback";
-import { predictBinary, predictPatterns } from "@/app/api/dyslexia";
 import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
 import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // âœ… FIXED IMPORT
-
 import {
   fetchTextFeedback,
-  TextFeedbackResponse
+  TextFeedbackResponse,
 } from "@/app/api/textFeedback";
 
-import AICorrectionPanel from "@/components/AICorrectionPanel";
 import { MindmapView } from "@/components/MindmapView";
 import { Audio } from "expo-av";
 
@@ -49,6 +45,8 @@ function cleanFirestore(obj: any) {
 }
 
 export default function ImageDetailScreen() {
+  
+
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageUrlResolved, setImageUrlResolved] = useState<string | null>(null);
@@ -56,29 +54,17 @@ export default function ImageDetailScreen() {
   const [imageLoadingError, setImageLoadingError] = useState<string | null>(
     null
   );
-  const ocrAppliedRef = useRef(false);
+const ocrAppliedRef = useRef(false);
 
   const [essayTopic, setEssayTopic] = useState("");
   const [inputText, setInputText] = useState("");
-  const [isDyslexic, setIsDyslexic] = useState(false);
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [showPatternDetails, setShowPatternDetails] = useState(false);
-  const [dyslexiaLabel, setDyslexiaLabel] = useState<string | undefined>(
-    undefined
-  );
 
-  const [selectedGrade, setSelectedGrade] = useState<number>(6);
   const [isScoring, setIsScoring] = useState(false);
   const [scoreData, setScoreData] = useState<SinhalaScoreResponse | null>(null);
-  const [patternData, setPatternData] = useState<any>(null);
   const [mindmapData, setMindmapData] = useState<MindmapData | null>(null);
   const [mindmapLoading, setMindmapLoading] = useState(false);
   const [mindmapError, setMindmapError] = useState<string | null>(null);
-
-  const { imageId, imageData: imageDataParam } = useLocalSearchParams<{
-    imageId?: string;
-    imageData?: string;
-  }>();
+const { imageId } = useLocalSearchParams<{ imageId?: string }>();
 
   // Text feedback state
   const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(
@@ -100,10 +86,6 @@ export default function ImageDetailScreen() {
 
   // const [isSaving, setIsSaving] = useState(false); // not used currently
   const [isDeleting, setIsDeleting] = useState(false);
-  const [correctionHighlight, setCorrectionHighlight] = useState(false);
-
-  const scrollViewRef = useRef<ScrollView>(null);
-  const scoringCardRef = useRef<View>(null);
 
   const { showToast } = useToast();
   const confirm = useConfirm();
@@ -123,48 +105,50 @@ export default function ImageDetailScreen() {
       setInputText(pastedText);
     }
   };
+  
 
-  useEffect(() => {
-    if (!imageData?.id) return;
+useEffect(() => {
+  if (!imageData?.id) return;
 
-    if (imageData.essay_text && imageData.essay_text.trim() !== "") {
-      // OCR already present
-      if (!inputText || inputText.trim() === "") {
-        setInputText(imageData.essay_text);
-        console.log("✅ OCR text applied to textbox");
-      }
-      return;
+  if (imageData.essay_text && imageData.essay_text.trim() !== "") {
+    // OCR already present
+    if (!inputText || inputText.trim() === "") {
+      setInputText(imageData.essay_text);
+      console.log("✅ OCR text applied to textbox");
     }
+    return;
+  }
 
-    // OCR not ready yet → poll Firestore
-    const interval = setInterval(async () => {
-      console.log("⏳ Waiting for OCR result...");
-      const fresh = await UserImageService.getUserImage(imageData.id);
+  // OCR not ready yet → poll Firestore
+  const interval = setInterval(async () => {
+    console.log("⏳ Waiting for OCR result...");
+    const fresh = await UserImageService.getUserImage(imageData.id);
 
-      if (fresh.essay_text && fresh.essay_text.trim() !== "") {
-        setImageData(fresh);
-        setInputText(fresh.essay_text);
-        console.log("🎯 OCR text arrived, textbox updated");
-        clearInterval(interval);
-      }
-    }, 3000); // every 3 seconds
-
-    return () => clearInterval(interval);
-  }, [imageData?.id]);
-
-  useEffect(() => {
-    if (imageData?.studentGrade) {
-      setSelectedGrade(Number(imageData.studentGrade));
+    if (fresh.essay_text && fresh.essay_text.trim() !== "") {
+      setImageData(fresh);
+      setInputText(fresh.essay_text);
+      console.log("🎯 OCR text arrived, textbox updated");
+      clearInterval(interval);
     }
-  }, [imageData?.studentGrade]);
+  }, 3000); // every 3 seconds
 
-  // useEffect(() => {
-  //   if (!imageData?.id) return;
+  return () => clearInterval(interval);
+}, [imageData?.id]);
 
-  //   console.log("📝 Setting inputText from Firestore:", imageData.essay_text);
 
-  //   setInputText(imageData.essay_text ?? "");
-  // }, [imageData?.id]);
+useEffect(() => {
+  if (!imageData?.id) return;
+
+  console.log("📝 Setting inputText from Firestore:", imageData.essay_text);
+
+  setInputText(imageData.essay_text ?? "");
+}, [imageData?.id]);
+
+
+
+
+
+
 
   // Cleanup audio player on unmount
   useEffect(() => {
@@ -178,36 +162,37 @@ export default function ImageDetailScreen() {
   // Resolve a valid HTTPS image URL for Firebase Storage if needed
   // ALWAYS regenerate from storagePath to ensure token is fresh, not using potentially stale imageUrl
   useEffect(() => {
-    const resolveUrl = async () => {
-      if (!imageData?.storagePath) return;
+  const resolveUrl = async () => {
+    if (!imageData?.storagePath) return;
 
-      setImageLoading(true);
-      setImageLoadingError(null);
+    setImageLoading(true);
+    setImageLoadingError(null);
 
-      try {
-        let path = imageData.storagePath;
+    try {
+      let path = imageData.storagePath;
 
-        // Handle gs:// paths safely
-        if (path.startsWith("gs://")) {
-          const parts = path.replace("gs://", "").split("/");
-          path = parts.slice(1).join("/");
-        }
-
-        const ref = storageRef(storage, path);
-        const freshUrl = await getDownloadURL(ref);
-
-        setImageUrlResolved(freshUrl);
-      } catch (err) {
-        console.error("❌ Failed to resolve image URL", err);
-        setImageLoadingError("Failed to load image");
-        setImageUrlResolved(null);
-      } finally {
-        setImageLoading(false);
+      // Handle gs:// paths safely
+      if (path.startsWith("gs://")) {
+        const parts = path.replace("gs://", "").split("/");
+        path = parts.slice(1).join("/");
       }
-    };
 
-    resolveUrl();
-  }, [imageData?.storagePath]);
+      const ref = storageRef(storage, path);
+      const freshUrl = await getDownloadURL(ref);
+
+      setImageUrlResolved(freshUrl);
+    } catch (err) {
+      console.error("❌ Failed to resolve image URL", err);
+      setImageLoadingError("Failed to load image");
+      setImageUrlResolved(null);
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  resolveUrl();
+}, [imageData?.storagePath]);
+
 
   // Load mindmap once imageData is available (uses essay/image id)
   useEffect(() => {
@@ -232,65 +217,35 @@ export default function ImageDetailScreen() {
     };
   }, [imageData?.id]);
 
-  useEffect(() => {
-    if (!imageId) return;
 
-    (async () => {
-      setLoading(true);
-      const freshImage = await UserImageService.getUserImage(imageId);
-      setImageData(freshImage);
-      if (freshImage.writing_patterns) {
-        setPatternData(freshImage.writing_patterns);
-      }
-      setEssayTopic(freshImage.essay_topic || "");
-      setLoading(false);
-    })();
-  }, [imageId]);
 
-  // ─── Run dyslexia detection when OCR text arrives ───
-  const dyslexiaDetectedRef = useRef(false);
 
-  useEffect(() => {
-    if (
-      !inputText ||
-      inputText.trim().length < 10 ||
-      dyslexiaDetectedRef.current
-    )
-      return;
 
-    dyslexiaDetectedRef.current = true;
 
-    (async () => {
-      try {
-        setIsDetecting(true);
 
-        const result = await predictBinary(inputText.trim());
 
-        const detectedDyslexic = result.essay_label === "DYSLEXIC ESSAY";
+useEffect(() => {
+  if (!imageId) return;
 
-        setIsDyslexic(detectedDyslexic);
-        setDyslexiaLabel(result.essay_label);
+  (async () => {
+    setLoading(true);
+    const freshImage = await UserImageService.getUserImage(imageId);
+    setImageData(freshImage);
+    
 
-        console.log(
-          "🧠 Early dyslexia detection:",
-          result.essay_label,
-          "confidence:",
-          result.confidence
-        );
-      } catch (err) {
-        console.warn("Early dyslexia detection failed:", err);
-      } finally {
-        setIsDetecting(false);
-      }
-    })();
-  }, [inputText]);
+    setEssayTopic(freshImage.essay_topic || "");
+    setLoading(false);
+  })();
+}, [imageId]);
+
+
 
   const handleDeleteImage = async () => {
     const ok = await confirm({
       title: t("essay.deleteEssay"),
       message: t("essay.deleteConfirm"),
       confirmText: t("common.delete"),
-      cancelText: t("common.cancel")
+      cancelText: t("common.cancel"),
     });
 
     if (!ok) return;
@@ -320,49 +275,55 @@ export default function ImageDetailScreen() {
     }
   };
 
-  const refreshImageData = async () => {
-    if (!imageData?.id) return;
 
-    try {
-      console.log("🔄 Refreshing image metadata from Firestore...");
 
-      const freshImage = await UserImageService.getUserImage(imageData.id);
-      setImageData(freshImage);
 
-      setEssayTopic(freshImage.essay_topic || "");
+const refreshImageData = async () => {
+  if (!imageData?.id) return;
 
-      if (freshImage.score) {
-        setScoreData({
-          score: freshImage.score,
-          details: freshImage.details || {},
-          rubric: freshImage.rubric || {},
-          fairness_report: freshImage.fairness_report || {}
-        });
-      }
+  try {
+    console.log("🔄 Refreshing image metadata from Firestore...");
 
-      if (freshImage.text_feedback) {
-        setTextFeedback(freshImage.text_feedback);
-      }
+    const freshImage = await UserImageService.getUserImage(imageData.id);
+    setImageData(freshImage);
 
-      if (freshImage.audio_feedback) {
-        setAudioFeedback(freshImage.audio_feedback);
-      }
-      if (freshImage.writing_patterns) {
-        setPatternData(freshImage.writing_patterns);
-      }
+    setEssayTopic(freshImage.essay_topic || "");
 
-      // 🔥 THIS WAS MISSING
-      if (freshImage.essay_text && (!inputText || inputText.trim() === "")) {
-        setInputText(freshImage.essay_text);
-        ocrAppliedRef.current = true;
-        console.log("🛡 Restored essay text after refresh");
-      }
-
-      console.log("✅ Image metadata refreshed");
-    } catch (err) {
-      console.error("❌ Refresh failed:", err);
+    if (freshImage.score) {
+      setScoreData({
+        score: freshImage.score,
+        details: freshImage.details || {},
+        rubric: freshImage.rubric || {},
+        fairness_report: freshImage.fairness_report || {},
+      });
     }
-  };
+
+    if (freshImage.text_feedback) {
+      setTextFeedback(freshImage.text_feedback);
+    }
+
+    if (freshImage.audio_feedback) {
+      setAudioFeedback(freshImage.audio_feedback);
+    }
+
+    // 🔥 THIS WAS MISSING
+    if (
+      freshImage.essay_text &&
+      (!inputText || inputText.trim() === "")
+    ) {
+      setInputText(freshImage.essay_text);
+      ocrAppliedRef.current = true;
+      console.log("🛡 Restored essay text after refresh");
+    }
+
+    console.log("✅ Image metadata refreshed");
+  } catch (err) {
+    console.error("❌ Refresh failed:", err);
+  }
+};
+
+
+
 
   const handleFetchTextFeedback = async () => {
     if (!imageData?.id || !inputText.trim()) {
@@ -396,7 +357,7 @@ export default function ImageDetailScreen() {
   const handleGenerateAudioFeedback = async () => {
     if (!imageData?.id || !textFeedback?.feedback) {
       showToast("Generate text feedback first to create audio", {
-        type: "error"
+        type: "error",
       });
       return;
     }
@@ -460,8 +421,8 @@ export default function ImageDetailScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} ref={scrollViewRef}>
-      <AppHeader showBackButton title={t("screenTitles.imageDetail")} />
+    <ScrollView style={styles.container}>
+      <AppHeader hideRightSection />
 
       <View style={styles.content}>
         {/* Image */}
@@ -481,12 +442,12 @@ export default function ImageDetailScreen() {
                   width: "100%",
                   height: 300,
                   borderRadius: 8,
-                  objectFit: "contain"
+                  objectFit: "contain",
                 }}
                 onError={(e) => {
                   console.error("Web img failed to load", {
                     resolvedUrl: imageUrlResolved,
-                    errorEvent: e
+                    errorEvent: e,
                   });
                   setImageUrlResolved(null);
                 }}
@@ -502,7 +463,7 @@ export default function ImageDetailScreen() {
                     error: e.nativeEvent?.error,
                     resolvedUrl: imageUrlResolved,
                     originalUrl: imageData?.imageUrl,
-                    storagePath: imageData?.storagePath
+                    storagePath: imageData?.storagePath,
                   });
                   setImageUrlResolved(null);
                 }}
@@ -524,7 +485,7 @@ export default function ImageDetailScreen() {
                   // Try resolving again and log details
                   console.info("Retrying image URL resolution", {
                     originalUrl: imageData?.imageUrl,
-                    storagePath: imageData?.storagePath
+                    storagePath: imageData?.storagePath,
                   });
                   try {
                     const candidate =
@@ -558,58 +519,8 @@ export default function ImageDetailScreen() {
           )}
         </View>
 
-        {/* AI CORRECTION PANEL - After OCR, Before Scoring */}
-        {inputText && inputText.trim().length > 0 && (
-          <AICorrectionPanel
-            originalText={inputText}
-            onCorrectedText={(correctedText) => {
-              setInputText(correctedText);
-              showToast("Corrected text applied to scoring field ✓", {
-                type: "success"
-              });
-              // Highlight the scoring field briefly & scroll to it
-              setCorrectionHighlight(true);
-              setTimeout(() => setCorrectionHighlight(false), 2000);
-              setTimeout(() => {
-                scoringCardRef.current?.measureLayout?.(
-                  scrollViewRef.current as any,
-                  (_x: number, y: number) => {
-                    scrollViewRef.current?.scrollTo({
-                      y: y - 20,
-                      animated: true
-                    });
-                  },
-                  () => {}
-                );
-              }, 300);
-            }}
-            onAnalysisComplete={(result) => {
-              console.log("🧠 AI Correction analysis complete:", result);
-            }}
-            autoAnalyze={false}
-            initialCollapsed={dyslexiaLabel !== "DYSLEXIC ESSAY"}
-            dyslexiaLabel={dyslexiaLabel}
-            studentId={imageData?.studentId}
-            imageId={imageId}
-            teacherId={imageData?.userId}
-          />
-        )}
-
         {/* SCORING INPUT CARD */}
-        <View
-          ref={scoringCardRef}
-          style={[
-            styles.inputCard,
-            correctionHighlight && {
-              borderColor: "#10B981",
-              borderWidth: 2,
-              shadowColor: "#10B981",
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 4
-            }
-          ]}
-        >
+        <View style={styles.inputCard}>
           <Text style={styles.cardTitle}>{t("essay.enterSinhalaEssay")}</Text>
 
           {/* Topic */}
@@ -633,25 +544,6 @@ export default function ImageDetailScreen() {
             style={[styles.textInput, { minHeight: 160 }]}
           />
 
-          {/* Debug Mode Toggle */}
-          {/* <View style={styles.debugRow}>
-            <Text style={styles.debugLabel}>
-              Simulate Dyslexic Student (Debug)
-            </Text>
-            <Switch
-              value={isDyslexic}
-              onValueChange={setIsDyslexic}
-              trackColor={{ false: "#374151", true: "#6D28D9" }}
-              thumbColor={isDyslexic ? "#fff" : "#9CA3AF"}
-            />
-          </View> */}
-
-          {isDetecting && (
-            <Text style={{ color: "#9CA3AF", marginBottom: 8 }}>
-              🧠 Detecting dyslexic patterns...
-            </Text>
-          )}
-
           {/* Score Button */}
           <TouchableOpacity
             style={[styles.scoreButton, isScoring && { opacity: 0.6 }]}
@@ -667,81 +559,19 @@ export default function ImageDetailScreen() {
               try {
                 const trimmedEssay = inputText.trim();
                 const trimmedTopic = essayTopic.trim();
-                // STEP 1: Run BINARY detection only
-                setIsDetecting(true);
-
-                const binaryResult = await predictBinary(trimmedEssay);
-
-                setIsDetecting(false);
-
-                const detectedDyslexic =
-                  binaryResult.essay_label === "DYSLEXIC ESSAY";
-
-                setIsDyslexic(detectedDyslexic);
-                setDyslexiaLabel(binaryResult.essay_label);
-
-                // Save binary result
-                await UserImageService.updateImageDyslexiaResult(imageData.id, {
-                  ...binaryResult,
-                  model_version: "v2"
-                });
-
-                // STEP 2: ONLY if dyslexic → run patterns
-                if (detectedDyslexic) {
-                  const patternResult = await predictPatterns(trimmedEssay);
-
-                  const normalizedPatterns = {
-                    dominant_pattern: patternResult.dominant,
-                    risk_level: patternResult.risk_level,
-                    severity: patternResult.severity,
-                    explanation: patternResult.explanation,
-                    pattern_distribution: patternResult.distribution,
-                    risk_score: patternResult.risk_score,
-                    pattern_density: patternResult.pattern_density,
-                    pattern_sentence_count:
-                      patternResult.pattern_sentence_count,
-                    pattern_sentence_examples:
-                      patternResult.pattern_sentence_examples,
-                    total_sentences: patternResult.total_sentences
-                  };
-
-                  await UserImageService.updateImagePatterns(
-                    imageData.id,
-                    normalizedPatterns
-                  );
-                }
-                // STEP 3: Extract dyslexic sentence-level error tags
-                // const errorTags = dyslexiaResult.sentences
-                //   .filter((s) => s.label === "DYSLEXIC")
-                //   .map((s) => ({
-                //     text: s.text,
-                //     probability: s.probability
-                //   }));
-
-                // STEP 4: Now call scoring engine with REAL dyslexic flag
-                // Fix: Extract number from string like "Grade 4" if necessary
-                const gradeStr = String(imageData.studentGrade || "6");
-                const numericGrade =
-                  parseInt(gradeStr.replace(/[^0-9]/g, "")) || 6;
-
                 const result = await scoreSinhala({
-                  text: trimmedEssay,
-                  grade: numericGrade,
+                  text: trimmedEssay,  // âœ… Changed from essay_text to text
+                  grade: Number(imageData.studentGrade) || 6,
                   topic: trimmedTopic || undefined,
-                  // ML-based dyslexia detection result
-                  dyslexic_flag: detectedDyslexic,
-                  // Structured error_tags temporarily disabled
-                  // Backend scoring service currently expects flat input.
-                  // Sentence-level dyslexia tags are stored in Firestore but not yet consumed by scorer.
-                  error_tags: []
+                  dyslexic_flag: false,  // âœ… Added dyslexic_flag
+                  error_tags: [],        // âœ… Added error_tags
                 });
 
                 // UI update
                 setScoreData(result);
                 showToast(t("essay.scoreCalculated"), { type: "success" });
 
-                // Persist scoring results to Firestore
-                // Cleaned to prevent undefined values from breaking Firestore writes
+                // ðŸ”¥ SAVE TO FIRESTORE (with cleaning)
                 const firestoreScorePayload = cleanFirestore({
                   score: result.score,
 
@@ -749,7 +579,7 @@ export default function ImageDetailScreen() {
                     // grade: result.details.grade,
                     // topic: result.details.topic ?? null,
                     dyslexic_flag: result.details.dyslexic_flag,
-                    error_tags: result.details.error_tags ?? []
+                    error_tags: result.details.error_tags ?? [],
                     // model: result.details.model,
                   },
 
@@ -757,16 +587,16 @@ export default function ImageDetailScreen() {
                     richness_5: result.rubric.richness_5,
                     organization_6: result.rubric.organization_6,
                     technical_3: result.rubric.technical_3,
-                    total_14: result.rubric.total_14
+                    total_14: result.rubric.total_14,
                   },
 
-                  // Firestore-safe (can be null)
+                  // ðŸ” Firestore-safe (can be null)
                   fairness_report: result.fairness_report ?? null,
 
                   essay_text: trimmedEssay,
                   essay_topic: trimmedTopic || null,
 
-                  scored_at: new Date().toISOString()
+                  scored_at: new Date().toISOString(),
                 });
 
                 await UserImageService.updateImageScore(
@@ -779,11 +609,11 @@ export default function ImageDetailScreen() {
                 // ✅ REFRESH DATA FROM FIRESTORE - This ensures everything is in sync
                 await refreshImageData();
 
-                // ✅ GENERATE MINDMAP
+                // âœ… GENERATE MINDMAP
                 try {
-                  console.log("🧠 Generating mindmap for essay:", imageData.id);
+                  console.log("ðŸ§  Generating mindmap for essay:", imageData.id);
                   await generateMindmap(imageData.id, inputText);
-                  console.log("✅ Mindmap generation triggered");
+                  console.log("âœ… Mindmap generation triggered");
 
                   // Fetch the generated mindmap
                   setMindmapLoading(true);
@@ -793,7 +623,7 @@ export default function ImageDetailScreen() {
                   setMindmapLoading(false);
                   showToast(t("essay.mindmapGenerated"), { type: "success" });
                 } catch (mindmapErr: any) {
-                  console.error("❌ Mindmap generation failed:", mindmapErr);
+                  console.error("âŒ Mindmap generation failed:", mindmapErr);
                   setMindmapError(
                     mindmapErr?.message || t("mindmap.generationFailed")
                   );
@@ -801,10 +631,10 @@ export default function ImageDetailScreen() {
                   // Don't block the main flow - mindmap is optional
                 }
 
-                // ✅ FETCH TEXT FEEDBACK
+                // âœ… FETCH TEXT FEEDBACK
                 try {
                   console.log(
-                    "📝 Fetching text feedback for essay:",
+                    "ðŸ“¤ Fetching text feedback for essay:",
                     imageData.id
                   );
                   const feedback = await fetchTextFeedback(
@@ -812,13 +642,13 @@ export default function ImageDetailScreen() {
                     inputText
                   );
                   setTextFeedback(feedback);
-                  console.log("✅ Text feedback received:", feedback);
+                  console.log("âœ… Text feedback received:", feedback);
                   showToast("Text feedback generated!", { type: "success" });
                   // Refresh to get the saved feedback from Firestore
                   await refreshImageData();
                 } catch (feedbackErr: any) {
                   console.error(
-                    "❌ Text feedback generation failed:",
+                    "âŒ Text feedback generation failed:",
                     feedbackErr
                   );
                   setTextFeedbackError(
@@ -828,17 +658,17 @@ export default function ImageDetailScreen() {
                 }
               } catch (err: any) {
                 console.log(
-                  "🔥 FIREBASE ERROR (full):",
+                  "ðŸ”¥ FIREBASE ERROR (full):",
                   JSON.stringify(err, null, 2)
                 );
-                console.log("🔥 FIREBASE ERROR MESSAGE:", err?.message);
-                console.log("🔥 FIREBASE ERROR CODE:", err?.code);
+                console.log("ðŸ”¥ FIREBASE ERROR MESSAGE:", err?.message);
+                console.log("ðŸ”¥ FIREBASE ERROR CODE:", err?.code);
 
                 if (
                   err?.message?.includes("Missing or insufficient permissions")
                 ) {
-                  showToast("❌ Firestore rules blocked the write", {
-                    type: "error"
+                  showToast("âŒ Firestore rules blocked the write", {
+                    type: "error",
                   });
                 }
 
@@ -848,23 +678,13 @@ export default function ImageDetailScreen() {
               }
             }}
           >
-            <LinearGradient
-              colors={["#007AFF", "#2563EB"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.scoreButtonGradient}
-            >
-              {isScoring ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <MaterialIcons name="analytics" size={20} color="#fff" />
-                  <Text style={styles.scoreButtonText}>
-                    {t("essay.scoreEssay")}
-                  </Text>
-                </>
-              )}
-            </LinearGradient>
+            {isScoring ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.scoreButtonText}>
+                {t("essay.scoreEssay")}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -875,8 +695,7 @@ export default function ImageDetailScreen() {
           {scoreData && (
             <View style={styles.scoreBox}>
               <Text style={styles.scoreMain}>
-                {t("essay.score")}:{" "}
-                {typeof scoreData.score === "number"
+                {t("essay.score")}: {typeof scoreData.score === "number"
                   ? scoreData.score.toFixed(2)
                   : scoreData.score}
               </Text>
@@ -903,9 +722,7 @@ export default function ImageDetailScreen() {
               </Text>
 
               <View style={styles.rubricRow}>
-                <Text style={styles.rubricLabel}>
-                  {t("essay.richness")} (5)
-                </Text>
+                <Text style={styles.rubricLabel}>Richness (5)</Text>
                 <Text style={styles.rubricValue}>
                   {scoreData.rubric?.richness_5 ?? "â€”"}
                 </Text>
@@ -913,7 +730,7 @@ export default function ImageDetailScreen() {
 
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>
-                  {t("essay.organization")} (6)
+                  Organization / Creativity (6)
                 </Text>
                 <Text style={styles.rubricValue}>
                   {scoreData.rubric?.organization_6 ?? "â€”"}
@@ -921,9 +738,7 @@ export default function ImageDetailScreen() {
               </View>
 
               <View style={styles.rubricRow}>
-                <Text style={styles.rubricLabel}>
-                  {t("essay.technicalSkills")} (3)
-                </Text>
+                <Text style={styles.rubricLabel}>Technical Skills (3)</Text>
                 <Text style={styles.rubricValue}>
                   {scoreData.rubric?.technical_3 ?? "â€”"}
                 </Text>
@@ -931,7 +746,7 @@ export default function ImageDetailScreen() {
 
               <View style={styles.rubricTotalRow}>
                 <Text style={[styles.rubricLabel, { fontSize: 16 }]}>
-                  {t("essay.total")} (14)
+                  Total (14)
                 </Text>
                 <Text style={styles.rubricTotalValue}>
                   {scoreData.rubric?.total_14 ?? "â€”"}
@@ -939,123 +754,7 @@ export default function ImageDetailScreen() {
               </View>
             </View>
           )}
-          {/* ==================== Pattern SECTION ==================== */}
 
-          {patternData && (
-            <View style={styles.patternCard}>
-              <Text style={styles.patternTitle}>Writing Pattern Analysis</Text>
-
-              <Text style={styles.patternMain}>
-                Dominant: {patternData.dominant_pattern}
-              </Text>
-
-              <Text style={styles.patternMeta}>
-                Risk Level: {patternData.risk_level}
-              </Text>
-
-              <Text style={styles.patternMeta}>
-                Severity: {patternData.severity}
-              </Text>
-
-              <Text style={styles.patternExplanation}>
-                {patternData.explanation}
-              </Text>
-
-              {patternData.pattern_distribution && (
-                <View style={styles.patternDistributionBox}>
-                  {Object.entries(patternData.pattern_distribution).map(
-                    ([key, value]: any) => (
-                      <Text key={key} style={styles.patternItem}>
-                        {key}: {(value * 100).toFixed(1)}%
-                      </Text>
-                    )
-                  )}
-                </View>
-              )}
-
-              {/* Toggle Button */}
-              <TouchableOpacity
-                style={styles.patternToggleButton}
-                onPress={() => setShowPatternDetails((prev) => !prev)}
-              >
-                <MaterialIcons
-                  name={showPatternDetails ? "expand-less" : "expand-more"}
-                  size={20}
-                  color="#F59E0B"
-                />
-                <Text style={styles.patternToggleText}>
-                  {showPatternDetails
-                    ? "Hide Detailed Analysis"
-                    : "View Detailed Analysis"}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Expanded Section */}
-              {showPatternDetails && (
-                <View style={styles.patternAdvancedBox}>
-                  {patternData.risk_score !== undefined && (
-                    <Text style={styles.patternAdvancedItem}>
-                      Risk Score: {patternData.risk_score.toFixed(2)}
-                    </Text>
-                  )}
-
-                  {patternData.pattern_density && (
-                    <View style={styles.patternSubSection}>
-                      <Text style={styles.patternSubTitle}>
-                        Pattern Density
-                      </Text>
-                      {Object.entries(patternData.pattern_density).map(
-                        ([key, value]: any) => (
-                          <Text key={key} style={styles.patternAdvancedItem}>
-                            {key}: {value.toFixed(1)}%
-                          </Text>
-                        )
-                      )}
-                    </View>
-                  )}
-
-                  {patternData.pattern_sentence_count && (
-                    <View style={styles.patternSubSection}>
-                      <Text style={styles.patternSubTitle}>
-                        Pattern Sentence Count
-                      </Text>
-                      {Object.entries(patternData.pattern_sentence_count).map(
-                        ([key, value]: any) => (
-                          <Text key={key} style={styles.patternAdvancedItem}>
-                            {key}: {value}
-                          </Text>
-                        )
-                      )}
-                    </View>
-                  )}
-
-                  {patternData.pattern_sentence_examples && (
-                    <View style={styles.patternSubSection}>
-                      <Text style={styles.patternSubTitle}>
-                        Example Sentences
-                      </Text>
-                      {Object.entries(
-                        patternData.pattern_sentence_examples
-                      ).map(([type, arr]: any) =>
-                        arr.length > 0 ? (
-                          <View key={type} style={styles.patternExampleGroup}>
-                            <Text style={styles.patternExampleTitle}>
-                              {type}
-                            </Text>
-                            {arr.map((sentence: string, i: number) => (
-                              <Text key={i} style={styles.patternExampleText}>
-                                • {sentence}
-                              </Text>
-                            ))}
-                          </View>
-                        ) : null
-                      )}
-                    </View>
-                  )}
-                </View>
-              )}
-            </View>
-          )}
           {/* ==================== FAIRNESS SECTION ====================
           {scoreData && (
             <View style={styles.fairnessCard}>
@@ -1105,7 +804,7 @@ export default function ImageDetailScreen() {
                 <TouchableOpacity
                   style={[
                     styles.feedbackRefreshButton,
-                    textFeedbackLoading && { opacity: 0.6 }
+                    textFeedbackLoading && { opacity: 0.6 },
                   ]}
                   onPress={handleFetchTextFeedback}
                   disabled={textFeedbackLoading}
@@ -1120,9 +819,9 @@ export default function ImageDetailScreen() {
 
               {textFeedbackLoading && (
                 <View style={styles.feedbackStatusBox}>
-                  <ActivityIndicator color="#007AFF" />
+                  <ActivityIndicator color="#3B82F6" />
                   <Text style={styles.feedbackStatusText}>
-                    {t("essay.generatingFeedback")}
+                    Generating feedback...
                   </Text>
                 </View>
               )}
@@ -1151,9 +850,7 @@ export default function ImageDetailScreen() {
                       style={styles.feedbackIcon}
                     />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.feedbackLabel}>
-                        {t("essay.generalFeedback")}
-                      </Text>
+                      <Text style={styles.feedbackLabel}>General Feedback</Text>
                       <Text style={styles.feedbackText}>
                         {textFeedback.feedback}
                       </Text>
@@ -1165,10 +862,11 @@ export default function ImageDetailScreen() {
                     textFeedback.suggestions.length > 0 && (
                       <View style={styles.suggestionsBox}>
                         <Text style={styles.suggestionsTitle}>
-                          {t("essay.suggestionsForImprovement")}
+                          Suggestions for Improvement:
                         </Text>
                         {textFeedback.suggestions.map((suggestion, idx) => (
                           <View key={idx} style={styles.suggestionItem}>
+                            <Text style={styles.suggestionBullet}>â€¢</Text>
                             <Text style={styles.suggestionText}>
                               {suggestion}
                             </Text>
@@ -1181,28 +879,24 @@ export default function ImageDetailScreen() {
                   {textFeedback.metrics && (
                     <View style={styles.metricsBox}>
                       <Text style={styles.metricsTitle}>
-                        {t("essay.textMetricsAnalysis")}
+                        Text Metrics Analysis
                       </Text>
                       <View style={styles.metricsGrid}>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>
-                            {t("essay.words")}
-                          </Text>
+                          <Text style={styles.metricLabel}>Words</Text>
                           <Text style={styles.metricValue}>
                             {Math.round(textFeedback.metrics.word_count)}
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>
-                            {t("essay.sentences")}
-                          </Text>
+                          <Text style={styles.metricLabel}>Sentences</Text>
                           <Text style={styles.metricValue}>
                             {Math.round(textFeedback.metrics.sentence_count)}
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
                           <Text style={styles.metricLabel}>
-                            {t("essay.avgWordsSentence")}
+                            Avg Words/Sentence
                           </Text>
                           <Text style={styles.metricValue}>
                             {textFeedback.metrics.avg_sentence_length.toFixed(
@@ -1211,16 +905,14 @@ export default function ImageDetailScreen() {
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>
-                            {t("essay.characters")}
-                          </Text>
+                          <Text style={styles.metricLabel}>Characters</Text>
                           <Text style={styles.metricValue}>
                             {Math.round(textFeedback.metrics.char_length)}
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
                           <Text style={styles.metricLabel}>
-                            {t("essay.repetitionRatio")}
+                            Repetition Ratio
                           </Text>
                           <Text style={styles.metricValue}>
                             {(
@@ -1231,7 +923,7 @@ export default function ImageDetailScreen() {
                         </View>
                         <View style={styles.metricItem}>
                           <Text style={styles.metricLabel}>
-                            {t("essay.duplicateWords")}
+                            Duplicate Words
                           </Text>
                           <Text style={styles.metricValue}>
                             {Math.round(
@@ -1245,7 +937,7 @@ export default function ImageDetailScreen() {
                 </View>
               ) : (
                 <Text style={styles.feedbackPlaceholder}>
-                  {t("essay.clickRefreshFeedback")}
+                  Click refresh to generate AI-powered feedback
                 </Text>
               )}
             </View>
@@ -1255,46 +947,23 @@ export default function ImageDetailScreen() {
           {textFeedback && (
             <View style={styles.audioFeedbackCard}>
               <View style={styles.audioFeedbackHeader}>
-                <View style={styles.audioFeedbackTitleContainer}>
-                  <MaterialIcons
-                    name="volume-up"
-                    size={22}
-                    color="#10B981"
-                    style={styles.audioHeaderIcon}
-                  />
-                  <Text style={styles.audioFeedbackTitle}>
-                    {t("essay.sinhalaAudioFeedback")}
-                  </Text>
-                </View>
+                <MaterialIcons name="volume-up" size={20} color="#10B981" />
+                <Text style={styles.audioFeedbackTitle}>
+                  Sinhala Audio Feedback
+                </Text>
                 <TouchableOpacity
                   style={[
                     styles.generateAudioButton,
-                    audioFeedbackLoading && { opacity: 0.6 }
+                    audioFeedbackLoading && { opacity: 0.6 },
                   ]}
                   onPress={handleGenerateAudioFeedback}
                   disabled={audioFeedbackLoading}
                 >
-                  <LinearGradient
-                    colors={["#10B981", "#059669"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.generateAudioGradient}
-                  >
-                    {audioFeedbackLoading ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <>
-                        <MaterialIcons
-                          name="music-note"
-                          size={16}
-                          color="#fff"
-                        />
-                        <Text style={styles.generateAudioButtonText}>
-                          {t("essay.generateAudio")}
-                        </Text>
-                      </>
-                    )}
-                  </LinearGradient>
+                  {audioFeedbackLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <MaterialIcons name="music-note" size={16} color="#fff" />
+                  )}
                 </TouchableOpacity>
               </View>
 
@@ -1302,7 +971,7 @@ export default function ImageDetailScreen() {
                 <View style={styles.audioLoadingBox}>
                   <ActivityIndicator color="#10B981" />
                   <Text style={styles.audioLoadingText}>
-                    {t("essay.audioGenerating")}
+                    Generating audio feedback...
                   </Text>
                 </View>
               )}
@@ -1384,38 +1053,13 @@ export default function ImageDetailScreen() {
                     </TouchableOpacity>
                     <View style={styles.audioInfoBox}>
                       <Text style={styles.audioPlayingText}>
-                        {isAudioPlaying
-                          ? t("essay.audioPlayingNow")
-                          : t("essay.audioReadyToPlay")}
+                        {isAudioPlaying ? "Playing" : "Ready to play"}
                       </Text>
-                      <View style={styles.audioMetaRow}>
-                        <View
-                          style={[
-                            styles.audioStatusBadge,
-                            isAudioPlaying && styles.audioStatusBadgeActive
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.audioStatusText,
-                              isAudioPlaying && styles.audioStatusTextActive
-                            ]}
-                          >
-                            {isAudioPlaying
-                              ? t("essay.audioLive")
-                              : t("essay.audioReady")}
-                          </Text>
-                        </View>
-                        {audioFeedback.duration && (
-                          <View style={styles.audioDurationBadge}>
-                            <Text style={styles.audioDurationText}>
-                              {t("essay.audioDuration", {
-                                duration: audioFeedback.duration
-                              })}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
+                      {audioFeedback.duration && (
+                        <Text style={styles.audioDurationText}>
+                          Duration: {audioFeedback.duration}s
+                        </Text>
+                      )}
                     </View>
                   </View>
                 )}
@@ -1424,7 +1068,7 @@ export default function ImageDetailScreen() {
                 !audioFeedbackLoading &&
                 !audioFeedbackError && (
                   <Text style={styles.audioPlaceholder}>
-                    {t("essay.clickToGenerateAudio")}
+                    Click the button to generate Sinhala audio from feedback
                   </Text>
                 )}
             </View>
@@ -1470,7 +1114,7 @@ export default function ImageDetailScreen() {
             <View style={styles.mindmapContainer}>
               <MindmapView data={mindmapData} />
               <Text style={styles.mindmapMeta}>
-                {t("mindmap.nodes")}: {mindmapData.metadata.total_nodes}
+                {t("mindmap.nodes")}: {mindmapData.metadata.total_nodes} 
                 {t("mindmap.edges")}: {mindmapData.metadata.total_edges}
               </Text>
               <Text style={styles.mindmapHint}>{t("mindmap.hint")}</Text>
@@ -1478,37 +1122,33 @@ export default function ImageDetailScreen() {
           )}
         </View>
 
-        {/* Proper Nice Button Arrangement */}
-        <View style={styles.actionContainer}>
-          <TouchableOpacity style={styles.primaryActionButton}>
-            <MaterialIcons name="download" size={24} color="#0F1117" />
-            <Text style={styles.actionButtonTextPrimary}>
-              {t("essay.download")}
-            </Text>
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.actionButton}>
+            <MaterialIcons name="download" size={24} color="#fff" />
+            <Text style={styles.actionButtonText}>{t("essay.download")}</Text>
           </TouchableOpacity>
 
-          <View style={styles.actionGrid}>
-            <TouchableOpacity style={styles.secondaryActionButton}>
-              <MaterialIcons name="share" size={20} color="#fff" />
-              <Text style={styles.actionButtonText}>{t("essay.share")}</Text>
-            </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionButton, styles.shareButton]}>
+            <MaterialIcons name="share" size={24} color="#fff" />
+            <Text style={styles.actionButtonText}>{t("essay.share")}</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.secondaryActionButton, styles.deleteActionButton]}
-              onPress={handleDeleteImage}
-            >
-              {isDeleting ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <MaterialIcons name="delete-outline" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>
-                    {t("common.delete")}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={handleDeleteImage}
+          >
+            {isDeleting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <MaterialIcons name="delete" size={24} color="#fff" />
+                <Text style={styles.actionButtonText}>
+                  {t("common.delete")}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -1516,271 +1156,202 @@ export default function ImageDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F1117" },
+  container: { flex: 1, backgroundColor: "#181A20" },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24
+    padding: 16,
   },
-  content: { padding: 16 },
+  content: { padding: 12 },
 
   imageContainer: {
-    backgroundColor: "#1C1E26",
-    padding: 12,
-    borderRadius: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#2D313E",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5
+    backgroundColor: "#23262F",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
   },
 
-  image: { width: "100%", height: 320, borderRadius: 16 },
+  image: { width: "100%", height: 300, borderRadius: 8 },
   imageFallback: {
     width: "100%",
-    height: 320,
-    borderRadius: 16,
-    backgroundColor: "#16181F",
+    height: 300,
+    borderRadius: 8,
+    backgroundColor: "#1f2128",
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#333",
     alignItems: "center",
     justifyContent: "center",
-    gap: 12
+    gap: 8,
   },
   imageFallbackText: {
-    color: "#6B7280",
-    fontSize: 14,
-    fontWeight: "500"
+    color: "#9CA3AF",
+    fontSize: 13,
   },
 
   cardTitle: {
-    color: "#FFFFFF",
-    fontSize: 22,
-    fontWeight: "800",
-    marginBottom: 16,
-    letterSpacing: 0.5
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 12,
   },
 
   inputCard: {
-    backgroundColor: "#1C1E26",
-    padding: 24,
-    borderRadius: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#2D313E"
+    backgroundColor: "#23262F",
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
   },
 
   textInput: {
-    backgroundColor: "#0F1117",
-    color: "#FFFFFF",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    borderColor: "#2D313E",
+    backgroundColor: "#1f2128",
+    color: "#fff",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    borderColor: "#333",
     borderWidth: 1,
     fontSize: 16,
-    lineHeight: 24 // Better for Sinhala
   },
 
   detailLabel: {
     color: "#9CA3AF",
-    marginBottom: 8,
-    fontSize: 14,
-    fontWeight: "600",
-    letterSpacing: 0.3
+    marginBottom: 6,
+    fontSize: 13,
   },
 
   scoreButton: {
-    padding: 0, // Handled by gradient
-    borderRadius: 12,
-    marginTop: 12,
-    overflow: "hidden"
-  },
-
-  scoreButtonGradient: {
-    padding: 18,
+    backgroundColor: "#2563eb",
+    padding: 16,
+    borderRadius: 10,
     alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 10
+    marginTop: 10,
   },
 
   scoreButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 17,
-    letterSpacing: 0.5
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 
   detailsCard: {
-    backgroundColor: "#1C1E26",
-    padding: 24,
-    borderRadius: 24,
+    backgroundColor: "#23262F",
+    padding: 28,
+    borderRadius: 16,
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#2D313E",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 8
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
 
   scoreBox: {
-    backgroundColor: "#0F1117",
+    backgroundColor: "#111827",
     padding: 24,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: "#007AFF",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#2563eb",
     marginBottom: 24,
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 10,
-    alignItems: "center"
+    shadowColor: "#2563eb",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
 
   scoreMain: {
-    fontSize: 42,
+    fontSize: 36,
     fontWeight: "900",
-    color: "#007AFF",
-    marginBottom: 8,
-    textAlign: "center"
+    color: "#3B82F6",
+    marginBottom: 12,
   },
 
   scoreDetail: {
-    color: "#9CA3AF",
-    marginBottom: 4,
-    fontSize: 15,
-    fontWeight: "500"
+    color: "#E5E7EB",
+    marginBottom: 6,
+    fontSize: 16,
   },
 
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 20,
-    backgroundColor: "#22252F",
-    padding: 16,
-    borderRadius: 12
   },
 
   detailContent: { marginLeft: 12, flex: 1 },
 
-  detailValue: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  detailValue: { color: "#fff", fontSize: 16 },
 
-  actionContainer: {
-    gap: 12,
-    marginBottom: 60,
-    marginTop: 20
-  },
-
-  actionGrid: {
+  actionButtons: {
     flexDirection: "row",
-    gap: 12
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 30,
   },
 
-  flexRowItem: {
-    flex: 1
-  },
-
-  primaryActionButton: {
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 18,
-    borderRadius: 20,
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 12,
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-    minHeight: 64
-  },
-
-  secondaryActionButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 16,
-    borderRadius: 20,
+  actionButton: {
+    flex: 1,
+    backgroundColor: "#2563eb",
+    padding: 16,
+    borderRadius: 10,
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "center",
     gap: 8,
-    flex: 1,
-    minHeight: 58,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4
   },
 
-  deleteActionButton: {
+  shareButton: {
+    backgroundColor: "#10B981",
+  },
+
+  deleteButton: {
     backgroundColor: "#EF4444",
-    shadowColor: "#EF4444",
-    shadowOpacity: 0.2
   },
 
   actionButtonText: {
-    color: "#FFFFFF",
+    color: "#fff",
     fontSize: 15,
-    fontWeight: "700",
-    textAlign: "center",
-    letterSpacing: 0.3
-  },
-
-  actionButtonTextPrimary: {
-    color: "#0F1117",
-    fontSize: 16,
-    fontWeight: "700",
-    textAlign: "center",
-    letterSpacing: 0.3
+    fontWeight: "600",
   },
   loadingText: {
     color: "#9CA3AF",
-    marginTop: 16,
+    marginTop: 12,
     fontSize: 16,
-    fontWeight: "500"
   },
 
   errorTitle: {
     color: "#FF3B30",
     fontSize: 18,
     fontWeight: "bold",
-    marginVertical: 10
+    marginVertical: 10,
   },
 
   backButtonTop: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16
+    marginBottom: 16,
   },
   backButtonTopText: { color: "#007AFF", marginLeft: 8 },
   backButton: {
     backgroundColor: "#007AFF",
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 8
+    borderRadius: 8,
   },
   backButtonText: { color: "#fff", fontWeight: "bold" },
   // Mindmap styles
   mindmapStatusBox: {
     alignItems: "center",
     gap: 8,
-    paddingVertical: 12
+    paddingVertical: 12,
   },
   errorTextSmall: {
     color: "#9CA3AF",
     fontSize: 12,
     textAlign: "center",
     marginTop: 4,
-    marginBottom: 12
+    marginBottom: 12,
   },
   reloadMindmapButton: {
     flexDirection: "row",
@@ -1790,143 +1361,135 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
-    alignSelf: "center"
+    alignSelf: "center",
   },
   reloadMindmapText: {
     color: "#fff",
     fontWeight: "600",
-    fontSize: 14
+    fontSize: 14,
   },
   mindmapContainer: {
     height: 400,
     backgroundColor: "#fff",
     borderRadius: 12,
-    overflow: "hidden"
+    overflow: "hidden",
   },
   mindmapMeta: {
     color: "#9CA3AF",
     fontSize: 12,
     marginTop: 8,
-    textAlign: "center"
+    textAlign: "center",
   },
   mindmapHint: {
     color: "#666",
     fontSize: 11,
     textAlign: "center",
     marginTop: 4,
-    marginBottom: 4
+    marginBottom: 4,
   },
   rubricCard: {
-    backgroundColor: "#16181F",
-    padding: 20,
-    borderRadius: 16,
+    backgroundColor: "#1f2128",
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#2D313E",
-    marginBottom: 24
+    borderColor: "#374151",
+    marginBottom: 20,
   },
 
   rubricTitle: {
-    color: "#FFFFFF",
+    color: "#fff",
     fontSize: 18,
-    fontWeight: "800",
-    marginBottom: 16,
-    letterSpacing: 0.5
+    fontWeight: "bold",
+    marginBottom: 14,
   },
 
   rubricRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center", // Fix alignment for Sinhala
-    marginBottom: 12,
-    paddingVertical: 2
+    marginBottom: 10,
   },
 
   rubricLabel: {
     color: "#9CA3AF",
-    fontSize: 15,
-    fontWeight: "500",
-    flex: 1,
-    marginRight: 8
+    fontSize: 14,
   },
 
   rubricValue: {
-    color: "#007AFF",
-    fontSize: 17,
-    fontWeight: "800"
+    color: "#3B82F6",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 
   rubricTotalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 12,
-    paddingTop: 16,
+    marginTop: 10,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: "#2D313E"
+    borderTopColor: "#374151",
   },
 
   rubricTotalValue: {
     color: "#10B981",
-    fontSize: 22,
-    fontWeight: "900"
+    fontSize: 20,
+    fontWeight: "bold",
   },
 
   fairnessCard: {
-    backgroundColor: "#16181F",
-    padding: 20,
-    borderRadius: 16,
+    backgroundColor: "#1f2128",
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#6D28D9",
-    marginBottom: 24
+    marginBottom: 20,
   },
 
   fairnessNote: {
-    color: "#9CA3AF",
-    fontSize: 14,
-    lineHeight: 20
+    color: "#D1D5DB",
+    fontSize: 13,
   },
 
   feedbackCard: {
-    backgroundColor: "#16181F",
-    padding: 20,
-    borderRadius: 16,
+    backgroundColor: "#1f2128",
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#10B981",
-    marginBottom: 24
+    marginBottom: 20,
   },
 
   feedbackItem: {
     flexDirection: "row",
     alignItems: "flex-start",
     marginBottom: 12,
-    paddingHorizontal: 4
+    paddingHorizontal: 4,
   },
 
   feedbackIcon: {
     marginRight: 12,
-    marginTop: 2
+    marginTop: 2,
   },
 
   feedbackText: {
     color: "#E5E7EB",
     fontSize: 14,
     flex: 1,
-    lineHeight: 20
+    lineHeight: 20,
   },
 
   feedbackHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12
+    alignItems: "center",
+    marginBottom: 12,
   },
 
   feedbackRefreshButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#3B82F6",
     padding: 8,
     borderRadius: 8,
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
   },
 
   feedbackStatusBox: {
@@ -1936,12 +1499,12 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#111827",
     borderRadius: 8,
-    marginBottom: 12
+    marginBottom: 12,
   },
 
   feedbackStatusText: {
-    color: "#007AFF",
-    fontSize: 13
+    color: "#3B82F6",
+    fontSize: 13,
   },
 
   feedbackErrorBox: {
@@ -1951,17 +1514,17 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#7F1D1D",
     borderRadius: 8,
-    marginBottom: 12
+    marginBottom: 12,
   },
 
   feedbackErrorText: {
     color: "#FCA5A5",
     fontSize: 13,
-    flex: 1
+    flex: 1,
   },
 
   feedbackContent: {
-    gap: 12
+    gap: 12,
   },
 
   feedbackMainBox: {
@@ -1971,13 +1534,13 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: "#F59E0B"
+    borderLeftColor: "#F59E0B",
   },
 
   feedbackLabel: {
     color: "#9CA3AF",
     fontSize: 12,
-    marginBottom: 4
+    marginBottom: 4,
   },
 
   suggestionsBox: {
@@ -1985,34 +1548,34 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: "#10B981"
+    borderLeftColor: "#10B981",
   },
 
   suggestionsTitle: {
     color: "#10B981",
     fontSize: 13,
     fontWeight: "600",
-    marginBottom: 10
+    marginBottom: 10,
   },
 
   suggestionItem: {
     flexDirection: "row",
     marginBottom: 8,
-    alignItems: "flex-start"
+    alignItems: "flex-start",
   },
 
   suggestionBullet: {
     color: "#10B981",
     fontSize: 16,
     marginRight: 8,
-    fontWeight: "bold"
+    fontWeight: "bold",
   },
 
   suggestionText: {
     color: "#D1D5DB",
     fontSize: 13,
     flex: 1,
-    lineHeight: 18
+    lineHeight: 18,
   },
 
   feedbackPlaceholder: {
@@ -2020,7 +1583,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: "italic",
     textAlign: "center",
-    paddingVertical: 12
+    paddingVertical: 12,
   },
 
   apiScoreBox: {
@@ -2028,21 +1591,21 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: "#007AFF",
+    borderLeftColor: "#3B82F6",
     marginBottom: 12,
-    alignItems: "center"
+    alignItems: "center",
   },
 
   apiScoreLabel: {
     color: "#9CA3AF",
     fontSize: 12,
-    marginBottom: 4
+    marginBottom: 4,
   },
 
   apiScoreValue: {
-    color: "#007AFF",
+    color: "#3B82F6",
     fontSize: 24,
-    fontWeight: "bold"
+    fontWeight: "bold",
   },
 
   metricsBox: {
@@ -2051,20 +1614,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderLeftWidth: 3,
     borderLeftColor: "#8B5CF6",
-    marginTop: 12
+    marginTop: 12,
   },
 
   metricsTitle: {
     color: "#8B5CF6",
     fontSize: 13,
     fontWeight: "600",
-    marginBottom: 10
+    marginBottom: 10,
   },
 
   metricsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8
+    gap: 8,
   },
 
   metricItem: {
@@ -2075,19 +1638,19 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: "#374151",
-    alignItems: "center"
+    alignItems: "center",
   },
 
   metricLabel: {
     color: "#9CA3AF",
     fontSize: 11,
-    marginBottom: 4
+    marginBottom: 4,
   },
 
   metricValue: {
     color: "#E5E7EB",
     fontSize: 14,
-    fontWeight: "bold"
+    fontWeight: "bold",
   },
 
   // Audio Feedback Styles
@@ -2097,60 +1660,30 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#10B981",
-    marginBottom: 20
+    marginBottom: 20,
   },
 
   audioFeedbackHeader: {
-    flexDirection: "column",
-    alignItems: "center",
-    marginBottom: 16,
-    gap: 12
-  },
-
-  audioFeedbackTitleContainer: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    width: "100%"
-  },
-
-  audioHeaderIcon: {
-    marginTop: 2,
-    marginRight: 10
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
   },
 
   audioFeedbackTitle: {
     color: "#fff",
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: "bold",
     flex: 1,
-    lineHeight: 28
+    marginLeft: 8,
   },
 
   generateAudioButton: {
-    borderRadius: 12,
-    overflow: "hidden",
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    minWidth: 160
-  },
-
-  generateAudioGradient: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    gap: 10,
+    backgroundColor: "#10B981",
+    padding: 8,
+    borderRadius: 8,
     justifyContent: "center",
-    alignItems: "center"
-  },
-
-  generateAudioButtonText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: 0.4
+    alignItems: "center",
   },
 
   audioLoadingBox: {
@@ -2160,12 +1693,12 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#111827",
     borderRadius: 8,
-    marginBottom: 12
+    marginBottom: 12,
   },
 
   audioLoadingText: {
     color: "#10B981",
-    fontSize: 13
+    fontSize: 13,
   },
 
   audioErrorBox: {
@@ -2175,25 +1708,22 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#7F1D1D",
     borderRadius: 8,
-    marginBottom: 12
+    marginBottom: 12,
   },
 
   audioErrorText: {
     color: "#FCA5A5",
     fontSize: 13,
-    flex: 1
+    flex: 1,
   },
 
   audioPlayerBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0F172A",
-    padding: 14,
+    backgroundColor: "#111827",
+    padding: 12,
     borderRadius: 8,
-
-    borderWidth: 1,
-    borderColor: "#1F2937",
-    gap: 12
+    gap: 12,
   },
 
   playButton: {
@@ -2202,65 +1732,23 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     justifyContent: "center",
-
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3
   },
 
   audioInfoBox: {
-    flex: 1
+    flex: 1,
   },
 
   audioPlayingText: {
     color: "#E5E7EB",
     fontSize: 14,
-    fontWeight: "600"
-  },
-  audioMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 6,
-    flexWrap: "wrap"
-  },
-  audioStatusBadge: {
-    borderWidth: 1,
-    borderColor: "#334155",
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    backgroundColor: "#0B1220"
-  },
-  audioStatusBadgeActive: {
-    borderColor: "#10B981",
-    backgroundColor: "#064E3B"
-  },
-  audioStatusText: {
-    color: "#9CA3AF",
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 0.6
-  },
-  audioStatusTextActive: {
-    color: "#D1FAE5"
-  },
-  audioDurationBadge: {
-    borderWidth: 1,
-    borderColor: "#1F2937",
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    backgroundColor: "#111827"
+    fontWeight: "600",
   },
 
   audioDurationText: {
     color: "#9CA3AF",
-
-    fontSize: 11
+    fontSize: 12,
+    marginTop: 4,
   },
 
   audioPlaceholder: {
@@ -2268,120 +1756,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: "italic",
     textAlign: "center",
-    paddingVertical: 12
+    paddingVertical: 12,
   },
-
-  debugRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: "#2C2F36",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#4B5563"
-  },
-
-  debugLabel: {
-    color: "#E5E7EB",
-    fontSize: 14,
-    fontWeight: "600"
-  },
-  patternCard: {
-    backgroundColor: "#16181F",
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#F59E0B",
-    marginBottom: 24
-  },
-
-  patternTitle: {
-    color: "#F59E0B",
-    fontSize: 18,
-    fontWeight: "800",
-    marginBottom: 12
-  },
-
-  patternMain: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600"
-  },
-
-  patternMeta: {
-    color: "#9CA3AF",
-    marginTop: 4
-  },
-
-  patternExplanation: {
-    color: "#D1D5DB",
-    marginTop: 10
-  },
-
-  patternItem: {
-    color: "#E5E7EB",
-    fontSize: 14,
-    marginBottom: 4
-  },
-  patternDistributionBox: {
-    marginTop: 12
-  },
-
-  patternToggleButton: {
-    marginTop: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6
-  },
-
-  patternToggleText: {
-    color: "#F59E0B",
-    fontWeight: "600",
-    fontSize: 14
-  },
-
-  patternAdvancedBox: {
-    marginTop: 16,
-    backgroundColor: "#0F1117",
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#2D313E"
-  },
-
-  patternAdvancedItem: {
-    color: "#D1D5DB",
-    fontSize: 14,
-    marginBottom: 6
-  },
-
-  patternSubSection: {
-    marginTop: 12
-  },
-
-  patternSubTitle: {
-    color: "#F59E0B",
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 6
-  },
-
-  patternExampleGroup: {
-    marginBottom: 10
-  },
-
-  patternExampleTitle: {
-    color: "#9CA3AF",
-    fontWeight: "600",
-    marginBottom: 4
-  },
-
-  patternExampleText: {
-    color: "#E5E7EB",
-    fontSize: 13,
-    marginLeft: 8,
-    marginBottom: 2
-  }
 });

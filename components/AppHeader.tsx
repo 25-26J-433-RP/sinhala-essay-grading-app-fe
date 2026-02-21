@@ -20,8 +20,6 @@ export default function AppHeader({
   const { width } = useWindowDimensions();
   const isDesktop = Platform.OS === "web" ? width >= 768 : false;
 
-  const hasLeftContent = showBackButton || title;
-
   const handleBackPress = () => {
     if (onBackPress) {
       onBackPress();
@@ -30,46 +28,24 @@ export default function AppHeader({
     }
   };
 
-  if (isDesktop && !hasLeftContent) {
-    return null;
-  }
-
   return (
-    <View
-      style={[
-        styles.header,
-        { justifyContent: hasLeftContent ? "space-between" : "center" }
-      ]}
-    >
-      {!hasLeftContent ? (
-        <LanguageSwitcher />
-      ) : (
-        <>
-          <View style={styles.leftSection}>
-            {showBackButton && (
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={handleBackPress}
-              >
-                <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
-              </TouchableOpacity>
-            )}
-            {title && (
-              <Text
-                style={[styles.title, showBackButton && styles.titleWithBack]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {title}
-              </Text>
-            )}
-          </View>
-          {!hideRightSection && !isDesktop && (
-            <View style={styles.rightSection}>
-              <LanguageSwitcher />
-            </View>
-          )}
-        </>
+    <View style={styles.header}>
+      <View style={styles.leftSection}>
+        {showBackButton && (
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+            <MaterialIcons name="arrow-back" size={24} color="#007AFF" />
+          </TouchableOpacity>
+        )}
+        {title && (
+          <Text style={[styles.title, showBackButton && styles.titleWithBack]}>
+            {title}
+          </Text>
+        )}
+      </View>
+      {!hideRightSection && !isDesktop && (
+        <View style={styles.rightSection}>
+          <LanguageSwitcher />
+        </View>
       )}
     </View>
   );
@@ -78,19 +54,20 @@ export default function AppHeader({
 const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 16,
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
     paddingHorizontal: 12,
-    backgroundColor: "transparent",
+    backgroundColor: "#181A20",
+    borderBottomWidth: 1,
+    borderBottomColor: "#333640",
   },
   leftSection: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     flex: 1,
-    marginRight: 10,
   },
   rightSection: {
     alignItems: "center",
@@ -104,7 +81,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 20,
     fontWeight: "600",
-    flexShrink: 1,
   },
   titleWithBack: {
     fontSize: 18,

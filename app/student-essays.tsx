@@ -181,8 +181,6 @@ export default function StudentEssaysScreen() {
   const analyticsValueStyle = {
     fontSize: screenWidth < 360 ? 22 : screenWidth < 768 ? 26 : 30,
   };
-  const mindmapButtonFontSize =
-    screenWidth < 360 ? 11 : screenWidth < 480 ? 12 : screenWidth < 768 ? 13 : 14;
 
   // Responsive padding based on screen size
   const contentPadding = screenWidth < 480 ? 12 : screenWidth < 768 ? 16 : 24;
@@ -212,7 +210,7 @@ export default function StudentEssaysScreen() {
     const total = segments.reduce((s, v) => s + v.value, 0) || 1;
     if (!SvgLib) {
       return (
-        <View style={styles.pieFallback as any}>
+        <View style={styles.pieFallback}>
           <Text style={styles.pieFallbackText}>
             Install react-native-svg to enable the pie chart
           </Text>
@@ -545,78 +543,77 @@ export default function StudentEssaysScreen() {
 
   const renderEssayItem = ({ item }: { item: UserImageUpload }) => (
     <View style={styles.essayCardWrapper}>
-      <TouchableOpacity
-        style={styles.essayCard as any}
-        onPress={() => {
-          router.push({
-            pathname: "/image-detail",
-            params: {
-              imageId: item.id,
-            },
-          });
-        }}
-        activeOpacity={0.8}
-      >
-        <EssayThumbnail essay={item} style={styles.thumbnail} />
+      <View style={styles.essayCardContainer}>
+        {/* Main Essay Card */}
+        <TouchableOpacity
+          style={styles.essayCard}
+          onPress={() => {
+            router.push({
+  pathname: "/image-detail",
+  params: {
+    imageId: item.id,
+  },
+});
 
-        <View style={styles.essayInfo}>
-          <Text style={styles.fileName} numberOfLines={1}>
-            {item.fileName}
-          </Text>
-          <Text style={styles.uploadDate}>{formatDate(item.uploadedAt)}</Text>
-
-          {item.description && (
-            <Text style={styles.description} numberOfLines={1}>
-              {item.description}
+          }}
+          activeOpacity={0.8}
+        >
+          <EssayThumbnail essay={item} />
+          <View style={styles.essayInfo}>
+            <Text style={styles.fileName} numberOfLines={1}>
+              {item.fileName}
             </Text>
-          )}
-
-          <View style={styles.actionButtonsRow}>
-            <TouchableOpacity
-              style={styles.mindmapButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                router.push({
-                  pathname: "/essay-mindmap",
-                  params: {
-                    essayId: item.id,
-                    essayTitle: encodeURIComponent(item.fileName),
-                  },
-                });
-              }}
-            >
-              <MaterialIcons name="account-tree" size={16} color="#10B981" />
-              <Text style={styles.mindmapButtonText}>
-                {t("studentEssays.viewMindmap")}
+            <Text style={styles.uploadDate}>{formatDate(item.uploadedAt)}</Text>
+            {item.description && (
+              <Text style={styles.description} numberOfLines={2}>
+                {item.description}
               </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.inlineDeleteButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleDeleteEssay(item);
-              }}
-              disabled={deletingId === item.id}
-            >
-              {deletingId === item.id ? (
-                <ActivityIndicator size="small" color="#EF4444" />
-              ) : (
-                <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
-              )}
-            </TouchableOpacity>
+            )}
+            {/* Action Buttons Row */}
+            <View style={styles.actionButtonsRow}>
+              <TouchableOpacity
+                style={styles.mindmapButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  router.push({
+                    pathname: "/essay-mindmap",
+                    params: {
+                      essayId: item.id,
+                      essayTitle: encodeURIComponent(item.fileName),
+                    },
+                  });
+                }}
+              >
+                <MaterialIcons name="account-tree" size={16} color="#007AFF" />
+                <Text style={styles.mindmapButtonText}>
+                  {t("studentEssays.viewMindmap")}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+          <MaterialIcons name="chevron-right" size={24} color="#B0B3C6" />
+        </TouchableOpacity>
 
-        <MaterialIcons name="chevron-right" size={24} color="#2D313E" />
-      </TouchableOpacity>
+        {/* Delete Button on Right */}
+        <TouchableOpacity
+          style={styles.deleteIconButton}
+          onPress={() => handleDeleteEssay(item)}
+          disabled={deletingId === item.id}
+        >
+          {deletingId === item.id ? (
+            <ActivityIndicator size="small" color="#FF3B30" />
+          ) : (
+            <MaterialIcons name="delete-outline" size={22} color="#FF3B30" />
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
   return (
     <View style={styles.fullBg}>
       <ScrollView style={styles.container}>
-        <AppHeader showBackButton title={t("screenTitles.studentEssays")} />
+        <AppHeader hideRightSection />
 
         <View style={responsiveContentStyle}>
           {/* Student Info Card */}
@@ -647,7 +644,7 @@ export default function StudentEssaysScreen() {
                       <View key={index} style={styles.detailItem}>
                         <MaterialIcons
                           name={detail.icon as any}
-                          size={14}
+                          size={16}
                           color="#B0B3C6"
                         />
                         <Text style={styles.detailText}>{detail.text}</Text>
@@ -696,7 +693,7 @@ export default function StudentEssaysScreen() {
                         style={[
                           styles.pageButton,
                           currentPage === totalPages &&
-                          styles.pageButtonDisabled,
+                            styles.pageButtonDisabled,
                         ]}
                         disabled={currentPage === totalPages}
                         onPress={() =>
@@ -796,7 +793,7 @@ export default function StudentEssaysScreen() {
             {batchFeedback && (
               <View style={styles.batchFeedbackContent}>
                 <View style={styles.statsGridContainer}>
-                  <View style={styles.batchStatCard}>
+                  <View style={styles.statCard}>
                     <View style={styles.statIconWrapper}>
                       <MaterialIcons
                         name="description"
@@ -804,26 +801,26 @@ export default function StudentEssaysScreen() {
                         color="#8B5CF6"
                       />
                     </View>
-                    <Text style={styles.batchStatCardLabel}>Total Essays</Text>
-                    <Text style={styles.batchStatCardValue}>
+                    <Text style={styles.statCardLabel}>Total Essays</Text>
+                    <Text style={styles.statCardValue}>
                       {batchFeedback.total}
                     </Text>
                   </View>
 
                   {batchFeedback.summary?.total_scored !== undefined && (
-                    <View style={styles.batchStatCard}>
+                    <View style={styles.statCard}>
                       <View style={styles.statIconWrapper}>
                         <MaterialIcons name="grade" size={24} color="#10B981" />
                       </View>
-                      <Text style={styles.batchStatCardLabel}>Essays Scored</Text>
-                      <Text style={styles.batchStatCardValue}>
+                      <Text style={styles.statCardLabel}>Essays Scored</Text>
+                      <Text style={styles.statCardValue}>
                         {batchFeedback.summary.total_scored || 0}
                       </Text>
                     </View>
                   )}
 
                   {batchFeedback.summary?.average_score !== undefined && (
-                    <View style={styles.batchStatCard}>
+                    <View style={styles.statCard}>
                       <View style={styles.statIconWrapper}>
                         <MaterialIcons
                           name="trending-up"
@@ -831,8 +828,8 @@ export default function StudentEssaysScreen() {
                           color="#F59E0B"
                         />
                       </View>
-                      <Text style={styles.batchStatCardLabel}>Avg Score</Text>
-                      <Text style={styles.batchStatCardValue}>
+                      <Text style={styles.statCardLabel}>Avg Score</Text>
+                      <Text style={styles.statCardValue}>
                         {(batchFeedback.summary.average_score || 0).toFixed(1)}
                       </Text>
                     </View>
@@ -855,6 +852,7 @@ export default function StudentEssaysScreen() {
                       {batchFeedback.summary.common_suggestions.map(
                         (suggestion, idx) => (
                           <View key={idx} style={styles.commonSuggestionItem}>
+                            <Text style={styles.suggestionBullet}>•</Text>
                             <Text style={styles.commonSuggestionText}>
                               {suggestion}
                             </Text>
@@ -1061,10 +1059,10 @@ export default function StudentEssaysScreen() {
               let avgRichness =
                 richnessEssays.length > 0
                   ? richnessEssays.reduce(
-                    (sum: number, e: UserImageUpload) =>
-                      sum + (e.rubric?.richness_5 || 0),
-                    0
-                  ) / richnessEssays.length
+                      (sum: number, e: UserImageUpload) =>
+                        sum + (e.rubric?.richness_5 || 0),
+                      0
+                    ) / richnessEssays.length
                   : 0;
               const organizationEssays = scoredEssays.filter(
                 (e: UserImageUpload) => e.rubric?.organization_6 !== undefined
@@ -1072,10 +1070,10 @@ export default function StudentEssaysScreen() {
               let avgOrganization =
                 organizationEssays.length > 0
                   ? organizationEssays.reduce(
-                    (sum: number, e: UserImageUpload) =>
-                      sum + (e.rubric?.organization_6 || 0),
-                    0
-                  ) / organizationEssays.length
+                      (sum: number, e: UserImageUpload) =>
+                        sum + (e.rubric?.organization_6 || 0),
+                      0
+                    ) / organizationEssays.length
                   : 0;
               const technicalEssays = scoredEssays.filter(
                 (e: UserImageUpload) => e.rubric?.technical_3 !== undefined
@@ -1083,10 +1081,10 @@ export default function StudentEssaysScreen() {
               let avgTechnical =
                 technicalEssays.length > 0
                   ? technicalEssays.reduce(
-                    (sum: number, e: UserImageUpload) =>
-                      sum + (e.rubric?.technical_3 || 0),
-                    0
-                  ) / technicalEssays.length
+                      (sum: number, e: UserImageUpload) =>
+                        sum + (e.rubric?.technical_3 || 0),
+                      0
+                    ) / technicalEssays.length
                   : 0;
 
               // Demo mode: Use sample data if no rubric data exists
@@ -1604,24 +1602,26 @@ export default function StudentEssaysScreen() {
 // @ts-ignore - Web-specific CSS properties (cursor, userSelect) are intentionally used for web compatibility
 const styles = StyleSheet.create({
   batchFeedbackSection: {
-    backgroundColor: "#1C1E26",
-    borderRadius: 24,
-    padding: 24,
+    backgroundColor: "#23262F",
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 28,
+    borderLeftWidth: 4,
+    borderLeftColor: "#8B5CF6",
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#333640",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
 
   batchFeedbackHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 16,
   },
 
   headerLeft: {
@@ -1637,67 +1637,61 @@ const styles = StyleSheet.create({
 
   summarySubtext: {
     color: "#9CA3AF",
-    fontSize: 13,
-    marginTop: 4,
-    fontWeight: "500",
+    fontSize: 12,
+    marginTop: 2,
   },
 
   emptyPlaceholderBox: {
-    backgroundColor: "#0F1117",
-    borderRadius: 20,
+    backgroundColor: "#111827",
+    borderRadius: 12,
     padding: 24,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#2D313E",
-    gap: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: "#8B5CF6",
+    gap: 12,
   },
 
   placeholderTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "800",
+    color: "#E5E7EB",
+    fontSize: 16,
+    fontWeight: "600",
     textAlign: "center",
-    letterSpacing: 0.3,
   },
 
   placeholderText: {
     color: "#9CA3AF",
-    fontSize: 14,
+    fontSize: 13,
     textAlign: "center",
-    lineHeight: 22,
+    lineHeight: 18,
+    marginBottom: 12,
   },
 
   generateSummaryButton: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#8B5CF6",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 16,
-    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    gap: 8,
     marginTop: 8,
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
   },
 
   generateSummaryButtonText: {
-    color: "#0F1117",
-    fontSize: 15,
-    fontWeight: "700",
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   loadingTextContainer: {
     alignItems: "center",
-    gap: 6,
+    gap: 4,
   },
 
   loadingSubtext: {
     color: "#6B7280",
-    fontSize: 13,
+    fontSize: 12,
     textAlign: "center",
   },
 
@@ -1705,47 +1699,42 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 16,
   },
 
-  batchStatCard: {
-    backgroundColor: "#0F1117",
-    borderRadius: 16,
+  statCard: {
+    backgroundColor: "#111827",
+    borderRadius: 12,
     padding: 16,
     flex: 1,
-    minWidth: 140,
+    minWidth: 120,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#333640",
     justifyContent: "center",
   },
 
   statIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#1C1E26",
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: "#1F2937",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#2D313E",
+    marginBottom: 8,
   },
 
-  batchStatCardLabel: {
+  statCardLabel: {
     color: "#9CA3AF",
     fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
     marginBottom: 6,
     textAlign: "center",
   },
 
-  batchStatCardValue: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "900",
+  statCardValue: {
+    color: "#E5E7EB",
+    fontSize: 20,
+    fontWeight: "bold",
     textAlign: "center",
   },
 
@@ -1761,14 +1750,13 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 32,
-    gap: 16,
+    paddingVertical: 24,
+    gap: 12,
   },
 
   batchFeedbackStatusText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "600",
+    color: "#9CA3AF",
+    fontSize: 13,
     textAlign: "center",
   },
 
@@ -2046,23 +2034,23 @@ const styles = StyleSheet.create({
   },
 
   feedbackSection: {
-    backgroundColor: "#1C1E26",
-    borderRadius: 24,
-    padding: 24,
+    backgroundColor: "#23262F",
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#333640",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
   feedbackHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 24,
+    gap: 8,
+    marginBottom: 20,
   },
   // Stats Grid
   statsGrid: {
@@ -2074,12 +2062,12 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     minWidth: "45%",
-    backgroundColor: "#0F1117",
+    backgroundColor: "#181A20",
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 10,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#333640",
   },
   statCardValue: {
     color: "#007AFF",
@@ -2095,24 +2083,23 @@ const styles = StyleSheet.create({
   },
   // Dashboard Card
   dashboardCard: {
-    backgroundColor: "#0F1117",
-    padding: 20,
-    borderRadius: 20,
+    backgroundColor: "#181A20",
+    padding: 16,
+    borderRadius: 10,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#333640",
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 16,
+    gap: 8,
+    marginBottom: 12,
   },
   cardTitle: {
-    color: "#FFFFFF",
+    color: "#fff",
     fontSize: 16,
-    fontWeight: "800",
-    letterSpacing: 0.3,
+    fontWeight: "600",
   },
   // Trend Analysis
   trendContainer: {
@@ -2472,12 +2459,10 @@ const styles = StyleSheet.create({
   },
   dyslexiaStatItem: {
     flex: 1,
-    backgroundColor: "#0F1117",
+    backgroundColor: "#23262F",
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 8,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#2D313E",
   },
   dyslexiaCount: {
     color: "#fff",
@@ -2564,12 +2549,10 @@ const styles = StyleSheet.create({
   },
   feedbackStatItem: {
     flex: 1,
-    backgroundColor: "#0F1117",
+    backgroundColor: "#181A20",
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 8,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#2D313E",
   },
   feedbackStatLabel: {
     color: "#B0B3C6",
@@ -2611,39 +2594,39 @@ const styles = StyleSheet.create({
   },
   fullBg: {
     flex: 1,
-    backgroundColor: "#0F1117",
+    backgroundColor: "#181A20",
+    minHeight: "100vh",
     width: "100%",
   },
   container: {
     flex: 1,
     backgroundColor: "transparent",
     width: "100%",
+    minHeight: "100vh",
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: 16,
   },
   content: {
-    padding: 24,
+    padding: 16,
     maxWidth: 1000,
     marginHorizontal: "auto",
     width: "100%",
   },
   loadingText: {
-    color: "#9CA3AF",
+    color: "#B0B3C6",
     marginTop: 16,
     fontSize: 16,
-    fontWeight: "500",
   },
   errorTitle: {
-    color: "#FFFFFF",
+    color: "#fff",
     fontSize: 24,
-    fontWeight: "800",
+    fontWeight: "bold",
     marginTop: 16,
     marginBottom: 24,
-    letterSpacing: 0.5,
   },
   backButtonTop: {
     flexDirection: "row",
@@ -2656,62 +2639,54 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   studentInfoCard: {
-    backgroundColor: "#1C1E26",
-    borderRadius: 24,
-    padding: 24,
+    backgroundColor: "#23262F",
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#333640",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
   studentHeader: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 20,
   },
   iconContainer: {
     width: 64,
     height: 64,
-    borderRadius: 20,
-    backgroundColor: "#0F1117",
+    borderRadius: 32,
+    backgroundColor: "#181A20",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
-    borderWidth: 1,
-    borderColor: "#2D313E",
   },
   studentDetails: {
     flex: 1,
   },
   studentId: {
-    color: "#FFFFFF",
-    fontSize: 26,
-    fontWeight: "900",
-    marginBottom: 4,
-    letterSpacing: 0.5,
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 8,
   },
   detailsRow: {
     flexDirection: "row",
-    flexWrap: "nowrap",
+    flexWrap: "wrap",
+    gap: 12,
   },
   detailItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#0F1117",
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#2D313E",
   },
   detailText: {
-    color: "#E5E7EB",
-    fontSize: 12,
-    fontWeight: "600",
+    color: "#B0B3C6",
+    fontSize: 14,
   },
   statsRow: {
     flexDirection: "row",
@@ -2722,12 +2697,10 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: "#0F1117",
+    backgroundColor: "#181A20",
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 8,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#2D313E",
   },
   statNumber: {
     color: "#007AFF",
@@ -2741,8 +2714,16 @@ const styles = StyleSheet.create({
   },
   essaysSection: {
     marginBottom: 28,
-    backgroundColor: "transparent",
-    padding: 0,
+    backgroundColor: "#23262F",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#333640",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
     maxWidth: "100%",
   },
   essaysHeaderRow: {
@@ -2750,140 +2731,134 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 20,
-    paddingHorizontal: 4,
   },
   pagination: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
   },
   pageButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: "#1C1E26",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#23262F",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#333640",
   },
   pageButtonDisabled: {
-    opacity: 0.3,
+    opacity: 0.5,
   },
   pageInfo: {
-    color: "#9CA3AF",
-    fontSize: 13,
-    fontWeight: "700",
+    color: "#B0B3C6",
+    fontSize: 12,
   },
   rangeInfo: {
-    color: "#6B7280",
+    color: "#B0B3C6",
     fontSize: 12,
     textAlign: "right",
-    marginTop: 12,
-    fontWeight: "500",
+    marginTop: 8,
   },
   sectionTitle: {
-    color: "#FFFFFF",
+    color: "#fff",
     fontSize: 22,
-    fontWeight: "800",
-    letterSpacing: 0.5,
+    fontWeight: "bold",
+    marginBottom: 0,
   },
   essayCardWrapper: {
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  essayCardContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   essayCard: {
+    flex: 1,
     flexDirection: "row",
-    backgroundColor: "#1C1E26",
-    borderRadius: 24,
-    padding: 16,
+    backgroundColor: "#181A20",
+    borderRadius: 12,
+    padding: 12,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#333640",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  deleteIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255, 59, 48, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#FF3B30",
   },
   thumbnail: {
-    width: 84,
-    height: 84,
-    borderRadius: 16,
-    marginRight: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    marginRight: 12,
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#333640",
   },
   essayInfo: {
     flex: 1,
+    paddingRight: 8,
   },
   fileName: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "800",
-    marginBottom: 4,
-    letterSpacing: 0.2,
-  },
-  uploadDate: {
-    color: "#9CA3AF",
-    fontSize: 12,
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "600",
     marginBottom: 6,
-    opacity: 0.8,
+  },
+  uploadDate: {
+    color: "#B0B3C6",
+    fontSize: 12,
+    marginBottom: 6,
   },
   description: {
-    color: "#9CA3AF",
+    color: "#888",
     fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 4,
     fontStyle: "italic",
-    opacity: 0.6,
+    marginBottom: 4,
   },
   actionButtonsRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
-    gap: 12,
+    marginTop: 8,
+    gap: 8,
   },
   mindmapButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    backgroundColor: "#0F1117",
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(0, 122, 255, 0.15)",
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#007AFF",
+    gap: 6,
   },
   mindmapButtonText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  inlineDeleteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.2)",
+    color: "#007AFF",
+    fontSize: 12,
+    fontWeight: "600",
   },
   backButton: {
     backgroundColor: "#007AFF",
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 16,
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 4,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
   backButtonText: {
-    color: "#FFFFFF",
+    color: "#fff",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "600",
   },
 });

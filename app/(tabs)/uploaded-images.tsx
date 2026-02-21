@@ -6,7 +6,7 @@ import { useRole } from "@/hooks/useRole";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import React from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 export default function UploadedImagesScreen() {
   const { user } = useAuth();
@@ -51,44 +51,21 @@ export default function UploadedImagesScreen() {
   // Show StudentListView for both students and teachers (teachers manage student essays)
   if (user && (isStudent() || isTeacher() || isParent() || !userProfile)) {
     console.log("📚 Showing StudentListView for user");
-
-    const Content = (
-      <StudentListView
-        onStudentPress={(studentInfo) => {
-          // Navigate to student essays page
-          router.push({
-            pathname: "/student-essays",
-            params: {
-              studentId: studentInfo.studentId,
-            },
-          });
-        }}
-        scrollEnabled={Platform.OS !== "web"}
-      />
-    );
-
-    if (Platform.OS === "web") {
-      return (
-        <View style={styles.fullBg}>
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={true}
-          >
-            <View style={styles.container}>
-              <AppHeader />
-              {Content}
-            </View>
-          </ScrollView>
-        </View>
-      );
-    }
-
     return (
       <View style={styles.fullBg}>
         <View style={styles.container}>
           <AppHeader />
-          {Content}
+          <StudentListView
+            onStudentPress={(studentInfo) => {
+              // Navigate to student essays page
+              router.push({
+                pathname: "/student-essays",
+                params: {
+                  studentId: studentInfo.studentId,
+                },
+              });
+            }}
+          />
         </View>
       </View>
     );
@@ -133,7 +110,8 @@ export default function UploadedImagesScreen() {
 const styles = StyleSheet.create({
   fullBg: {
     flex: 1,
-    backgroundColor: "#0F1117",
+    backgroundColor: "#181A20",
+    minHeight: "100vh",
     width: "100%",
   },
   container: {
@@ -142,10 +120,7 @@ const styles = StyleSheet.create({
     maxWidth: 1200,
     marginHorizontal: "auto",
     width: "100%",
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 40,
+    minHeight: "100vh",
   },
   loadingContainer: {
     flex: 1,
@@ -154,9 +129,8 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   loadingText: {
-    color: "#9CA3AF",
+    color: "#B0B3C6",
     fontSize: 16,
-    fontWeight: "600",
     marginTop: 16,
   },
   centerContent: {
@@ -169,16 +143,14 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 80,
     height: 80,
-    borderRadius: 30,
-    backgroundColor: "#1C1E26",
+    borderRadius: 40,
+    backgroundColor: "#23262F",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#2D313E",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 4,
   },
@@ -208,21 +180,20 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     marginTop: 24,
-    padding: 24,
-    backgroundColor: "#1C1E26",
-    borderRadius: 24,
+    padding: 20,
+    backgroundColor: "#23262F",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#2D313E",
+    borderColor: "#333640",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   profileText: {
-    color: "#E5E7EB",
-    fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 10,
+    color: "#B0B3C6",
+    fontSize: 14,
+    marginBottom: 8,
   },
 });
