@@ -43,14 +43,23 @@ export async function scoreSinhala(
     const GATEWAY_BASE = process.env.EXPO_PUBLIC_API_GATEWAY?.trim();
     if (!GATEWAY_BASE) {
       throw new Error(
-        "API gateway not configured. Set EXPO_PUBLIC_API_GATEWAY to call the scoring service."
+        "API gateway not configured. Set EXPO_PUBLIC_API_GATEWAY."
       );
     }
 
-    // Add the /bias-aware-scoring-engine microservice prefix
-    const url = `${GATEWAY_BASE.replace(/\/+$|\s+$/g, "")}/bias-aware-scoring-engine/score-sinhala-ml`;
-    
-    const res = await api.post(url, payload);
+    // Use the remote API gateway for the base URL
+    const BASE_URL = GATEWAY_BASE;
+
+    // Define the path for the remote scoring engine
+    const path = "/bias-aware-scoring-engine/score-sinhala-ml";
+
+    const url = `${BASE_URL.replace(/\/+$|\s+$/g, "")}${path}`;
+
+    const res = await api.post(url, payload, {
+      headers: {
+        "X-API-KEY": process.env.EXPO_PUBLIC_INTERNAL_API_KEY || ""
+      }
+    });
     return res.data as SinhalaScoreResponse;
   } catch (err: any) {
     console.log("❌ Sinhala ML API Error:", err.response?.data || err);

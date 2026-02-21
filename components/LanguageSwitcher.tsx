@@ -13,8 +13,8 @@ export default function LanguageSwitcher() {
   };
 
   return (
-    <TouchableOpacity 
-      style={styles.container} 
+    <TouchableOpacity
+      style={styles.container}
       onPress={toggleLanguage}
       activeOpacity={0.7}
     >
@@ -30,11 +30,13 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
+    gap: 8,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#23262F',
-    borderRadius: 8,
+    backgroundColor: '#1C1E26',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2D313E',
   },
   text: {
     color: '#007AFF',
