@@ -1,76 +1,133 @@
 // app/api/dyslexia.ts
 
-export interface DyslexiaSentence {
-  text: string;
-  probability: number;
-  label: string; // "NORMAL" | "DYSLEXIC"
-}
+/**
+ * ===============================
+ * 🔹 TYPES
+ * ===============================
+ */
 
-export interface DyslexiaResponse {
-  essay_label: string;
-  confidence: number; // 0–1
+export interface BinaryDyslexiaResponse {
+  essay_label: "DYSLEXIC ESSAY" | "NORMAL ESSAY";
+  confidence: number;
   total_sentences: number;
   dyslexic_sentences: number;
-  sentences: DyslexiaSentence[];
+}
+export interface PatternResponse {
+  dominant: string;
+  severity: string;
+  explanation: string;
+
+  risk_score: number;
+  risk_level: string;
+
+  distribution: Record<string, number>;
+
+  pattern_density: Record<string, number>;
+  pattern_sentence_count: Record<string, number>;
+  pattern_sentence_examples: Record<string, string[]>;
+  total_sentences: number;
 }
 
 /**
- * Base API Gateway URL
+ * Combined analyze response
  */
+export interface AnalyzeResponse
+  extends BinaryDyslexiaResponse, PatternResponse {}
+
+/**
+ * ===============================
+ * 🔹 API BASE
+ * ===============================
+ */
+
 const GATEWAY_BASE = process.env.EXPO_PUBLIC_API_GATEWAY?.trim();
 
 if (!GATEWAY_BASE) {
-  throw new Error(
-    "API gateway not configured. Set EXPO_PUBLIC_API_GATEWAY to call the dyslexia detection service."
-  );
+  throw new Error("API gateway not configured. Set EXPO_PUBLIC_API_GATEWAY.");
 }
 
-/**
- * Dyslexia Detection Service Base URL
- * FE → API Gateway → Dyslexia Detection Service
- */
-const DYSLEXIA_DETECTION_API_URL = `${GATEWAY_BASE.replace(/\/+$/g, "")}/dyslexic-pattern-detection-service`;
+const BASE_URL = `${GATEWAY_BASE.replace(/\/+$/g, "")}/dyslexic-pattern-detection-service`;
 
 /**
- * Predict dyslexia for a Sinhala essay
+ * ===============================
+ * 🔹 1️⃣ BINARY DETECTION
+ * ===============================
  */
-export async function predictDyslexia(
+
+export async function predictBinary(
   essayText: string
-): Promise<DyslexiaResponse> {
-  try {
-    if (!essayText?.trim()) {
-      throw new Error("Dyslexia prediction requires non-empty essay text.");
-    }
-
-    const url = `${DYSLEXIA_DETECTION_API_URL.replace(/\/+$/g, "")}/predict`;
-
-    console.log("🧠 Calling Dyslexia Detection Service:", url);
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ essay: essayText })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ Dyslexia API error (${response.status}):`, errorText);
-      throw new Error(`Dyslexia API returned ${response.status}: ${errorText}`);
-    }
-
-    const data = (await response.json()) as DyslexiaResponse;
-
-    console.log("✅ Dyslexia prediction received:", data);
-
-    return data;
-  } catch (error: any) {
-    console.error("❌ Failed to predict dyslexia:", error.message);
-    throw error;
+): Promise<BinaryDyslexiaResponse> {
+  if (!essayText?.trim()) {
+    throw new Error("Binary dyslexia prediction requires essay text.");
   }
+
+  const url = `${BASE_URL}/predict`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ essay: essayText })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Binary API returned ${response.status}`);
+  }
+
+  return (await response.json()) as BinaryDyslexiaResponse;
 }
 
-export default {
-  predictDyslexia
-};
+/**
+ * ===============================
+ * 🔹 2️⃣ PATTERN ANALYSIS
+ * ===============================
+ */
+
+export async function predictPatterns(
+  essayText: string
+): Promise<PatternResponse> {
+  if (!essayText?.trim()) {
+    throw new Error("Pattern analysis requires essay text.");
+  }
+
+  const url = `${BASE_URL}/patterns`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ essay: essayText })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Pattern API returned ${response.status}`);
+  }
+
+  return (await response.json()) as PatternResponse;
+}
+
+/**
+ * ===============================
+ * 🔹 3️⃣ FULL ANALYSIS (Binary + Patterns)
+ * ===============================
+ */
+
+export async function analyzeDyslexia(
+  essayText: string
+): Promise<AnalyzeResponse> {
+  if (!essayText?.trim()) {
+    throw new Error("Full analysis requires essay text.");
+  }
+
+  const url = `${BASE_URL}/analyze`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ essay: essayText })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Analyze API returned ${response.status}`);
+  }
+
+  return (await response.json()) as AnalyzeResponse;
+}

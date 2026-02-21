@@ -7,13 +7,12 @@ import { UserImageService, UserImageUpload } from "@/services/userImageService";
 
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import * as Clipboard from "expo-clipboard";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { LinearGradient } from "expo-linear-gradient";
 import {
   ActivityIndicator,
   Alert,
-  Animated,
   Image,
   Platform,
   ScrollView,
@@ -29,7 +28,7 @@ import { storage } from "@/config/firebase";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 
 import { generateAudioFeedback } from "@/app/api/audioFeedback";
-import { predictDyslexia } from "@/app/api/dyslexia";
+import { predictBinary, predictPatterns } from "@/app/api/dyslexia";
 import { fetchMindmap, generateMindmap, MindmapData } from "@/app/api/mindmap";
 import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // âœ… FIXED IMPORT
 
@@ -63,11 +62,15 @@ export default function ImageDetailScreen() {
   const [inputText, setInputText] = useState("");
   const [isDyslexic, setIsDyslexic] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
-  const [dyslexiaLabel, setDyslexiaLabel] = useState<string | undefined>(undefined);
+  const [showPatternDetails, setShowPatternDetails] = useState(false);
+  const [dyslexiaLabel, setDyslexiaLabel] = useState<string | undefined>(
+    undefined
+  );
 
   const [selectedGrade, setSelectedGrade] = useState<number>(6);
   const [isScoring, setIsScoring] = useState(false);
   const [scoreData, setScoreData] = useState<SinhalaScoreResponse | null>(null);
+  const [patternData, setPatternData] = useState<any>(null);
   const [mindmapData, setMindmapData] = useState<MindmapData | null>(null);
   const [mindmapLoading, setMindmapLoading] = useState(false);
   const [mindmapError, setMindmapError] = useState<string | null>(null);
@@ -76,7 +79,6 @@ export default function ImageDetailScreen() {
     imageId?: string;
     imageData?: string;
   }>();
-
 
   // Text feedback state
   const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(
@@ -156,13 +158,13 @@ export default function ImageDetailScreen() {
     }
   }, [imageData?.studentGrade]);
 
-  useEffect(() => {
-    if (!imageData?.id) return;
+  // useEffect(() => {
+  //   if (!imageData?.id) return;
 
-    console.log("📝 Setting inputText from Firestore:", imageData.essay_text);
+  //   console.log("📝 Setting inputText from Firestore:", imageData.essay_text);
 
-    setInputText(imageData.essay_text ?? "");
-  }, [imageData?.id]);
+  //   setInputText(imageData.essay_text ?? "");
+  // }, [imageData?.id]);
 
   // Cleanup audio player on unmount
   useEffect(() => {
@@ -237,7 +239,9 @@ export default function ImageDetailScreen() {
       setLoading(true);
       const freshImage = await UserImageService.getUserImage(imageId);
       setImageData(freshImage);
-
+      if (freshImage.writing_patterns) {
+        setPatternData(freshImage.writing_patterns);
+      }
       setEssayTopic(freshImage.essay_topic || "");
       setLoading(false);
     })();
@@ -245,22 +249,37 @@ export default function ImageDetailScreen() {
 
   // ─── Run dyslexia detection when OCR text arrives ───
   const dyslexiaDetectedRef = useRef(false);
+
   useEffect(() => {
-    if (!inputText || inputText.trim().length < 10 || dyslexiaDetectedRef.current) return;
+    if (
+      !inputText ||
+      inputText.trim().length < 10 ||
+      dyslexiaDetectedRef.current
+    )
+      return;
+
     dyslexiaDetectedRef.current = true;
 
     (async () => {
       try {
         setIsDetecting(true);
-        const result = await predictDyslexia(inputText.trim());
-        setIsDetecting(false);
 
-        const detectedDyslexic = result.dyslexic_sentences > 0;
+        const result = await predictBinary(inputText.trim());
+
+        const detectedDyslexic = result.essay_label === "DYSLEXIC ESSAY";
+
         setIsDyslexic(detectedDyslexic);
-        setDyslexiaLabel(result.essay_label); // "DYSLEXIC ESSAY" | "NORMAL ESSAY"
-        console.log("🧠 Early dyslexia detection:", result.essay_label, "confidence:", result.confidence);
+        setDyslexiaLabel(result.essay_label);
+
+        console.log(
+          "🧠 Early dyslexia detection:",
+          result.essay_label,
+          "confidence:",
+          result.confidence
+        );
       } catch (err) {
-        console.warn("Early dyslexia detection failed (non-blocking):", err);
+        console.warn("Early dyslexia detection failed:", err);
+      } finally {
         setIsDetecting(false);
       }
     })();
@@ -327,6 +346,9 @@ export default function ImageDetailScreen() {
 
       if (freshImage.audio_feedback) {
         setAudioFeedback(freshImage.audio_feedback);
+      }
+      if (freshImage.writing_patterns) {
+        setPatternData(freshImage.writing_patterns);
       }
 
       // 🔥 THIS WAS MISSING
@@ -552,9 +574,12 @@ export default function ImageDetailScreen() {
                 scoringCardRef.current?.measureLayout?.(
                   scrollViewRef.current as any,
                   (_x: number, y: number) => {
-                    scrollViewRef.current?.scrollTo({ y: y - 20, animated: true });
+                    scrollViewRef.current?.scrollTo({
+                      y: y - 20,
+                      animated: true
+                    });
                   },
-                  () => { }
+                  () => {}
                 );
               }, 300);
             }}
@@ -576,13 +601,13 @@ export default function ImageDetailScreen() {
           style={[
             styles.inputCard,
             correctionHighlight && {
-              borderColor: '#10B981',
+              borderColor: "#10B981",
               borderWidth: 2,
-              shadowColor: '#10B981',
+              shadowColor: "#10B981",
               shadowOpacity: 0.3,
               shadowRadius: 8,
-              elevation: 4,
-            },
+              elevation: 4
+            }
           ]}
         >
           <Text style={styles.cardTitle}>{t("essay.enterSinhalaEssay")}</Text>
@@ -642,42 +667,72 @@ export default function ImageDetailScreen() {
               try {
                 const trimmedEssay = inputText.trim();
                 const trimmedTopic = essayTopic.trim();
-                // 🧠 STEP 1: Run dyslexia detection BEFORE scoring
+                // STEP 1: Run BINARY detection only
                 setIsDetecting(true);
 
-                const dyslexiaResult = await predictDyslexia(trimmedEssay);
+                const binaryResult = await predictBinary(trimmedEssay);
 
                 setIsDetecting(false);
 
-                // 🧠 STEP 2: Determine if essay contains dyslexic patterns
-                const detectedDyslexic = dyslexiaResult.dyslexic_sentences > 0;
+                const detectedDyslexic =
+                  binaryResult.essay_label === "DYSLEXIC ESSAY";
 
-                // Update local state so UI reflects true ML result
                 setIsDyslexic(detectedDyslexic);
+                setDyslexiaLabel(binaryResult.essay_label);
 
-                // 🧠 STEP 3: Extract dyslexic sentence-level error tags
-                const errorTags = dyslexiaResult.sentences
-                  .filter((s) => s.label === "DYSLEXIC")
-                  .map((s) => ({
-                    text: s.text,
-                    probability: s.probability
-                  }));
+                // Save binary result
+                await UserImageService.updateImageDyslexiaResult(imageData.id, {
+                  ...binaryResult,
+                  model_version: "v2"
+                });
 
-                // 🧠 STEP 4: Now call scoring engine with REAL dyslexic flag
+                // STEP 2: ONLY if dyslexic → run patterns
+                if (detectedDyslexic) {
+                  const patternResult = await predictPatterns(trimmedEssay);
+
+                  const normalizedPatterns = {
+                    dominant_pattern: patternResult.dominant,
+                    risk_level: patternResult.risk_level,
+                    severity: patternResult.severity,
+                    explanation: patternResult.explanation,
+                    pattern_distribution: patternResult.distribution,
+                    risk_score: patternResult.risk_score,
+                    pattern_density: patternResult.pattern_density,
+                    pattern_sentence_count:
+                      patternResult.pattern_sentence_count,
+                    pattern_sentence_examples:
+                      patternResult.pattern_sentence_examples,
+                    total_sentences: patternResult.total_sentences
+                  };
+
+                  await UserImageService.updateImagePatterns(
+                    imageData.id,
+                    normalizedPatterns
+                  );
+                }
+                // STEP 3: Extract dyslexic sentence-level error tags
+                // const errorTags = dyslexiaResult.sentences
+                //   .filter((s) => s.label === "DYSLEXIC")
+                //   .map((s) => ({
+                //     text: s.text,
+                //     probability: s.probability
+                //   }));
+
+                // STEP 4: Now call scoring engine with REAL dyslexic flag
                 // Fix: Extract number from string like "Grade 4" if necessary
                 const gradeStr = String(imageData.studentGrade || "6");
-                const numericGrade = parseInt(gradeStr.replace(/[^0-9]/g, "")) || 6;
+                const numericGrade =
+                  parseInt(gradeStr.replace(/[^0-9]/g, "")) || 6;
 
                 const result = await scoreSinhala({
                   text: trimmedEssay,
                   grade: numericGrade,
                   topic: trimmedTopic || undefined,
-                  // ✅ ML-based dyslexia detection result
+                  // ML-based dyslexia detection result
                   dyslexic_flag: detectedDyslexic,
-                  // 🛑 TEMPORARY FIX:
-                  // Backend scoring engine does NOT yet support structured error tag objects.
-                  // So we send an empty array to avoid 422 validation error.
-                  // Dyslexia detection still runs, but scoring ignores detailed sentence tags.
+                  // Structured error_tags temporarily disabled
+                  // Backend scoring service currently expects flat input.
+                  // Sentence-level dyslexia tags are stored in Firestore but not yet consumed by scorer.
                   error_tags: []
                 });
 
@@ -685,7 +740,8 @@ export default function ImageDetailScreen() {
                 setScoreData(result);
                 showToast(t("essay.scoreCalculated"), { type: "success" });
 
-                // 🔥 SAVE TO FIRESTORE (with cleaning)
+                // Persist scoring results to Firestore
+                // Cleaned to prevent undefined values from breaking Firestore writes
                 const firestoreScorePayload = cleanFirestore({
                   score: result.score,
 
@@ -704,7 +760,7 @@ export default function ImageDetailScreen() {
                     total_14: result.rubric.total_14
                   },
 
-                  // 🔥 Firestore-safe (can be null)
+                  // Firestore-safe (can be null)
                   fairness_report: result.fairness_report ?? null,
 
                   essay_text: trimmedEssay,
@@ -725,10 +781,7 @@ export default function ImageDetailScreen() {
 
                 // ✅ GENERATE MINDMAP
                 try {
-                  console.log(
-                    "🧠 Generating mindmap for essay:",
-                    imageData.id
-                  );
+                  console.log("🧠 Generating mindmap for essay:", imageData.id);
                   await generateMindmap(imageData.id, inputText);
                   console.log("✅ Mindmap generation triggered");
 
@@ -850,7 +903,9 @@ export default function ImageDetailScreen() {
               </Text>
 
               <View style={styles.rubricRow}>
-                <Text style={styles.rubricLabel}>{t("essay.richness")} (5)</Text>
+                <Text style={styles.rubricLabel}>
+                  {t("essay.richness")} (5)
+                </Text>
                 <Text style={styles.rubricValue}>
                   {scoreData.rubric?.richness_5 ?? "â€”"}
                 </Text>
@@ -866,7 +921,9 @@ export default function ImageDetailScreen() {
               </View>
 
               <View style={styles.rubricRow}>
-                <Text style={styles.rubricLabel}>{t("essay.technicalSkills")} (3)</Text>
+                <Text style={styles.rubricLabel}>
+                  {t("essay.technicalSkills")} (3)
+                </Text>
                 <Text style={styles.rubricValue}>
                   {scoreData.rubric?.technical_3 ?? "â€”"}
                 </Text>
@@ -882,7 +939,123 @@ export default function ImageDetailScreen() {
               </View>
             </View>
           )}
+          {/* ==================== Pattern SECTION ==================== */}
 
+          {patternData && (
+            <View style={styles.patternCard}>
+              <Text style={styles.patternTitle}>Writing Pattern Analysis</Text>
+
+              <Text style={styles.patternMain}>
+                Dominant: {patternData.dominant_pattern}
+              </Text>
+
+              <Text style={styles.patternMeta}>
+                Risk Level: {patternData.risk_level}
+              </Text>
+
+              <Text style={styles.patternMeta}>
+                Severity: {patternData.severity}
+              </Text>
+
+              <Text style={styles.patternExplanation}>
+                {patternData.explanation}
+              </Text>
+
+              {patternData.pattern_distribution && (
+                <View style={styles.patternDistributionBox}>
+                  {Object.entries(patternData.pattern_distribution).map(
+                    ([key, value]: any) => (
+                      <Text key={key} style={styles.patternItem}>
+                        {key}: {(value * 100).toFixed(1)}%
+                      </Text>
+                    )
+                  )}
+                </View>
+              )}
+
+              {/* Toggle Button */}
+              <TouchableOpacity
+                style={styles.patternToggleButton}
+                onPress={() => setShowPatternDetails((prev) => !prev)}
+              >
+                <MaterialIcons
+                  name={showPatternDetails ? "expand-less" : "expand-more"}
+                  size={20}
+                  color="#F59E0B"
+                />
+                <Text style={styles.patternToggleText}>
+                  {showPatternDetails
+                    ? "Hide Detailed Analysis"
+                    : "View Detailed Analysis"}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Expanded Section */}
+              {showPatternDetails && (
+                <View style={styles.patternAdvancedBox}>
+                  {patternData.risk_score !== undefined && (
+                    <Text style={styles.patternAdvancedItem}>
+                      Risk Score: {patternData.risk_score.toFixed(2)}
+                    </Text>
+                  )}
+
+                  {patternData.pattern_density && (
+                    <View style={styles.patternSubSection}>
+                      <Text style={styles.patternSubTitle}>
+                        Pattern Density
+                      </Text>
+                      {Object.entries(patternData.pattern_density).map(
+                        ([key, value]: any) => (
+                          <Text key={key} style={styles.patternAdvancedItem}>
+                            {key}: {value.toFixed(1)}%
+                          </Text>
+                        )
+                      )}
+                    </View>
+                  )}
+
+                  {patternData.pattern_sentence_count && (
+                    <View style={styles.patternSubSection}>
+                      <Text style={styles.patternSubTitle}>
+                        Pattern Sentence Count
+                      </Text>
+                      {Object.entries(patternData.pattern_sentence_count).map(
+                        ([key, value]: any) => (
+                          <Text key={key} style={styles.patternAdvancedItem}>
+                            {key}: {value}
+                          </Text>
+                        )
+                      )}
+                    </View>
+                  )}
+
+                  {patternData.pattern_sentence_examples && (
+                    <View style={styles.patternSubSection}>
+                      <Text style={styles.patternSubTitle}>
+                        Example Sentences
+                      </Text>
+                      {Object.entries(
+                        patternData.pattern_sentence_examples
+                      ).map(([type, arr]: any) =>
+                        arr.length > 0 ? (
+                          <View key={type} style={styles.patternExampleGroup}>
+                            <Text style={styles.patternExampleTitle}>
+                              {type}
+                            </Text>
+                            {arr.map((sentence: string, i: number) => (
+                              <Text key={i} style={styles.patternExampleText}>
+                                • {sentence}
+                              </Text>
+                            ))}
+                          </View>
+                        ) : null
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
           {/* ==================== FAIRNESS SECTION ====================
           {scoreData && (
             <View style={styles.fairnessCard}>
@@ -978,7 +1151,9 @@ export default function ImageDetailScreen() {
                       style={styles.feedbackIcon}
                     />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.feedbackLabel}>{t("essay.generalFeedback")}</Text>
+                      <Text style={styles.feedbackLabel}>
+                        {t("essay.generalFeedback")}
+                      </Text>
                       <Text style={styles.feedbackText}>
                         {textFeedback.feedback}
                       </Text>
@@ -1010,13 +1185,17 @@ export default function ImageDetailScreen() {
                       </Text>
                       <View style={styles.metricsGrid}>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>{t("essay.words")}</Text>
+                          <Text style={styles.metricLabel}>
+                            {t("essay.words")}
+                          </Text>
                           <Text style={styles.metricValue}>
                             {Math.round(textFeedback.metrics.word_count)}
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>{t("essay.sentences")}</Text>
+                          <Text style={styles.metricLabel}>
+                            {t("essay.sentences")}
+                          </Text>
                           <Text style={styles.metricValue}>
                             {Math.round(textFeedback.metrics.sentence_count)}
                           </Text>
@@ -1032,7 +1211,9 @@ export default function ImageDetailScreen() {
                           </Text>
                         </View>
                         <View style={styles.metricItem}>
-                          <Text style={styles.metricLabel}>{t("essay.characters")}</Text>
+                          <Text style={styles.metricLabel}>
+                            {t("essay.characters")}
+                          </Text>
                           <Text style={styles.metricValue}>
                             {Math.round(textFeedback.metrics.char_length)}
                           </Text>
@@ -1075,7 +1256,12 @@ export default function ImageDetailScreen() {
             <View style={styles.audioFeedbackCard}>
               <View style={styles.audioFeedbackHeader}>
                 <View style={styles.audioFeedbackTitleContainer}>
-                  <MaterialIcons name="volume-up" size={22} color="#10B981" style={styles.audioHeaderIcon} />
+                  <MaterialIcons
+                    name="volume-up"
+                    size={22}
+                    color="#10B981"
+                    style={styles.audioHeaderIcon}
+                  />
                   <Text style={styles.audioFeedbackTitle}>
                     {t("essay.sinhalaAudioFeedback")}
                   </Text>
@@ -1098,7 +1284,11 @@ export default function ImageDetailScreen() {
                       <ActivityIndicator size="small" color="#fff" />
                     ) : (
                       <>
-                        <MaterialIcons name="music-note" size={16} color="#fff" />
+                        <MaterialIcons
+                          name="music-note"
+                          size={16}
+                          color="#fff"
+                        />
                         <Text style={styles.generateAudioButtonText}>
                           {t("essay.generateAudio")}
                         </Text>
@@ -1202,16 +1392,18 @@ export default function ImageDetailScreen() {
                         <View
                           style={[
                             styles.audioStatusBadge,
-                            isAudioPlaying && styles.audioStatusBadgeActive,
+                            isAudioPlaying && styles.audioStatusBadgeActive
                           ]}
                         >
                           <Text
                             style={[
                               styles.audioStatusText,
-                              isAudioPlaying && styles.audioStatusTextActive,
+                              isAudioPlaying && styles.audioStatusTextActive
                             ]}
                           >
-                            {isAudioPlaying ? t("essay.audioLive") : t("essay.audioReady")}
+                            {isAudioPlaying
+                              ? t("essay.audioLive")
+                              : t("essay.audioReady")}
                           </Text>
                         </View>
                         {audioFeedback.duration && (
@@ -1290,7 +1482,9 @@ export default function ImageDetailScreen() {
         <View style={styles.actionContainer}>
           <TouchableOpacity style={styles.primaryActionButton}>
             <MaterialIcons name="download" size={24} color="#0F1117" />
-            <Text style={styles.actionButtonTextPrimary}>{t("essay.download")}</Text>
+            <Text style={styles.actionButtonTextPrimary}>
+              {t("essay.download")}
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.actionGrid}>
@@ -1999,8 +2193,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
     borderColor: "#1F2937",
-    gap: 12,
-
+    gap: 12
   },
 
   playButton: {
@@ -2015,8 +2208,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-
+    elevation: 3
   },
 
   audioInfoBox: {
@@ -2033,7 +2225,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginTop: 6,
-    flexWrap: "wrap",
+    flexWrap: "wrap"
   },
   audioStatusBadge: {
     borderWidth: 1,
@@ -2041,20 +2233,20 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 999,
-    backgroundColor: "#0B1220",
+    backgroundColor: "#0B1220"
   },
   audioStatusBadgeActive: {
     borderColor: "#10B981",
-    backgroundColor: "#064E3B",
+    backgroundColor: "#064E3B"
   },
   audioStatusText: {
     color: "#9CA3AF",
     fontSize: 10,
     fontWeight: "700",
-    letterSpacing: 0.6,
+    letterSpacing: 0.6
   },
   audioStatusTextActive: {
-    color: "#D1FAE5",
+    color: "#D1FAE5"
   },
   audioDurationBadge: {
     borderWidth: 1,
@@ -2062,14 +2254,13 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 999,
-    backgroundColor: "#111827",
+    backgroundColor: "#111827"
   },
 
   audioDurationText: {
     color: "#9CA3AF",
 
-    fontSize: 11,
-
+    fontSize: 11
   },
 
   audioPlaceholder: {
@@ -2096,5 +2287,101 @@ const styles = StyleSheet.create({
     color: "#E5E7EB",
     fontSize: 14,
     fontWeight: "600"
+  },
+  patternCard: {
+    backgroundColor: "#16181F",
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#F59E0B",
+    marginBottom: 24
+  },
+
+  patternTitle: {
+    color: "#F59E0B",
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 12
+  },
+
+  patternMain: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600"
+  },
+
+  patternMeta: {
+    color: "#9CA3AF",
+    marginTop: 4
+  },
+
+  patternExplanation: {
+    color: "#D1D5DB",
+    marginTop: 10
+  },
+
+  patternItem: {
+    color: "#E5E7EB",
+    fontSize: 14,
+    marginBottom: 4
+  },
+  patternDistributionBox: {
+    marginTop: 12
+  },
+
+  patternToggleButton: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
+
+  patternToggleText: {
+    color: "#F59E0B",
+    fontWeight: "600",
+    fontSize: 14
+  },
+
+  patternAdvancedBox: {
+    marginTop: 16,
+    backgroundColor: "#0F1117",
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#2D313E"
+  },
+
+  patternAdvancedItem: {
+    color: "#D1D5DB",
+    fontSize: 14,
+    marginBottom: 6
+  },
+
+  patternSubSection: {
+    marginTop: 12
+  },
+
+  patternSubTitle: {
+    color: "#F59E0B",
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 6
+  },
+
+  patternExampleGroup: {
+    marginBottom: 10
+  },
+
+  patternExampleTitle: {
+    color: "#9CA3AF",
+    fontWeight: "600",
+    marginBottom: 4
+  },
+
+  patternExampleText: {
+    color: "#E5E7EB",
+    fontSize: 13,
+    marginLeft: 8,
+    marginBottom: 2
   }
 });
