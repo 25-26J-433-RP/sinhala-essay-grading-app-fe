@@ -41,6 +41,15 @@ import AICorrectionPanel from "@/components/AICorrectionPanel";
 import { MindmapView } from "@/components/MindmapView";
 import { Audio } from "expo-av";
 
+const PATTERN_COLORS: Record<
+  string,
+  { border: string; bg: string; text: string }
+> = {
+  Phonetic: { border: "#F59E0B", bg: "#78350F", text: "#FDE68A" },
+  Spelling: { border: "#EF4444", bg: "#7F1D1D", text: "#FCA5A5" },
+  Visual: { border: "#8B5CF6", bg: "#4C1D95", text: "#DDD6FE" },
+  Grammar: { border: "#3B82F6", bg: "#1E3A5F", text: "#BFDBFE" }
+};
 // ðŸ”¥ Prevent Firestore from rejecting undefined/null fields
 function cleanFirestore(obj: any) {
   return JSON.parse(
@@ -943,40 +952,197 @@ export default function ImageDetailScreen() {
 
           {patternData && (
             <View style={styles.patternCard}>
-              <Text style={styles.patternTitle}>
-                {t("imageDetail.patternTitle")}
-              </Text>
+              {/* ── HEADER ROW ── */}
+              <View style={styles.patternHeaderRow}>
+                <View style={styles.patternHeaderLeft}>
+                  <Text style={styles.patternTitle}>
+                    {t("imageDetail.patternTitle")}
+                  </Text>
+                  <View
+                    style={[
+                      styles.patternRiskBadge,
+                      {
+                        backgroundColor: patternData.risk_level?.includes(
+                          "High"
+                        )
+                          ? "#7F1D1D"
+                          : patternData.risk_level?.includes("Moderate")
+                            ? "#78350F"
+                            : "#064E3B",
+                        borderColor: patternData.risk_level?.includes("High")
+                          ? "#EF4444"
+                          : patternData.risk_level?.includes("Moderate")
+                            ? "#F59E0B"
+                            : "#10B981"
+                      }
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.patternRiskBadgeText,
+                        {
+                          color: patternData.risk_level?.includes("High")
+                            ? "#FCA5A5"
+                            : patternData.risk_level?.includes("Moderate")
+                              ? "#FDE68A"
+                              : "#D1FAE5"
+                        }
+                      ]}
+                    >
+                      {patternData.severity || patternData.risk_level || "—"}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.patternRiskScoreBox}>
+                  <Text style={styles.patternRiskScoreLabel}>Risk</Text>
+                  <Text
+                    style={[
+                      styles.patternRiskScoreValue,
+                      {
+                        color:
+                          (patternData.risk_score ?? 0) >= 70
+                            ? "#EF4444"
+                            : (patternData.risk_score ?? 0) >= 40
+                              ? "#F59E0B"
+                              : "#10B981"
+                      }
+                    ]}
+                  >
+                    {patternData.risk_score !== undefined
+                      ? `${patternData.risk_score.toFixed(0)}%`
+                      : "—"}
+                  </Text>
+                </View>
+              </View>
 
-              <Text style={styles.patternMain}>
-                {t("imageDetail.patternDominant")}:{" "}
-                {patternData.dominant_pattern}
-              </Text>
-
-              <Text style={styles.patternMeta}>
-                {t("imageDetail.patternRiskLevel")}: {patternData.risk_level}
-              </Text>
-
-              <Text style={styles.patternMeta}>
-                {t("imageDetail.patternSeverity")}: {patternData.severity}
-              </Text>
-
-              <Text style={styles.patternExplanation}>
-                {patternData.explanation}
-              </Text>
-
+              {/* ── PATTERN DISTRIBUTION PILLS ── */}
               {patternData.pattern_distribution && (
-                <View style={styles.patternDistributionBox}>
-                  {Object.entries(patternData.pattern_distribution).map(
-                    ([key, value]: any) => (
-                      <Text key={key} style={styles.patternItem}>
-                        {key}: {(value * 100).toFixed(1)}%
-                      </Text>
-                    )
-                  )}
+                <View style={styles.patternPillRow}>
+                  {Object.entries(patternData.pattern_distribution)
+                    .sort(([, a]: any, [, b]: any) => b - a)
+                    .map(([key, value]: any) => {
+                      const colors = PATTERN_COLORS[key] || {
+                        border: "#6B7280",
+                        bg: "#1F2937",
+                        text: "#9CA3AF"
+                      };
+                      const isDominant =
+                        patternData.dominant_pattern?.startsWith(key);
+                      return (
+                        <View
+                          key={key}
+                          style={[
+                            styles.patternPill,
+                            {
+                              borderColor: colors.border,
+                              backgroundColor: colors.bg,
+                              opacity: 1
+                            },
+                            isDominant && styles.patternPillDominant
+                          ]}
+                        >
+                          {isDominant && (
+                            <View
+                              style={[
+                                styles.patternPillDot,
+                                { backgroundColor: colors.border }
+                              ]}
+                            />
+                          )}
+                          <Text
+                            style={[
+                              styles.patternPillLabel,
+                              { color: colors.text }
+                            ]}
+                          >
+                            {key}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.patternPillValue,
+                              { color: colors.border }
+                            ]}
+                          >
+                            {(value * 100).toFixed(0)}%
+                          </Text>
+                          {isDominant && (
+                            <Text
+                              style={[
+                                styles.patternPillDominantTag,
+                                { color: colors.border }
+                              ]}
+                            >
+                              DOM
+                            </Text>
+                          )}
+                        </View>
+                      );
+                    })}
                 </View>
               )}
 
-              {/* Toggle Button */}
+              {/* ── DISTRIBUTION BARS (visual) ── */}
+              {patternData.pattern_distribution && (
+                <View style={styles.patternBarsBox}>
+                  {Object.entries(patternData.pattern_distribution)
+                    .sort(([, a]: any, [, b]: any) => b - a)
+                    .map(([key, value]: any) => {
+                      const colors = PATTERN_COLORS[key] || {
+                        border: "#6B7280",
+                        bg: "#1F2937",
+                        text: "#9CA3AF"
+                      };
+                      const count =
+                        patternData.pattern_sentence_count?.[key] ?? 0;
+                      return (
+                        <View key={key} style={styles.patternBarRow}>
+                          <Text
+                            style={[
+                              styles.patternBarLabel,
+                              { color: colors.text }
+                            ]}
+                          >
+                            {key}
+                          </Text>
+                          <View style={styles.patternBarTrack}>
+                            <View
+                              style={[
+                                styles.patternBarFill,
+                                {
+                                  width: `${(value as number) * 100}%` as any,
+                                  backgroundColor: colors.border
+                                }
+                              ]}
+                            />
+                          </View>
+                          <Text
+                            style={[
+                              styles.patternBarCount,
+                              { color: colors.text }
+                            ]}
+                          >
+                            {count}s
+                          </Text>
+                        </View>
+                      );
+                    })}
+                </View>
+              )}
+
+              {/* ── EXPLANATION ── */}
+              <View style={styles.patternExplanationBox}>
+                <MaterialIcons
+                  name="info-outline"
+                  size={14}
+                  color="#9CA3AF"
+                  style={{ marginTop: 1 }}
+                />
+                <Text style={styles.patternExplanation}>
+                  {patternData.explanation}
+                </Text>
+              </View>
+
+              {/* ── TOGGLE: DETAILED ANALYSIS ── */}
               <TouchableOpacity
                 style={styles.patternToggleButton}
                 onPress={() => setShowPatternDetails((prev) => !prev)}
@@ -993,67 +1159,133 @@ export default function ImageDetailScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {/* Expanded Section */}
+              {/* ── EXPANDED: SENTENCE EXAMPLES PER PATTERN ── */}
               {showPatternDetails && (
                 <View style={styles.patternAdvancedBox}>
-                  {patternData.risk_score !== undefined && (
-                    <Text style={styles.patternAdvancedItem}>
-                      {t("imageDetail.patternRiskScore")}:{" "}
-                      {patternData.risk_score.toFixed(2)}
-                    </Text>
-                  )}
-
+                  {/* Pattern Density (from your Firebase data) */}
                   {patternData.pattern_density && (
-                    <View style={styles.patternSubSection}>
-                      <Text style={styles.patternSubTitle}>
+                    <View style={styles.patternDensitySection}>
+                      <Text style={styles.patternSectionTitle}>
                         {t("imageDetail.patternDensity")}
                       </Text>
-                      {Object.entries(patternData.pattern_density).map(
-                        ([key, value]: any) => (
-                          <Text key={key} style={styles.patternAdvancedItem}>
-                            {key}: {value.toFixed(1)}%
-                          </Text>
-                        )
-                      )}
+                      <View style={styles.patternDensityGrid}>
+                        {Object.entries(patternData.pattern_density).map(
+                          ([key, value]: any) => {
+                            const colors = PATTERN_COLORS[key] || {
+                              border: "#6B7280",
+                              bg: "#1F2937",
+                              text: "#9CA3AF"
+                            };
+                            return (
+                              <View
+                                key={key}
+                                style={[
+                                  styles.patternDensityItem,
+                                  { borderColor: colors.border }
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.patternDensityKey,
+                                    { color: colors.text }
+                                  ]}
+                                >
+                                  {key}
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.patternDensityVal,
+                                    { color: colors.border }
+                                  ]}
+                                >
+                                  {value.toFixed(1)}%
+                                </Text>
+                              </View>
+                            );
+                          }
+                        )}
+                      </View>
                     </View>
                   )}
 
-                  {patternData.pattern_sentence_count && (
-                    <View style={styles.patternSubSection}>
-                      <Text style={styles.patternSubTitle}>
-                        {t("imageDetail.patternSentenceCount")}
-                      </Text>
-                      {Object.entries(patternData.pattern_sentence_count).map(
-                        ([key, value]: any) => (
-                          <Text key={key} style={styles.patternAdvancedItem}>
-                            {key}: {value}
-                          </Text>
-                        )
-                      )}
-                    </View>
-                  )}
-
+                  {/* Sentence Examples per Pattern Type */}
                   {patternData.pattern_sentence_examples && (
-                    <View style={styles.patternSubSection}>
-                      <Text style={styles.patternSubTitle}>
+                    <View style={styles.patternExamplesSection}>
+                      <Text style={styles.patternSectionTitle}>
                         {t("imageDetail.patternExampleSentences")}
                       </Text>
                       {Object.entries(
                         patternData.pattern_sentence_examples
-                      ).map(([type, arr]: any) =>
-                        arr.length > 0 ? (
-                          <View key={type} style={styles.patternExampleGroup}>
-                            <Text style={styles.patternExampleTitle}>
-                              {type}
-                            </Text>
-                            {arr.map((sentence: string, i: number) => (
-                              <Text key={i} style={styles.patternExampleText}>
-                                • {sentence}
+                      ).map(([type, arr]: any) => {
+                        if (!arr || arr.length === 0) return null;
+                        const colors = PATTERN_COLORS[type] || {
+                          border: "#6B7280",
+                          bg: "#1F2937",
+                          text: "#9CA3AF"
+                        };
+                        const count =
+                          patternData.pattern_sentence_count?.[type] ??
+                          arr.length;
+                        return (
+                          <View
+                            key={type}
+                            style={[
+                              styles.patternExampleGroup,
+                              { borderLeftColor: colors.border }
+                            ]}
+                          >
+                            <View style={styles.patternExampleGroupHeader}>
+                              <View
+                                style={[
+                                  styles.patternExampleDot,
+                                  { backgroundColor: colors.border }
+                                ]}
+                              />
+                              <Text
+                                style={[
+                                  styles.patternExampleTitle,
+                                  { color: colors.border }
+                                ]}
+                              >
+                                {type}
                               </Text>
+                              <View
+                                style={[
+                                  styles.patternExampleCountBadge,
+                                  { backgroundColor: colors.bg }
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.patternExampleCountText,
+                                    { color: colors.text }
+                                  ]}
+                                >
+                                  {count} sentence{count !== 1 ? "s" : ""}
+                                </Text>
+                              </View>
+                            </View>
+                            {arr.map((sentence: string, i: number) => (
+                              <View
+                                key={i}
+                                style={styles.patternExampleSentenceRow}
+                              >
+                                <Text
+                                  style={[
+                                    styles.patternExampleBullet,
+                                    { color: colors.border }
+                                  ]}
+                                >
+                                  ›
+                                </Text>
+                                <Text style={styles.patternExampleText}>
+                                  {sentence}
+                                </Text>
+                              </View>
                             ))}
                           </View>
-                        ) : null
-                      )}
+                        );
+                      })}
                     </View>
                   )}
                 </View>
@@ -2300,92 +2532,237 @@ const styles = StyleSheet.create({
     borderColor: "#F59E0B",
     marginBottom: 24
   },
-
+  patternHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 16
+  },
+  patternHeaderLeft: {
+    flex: 1,
+    gap: 8
+  },
   patternTitle: {
     color: "#F59E0B",
     fontSize: 18,
-    fontWeight: "800",
-    marginBottom: 12
+    fontWeight: "800"
   },
-
-  patternMain: {
-    color: "#FFFFFF",
-    fontSize: 16,
+  patternRiskBadge: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3
+  },
+  patternRiskBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.4
+  },
+  patternRiskScoreBox: {
+    alignItems: "center",
+    backgroundColor: "#0F1117",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#2D313E",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minWidth: 60
+  },
+  patternRiskScoreLabel: {
+    color: "#6B7280",
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 0.5
+  },
+  patternRiskScoreValue: {
+    fontSize: 22,
+    fontWeight: "900"
+  },
+  patternPillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 14
+  },
+  patternPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999
+  },
+  patternPillDominant: {
+    borderWidth: 1.5
+  },
+  patternPillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3
+  },
+  patternPillLabel: {
+    fontSize: 12,
     fontWeight: "600"
   },
-
-  patternMeta: {
-    color: "#9CA3AF",
-    marginTop: 4
+  patternPillValue: {
+    fontSize: 13,
+    fontWeight: "900"
   },
-
+  patternPillDominantTag: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    marginLeft: 2
+  },
+  patternBarsBox: {
+    gap: 10,
+    marginBottom: 14
+  },
+  patternBarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  patternBarLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    width: 64
+  },
+  patternBarTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: "#2D313E",
+    borderRadius: 3,
+    overflow: "hidden"
+  },
+  patternBarFill: {
+    height: 6,
+    borderRadius: 3
+  },
+  patternBarCount: {
+    fontSize: 11,
+    fontWeight: "600",
+    width: 24,
+    textAlign: "right"
+  },
+  patternExplanationBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#0F1117",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#2D313E",
+    marginBottom: 14
+  },
   patternExplanation: {
     color: "#D1D5DB",
-    marginTop: 10
+    fontSize: 13,
+    lineHeight: 20,
+    flex: 1
   },
-
-  patternItem: {
-    color: "#E5E7EB",
-    fontSize: 14,
-    marginBottom: 4
-  },
-  patternDistributionBox: {
-    marginTop: 12
-  },
-
   patternToggleButton: {
-    marginTop: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 6
   },
-
   patternToggleText: {
     color: "#F59E0B",
     fontWeight: "600",
     fontSize: 14
   },
-
   patternAdvancedBox: {
     marginTop: 16,
     backgroundColor: "#0F1117",
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#2D313E"
+    borderColor: "#2D313E",
+    gap: 16
   },
-
-  patternAdvancedItem: {
-    color: "#D1D5DB",
-    fontSize: 14,
-    marginBottom: 6
-  },
-
-  patternSubSection: {
-    marginTop: 12
-  },
-
-  patternSubTitle: {
-    color: "#F59E0B",
-    fontSize: 14,
+  patternSectionTitle: {
+    color: "#9CA3AF",
+    fontSize: 12,
     fontWeight: "700",
-    marginBottom: 6
-  },
-
-  patternExampleGroup: {
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
     marginBottom: 10
   },
-
-  patternExampleTitle: {
-    color: "#9CA3AF",
+  patternDensitySection: {
+    gap: 4
+  },
+  patternDensityGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  patternDensityItem: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#16181F",
+    alignItems: "center",
+    minWidth: 80
+  },
+  patternDensityKey: {
+    fontSize: 11,
     fontWeight: "600",
+    marginBottom: 2
+  },
+  patternDensityVal: {
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  patternExamplesSection: {
+    gap: 10
+  },
+  patternExampleGroup: {
+    borderLeftWidth: 3,
+    paddingLeft: 12,
+    gap: 6
+  },
+  patternExampleGroupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 4
   },
-
+  patternExampleDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4
+  },
+  patternExampleTitle: {
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  patternExampleCountBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999
+  },
+  patternExampleCountText: {
+    fontSize: 10,
+    fontWeight: "600"
+  },
+  patternExampleSentenceRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6
+  },
+  patternExampleBullet: {
+    fontSize: 16,
+    fontWeight: "900",
+    lineHeight: 20
+  },
   patternExampleText: {
     color: "#E5E7EB",
     fontSize: 13,
-    marginLeft: 8,
-    marginBottom: 2
+    lineHeight: 20,
+    flex: 1
   }
 });
