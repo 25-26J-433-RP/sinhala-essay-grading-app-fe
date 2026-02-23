@@ -943,18 +943,21 @@ export default function ImageDetailScreen() {
 
           {patternData && (
             <View style={styles.patternCard}>
-              <Text style={styles.patternTitle}>Writing Pattern Analysis</Text>
+              <Text style={styles.patternTitle}>
+                {t("imageDetail.patternTitle")}
+              </Text>
 
               <Text style={styles.patternMain}>
-                Dominant: {patternData.dominant_pattern}
+                {t("imageDetail.patternDominant")}:{" "}
+                {patternData.dominant_pattern}
               </Text>
 
               <Text style={styles.patternMeta}>
-                Risk Level: {patternData.risk_level}
+                {t("imageDetail.patternRiskLevel")}: {patternData.risk_level}
               </Text>
 
               <Text style={styles.patternMeta}>
-                Severity: {patternData.severity}
+                {t("imageDetail.patternSeverity")}: {patternData.severity}
               </Text>
 
               <Text style={styles.patternExplanation}>
@@ -985,8 +988,8 @@ export default function ImageDetailScreen() {
                 />
                 <Text style={styles.patternToggleText}>
                   {showPatternDetails
-                    ? "Hide Detailed Analysis"
-                    : "View Detailed Analysis"}
+                    ? t("imageDetail.hideDetailedAnalysis")
+                    : t("imageDetail.viewDetailedAnalysis")}
                 </Text>
               </TouchableOpacity>
 
@@ -995,14 +998,15 @@ export default function ImageDetailScreen() {
                 <View style={styles.patternAdvancedBox}>
                   {patternData.risk_score !== undefined && (
                     <Text style={styles.patternAdvancedItem}>
-                      Risk Score: {patternData.risk_score.toFixed(2)}
+                      {t("imageDetail.patternRiskScore")}:{" "}
+                      {patternData.risk_score.toFixed(2)}
                     </Text>
                   )}
 
                   {patternData.pattern_density && (
                     <View style={styles.patternSubSection}>
                       <Text style={styles.patternSubTitle}>
-                        Pattern Density
+                        {t("imageDetail.patternDensity")}
                       </Text>
                       {Object.entries(patternData.pattern_density).map(
                         ([key, value]: any) => (
@@ -1017,7 +1021,7 @@ export default function ImageDetailScreen() {
                   {patternData.pattern_sentence_count && (
                     <View style={styles.patternSubSection}>
                       <Text style={styles.patternSubTitle}>
-                        Pattern Sentence Count
+                        {t("imageDetail.patternSentenceCount")}
                       </Text>
                       {Object.entries(patternData.pattern_sentence_count).map(
                         ([key, value]: any) => (
@@ -1032,7 +1036,7 @@ export default function ImageDetailScreen() {
                   {patternData.pattern_sentence_examples && (
                     <View style={styles.patternSubSection}>
                       <Text style={styles.patternSubTitle}>
-                        Example Sentences
+                        {t("imageDetail.patternExampleSentences")}
                       </Text>
                       {Object.entries(
                         patternData.pattern_sentence_examples
