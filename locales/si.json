@@ -151,7 +151,9 @@
     "clickToGenerateAudio": "ප්‍රතිපෝෂණ මගින් සිංහල ශ්‍රව්‍ය උත්පාදනය කිරීමට බොත්තම ඔබන්න",
     "sinhalaAudioFeedback": "සිංහල ශ්‍රව්‍ය ප්‍රතිපෝෂණ",
     "hideFairnessReport": "සාධාරණතා වාර්තාව සඟවන්න",
-    "showFairnessReport": "සාධාරණතා වාර්තාව පෙන්වන්න"
+    "showFairnessReport": "සාධාරණතා වාර්තාව පෙන්වන්න",
+    "hideRubricDetails": "නිර්ණායක විස්තර සඟවන්න",
+    "showRubricDetails": "නිර්ණායක විස්තර පෙන්වන්න"
   },
   "fairness": {
     "reportTitle": "සාධාරණතා වාර්තාව",

@@ -151,7 +151,9 @@
     "clickToGenerateAudio": "Click the button to generate Sinhala audio from feedback",
     "sinhalaAudioFeedback": "Sinhala Audio Feedback",
     "hideFairnessReport": "Hide Fairness Report",
-    "showFairnessReport": "Show Fairness Report"
+    "showFairnessReport": "Show Fairness Report",
+    "hideRubricDetails": "Hide Rubric Details",
+    "showRubricDetails": "Show Rubric Details"
   },
   "fairness": {
     "reportTitle": "Fairness Report",

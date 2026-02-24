@@ -989,87 +989,99 @@ export default function ImageDetailScreen() {
                   color="#10B981"
                 />
                 <Text style={styles.fairnessToggleText}>
-                  {showFairnessReport
-                    ? t("essay.hideFairnessReport") || "Hide Fairness Report"
-                    : t("essay.showFairnessReport") || "Show Fairness Report"}
+                  {scoreData.details.dyslexic_flag
+                    ? showFairnessReport
+                      ? t("essay.hideFairnessReport")
+                      : t("essay.showFairnessReport")
+                    : showFairnessReport
+                      ? t("essay.hideRubricDetails")
+                      : t("essay.showRubricDetails")}
                 </Text>
               </TouchableOpacity>
 
               {showFairnessReport && (
                 <View style={styles.fairnessContent}>
-                  <Text style={styles.fairnessSectionTitle}>
-                    {t("fairness.comparisonTitle")}
-                  </Text>
+                  {scoreData.details.dyslexic_flag && (
+                    <>
+                      <Text style={styles.fairnessSectionTitle}>
+                        {t("fairness.comparisonTitle")}
+                      </Text>
 
-                  {/* Comparison Table */}
-                  <View style={styles.comparisonTable}>
-                    <View style={styles.tableHeader}>
-                      <Text style={[styles.tableHeaderText, { flex: 2 }]}>
-                        {t("fairness.component")}
-                      </Text>
-                      <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
-                        {t("fairness.original")}
-                      </Text>
-                      <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
-                        {t("fairness.adjusted")}
-                      </Text>
-                    </View>
+                      {/* Comparison Table */}
+                      <View style={styles.comparisonTable}>
+                        <View style={styles.tableHeader}>
+                          <Text style={[styles.tableHeaderText, { flex: 2 }]}>
+                            {t("fairness.component")}
+                          </Text>
+                          <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
+                            {t("fairness.original")}
+                          </Text>
+                          <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
+                            {t("fairness.adjusted")}
+                          </Text>
+                        </View>
 
-                    <View style={styles.tableRow}>
-                      <Text style={[styles.tableLabel, { flex: 2 }]}>
-                        {t("essay.richness")}
-                      </Text>
-                      <Text style={[styles.tableValue, { flex: 1.2 }]}>
-                        {scoreData.fairness_report.original_richness_5?.toFixed(
-                          2
-                        )}
-                      </Text>
-                      <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
-                        {scoreData.fairness_report.adjusted_richness_5?.toFixed(
-                          2
-                        )}
-                      </Text>
-                    </View>
+                        <View style={styles.tableRow}>
+                          <Text style={[styles.tableLabel, { flex: 2 }]}>
+                            {t("essay.richness")}
+                          </Text>
+                          <Text style={[styles.tableValue, { flex: 1.2 }]}>
+                            {scoreData.fairness_report.original_richness_5?.toFixed(
+                              2
+                            )}
+                          </Text>
+                          <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
+                            {scoreData.fairness_report.adjusted_richness_5?.toFixed(
+                              2
+                            )}
+                          </Text>
+                        </View>
 
-                    <View style={styles.tableRow}>
-                      <Text style={[styles.tableLabel, { flex: 2 }]}>
-                        {t("essay.organization")}
-                      </Text>
-                      <Text style={[styles.tableValue, { flex: 1.2 }]}>
-                        {scoreData.fairness_report.original_organization_6?.toFixed(
-                          2
-                        )}
-                      </Text>
-                      <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
-                        {scoreData.fairness_report.adjusted_organization_6?.toFixed(
-                          2
-                        )}
-                      </Text>
-                    </View>
+                        <View style={styles.tableRow}>
+                          <Text style={[styles.tableLabel, { flex: 2 }]}>
+                            {t("essay.organization")}
+                          </Text>
+                          <Text style={[styles.tableValue, { flex: 1.2 }]}>
+                            {scoreData.fairness_report.original_organization_6?.toFixed(
+                              2
+                            )}
+                          </Text>
+                          <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
+                            {scoreData.fairness_report.adjusted_organization_6?.toFixed(
+                              2
+                            )}
+                          </Text>
+                        </View>
 
-                    <View style={styles.tableRow}>
-                      <Text style={[styles.tableLabel, { flex: 2 }]}>
-                        {t("essay.technicalSkills")}
-                      </Text>
-                      <Text style={[styles.tableValue, { flex: 1.2 }]}>
-                        {scoreData.fairness_report.original_technical_3?.toFixed(
-                          2
-                        )}
-                      </Text>
-                      <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
-                        {scoreData.fairness_report.adjusted_technical_3?.toFixed(
-                          2
-                        )}
-                      </Text>
-                    </View>
-                  </View>
+                        <View style={styles.tableRow}>
+                          <Text style={[styles.tableLabel, { flex: 2 }]}>
+                            {t("essay.technicalSkills")}
+                          </Text>
+                          <Text style={[styles.tableValue, { flex: 1.2 }]}>
+                            {scoreData.fairness_report.original_technical_3?.toFixed(
+                              2
+                            )}
+                          </Text>
+                          <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
+                            {scoreData.fairness_report.adjusted_technical_3?.toFixed(
+                              2
+                            )}
+                          </Text>
+                        </View>
+                      </View>
 
-                  <View style={styles.boostInfoRow}>
-                    <View style={styles.boostDot} />
-                    <Text style={styles.boostText}>
-                      {t("fairness.boostText", { boost: scoreData.fairness_report.total_boost?.toFixed(2) })}
-                    </Text>
-                  </View>
+                      <View style={styles.boostInfoRow}>
+                        <View style={styles.boostDot} />
+                        <Text style={styles.boostText}>
+                          {t("fairness.boostText", {
+                            boost: scoreData.fairness_report.total_boost?.toFixed(
+                              2
+                            )
+                          })}
+                        </Text>
+                      </View>
+                    </>
+                  )}
 
                   {/* Rubric Notes Sub-section */}
                   <View style={styles.rubricNotesContainerSection}>
