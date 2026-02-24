@@ -62,15 +62,15 @@ export default function HomeScreen() {
       const filename = asset.fileName || `image_${Date.now()}.jpg`;
 
       // Use the new UserImageService for user-specific uploads
-      const uploadedImage = await UserImageService.uploadUserImage({
+      await UserImageService.uploadUserImage({
         userId: user.uid,
+        studentId: "GENERAL", // Fallback for quick upload
         fileName: filename,
         fileBlob: blob,
-        description: "Essay submission",
+        image_id: `ocr_${Date.now()}`,
       });
 
-      setImageUrl(uploadedImage.imageUrl);
-      console.log("Image uploaded successfully!", uploadedImage);
+      console.log("Image uploaded successfully!");
       Alert.alert(t("common.success"), "Image uploaded successfully!");
     } catch (error) {
       console.error("Upload Error:", error);
@@ -176,11 +176,11 @@ export default function HomeScreen() {
               <Text style={styles.statLbl}>{language === "si" ? "නිබන්ධන" : "Essays"}</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statVal}>84%</Text>
+              <Text style={styles.statVal}>{stats?.avgScore || 0}%</Text>
               <Text style={styles.statLbl}>{language === "si" ? "සාමාන්‍යය" : "Avg. Score"}</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statVal}>12</Text>
+              <Text style={styles.statVal}>{stats?.totalStudents || 0}</Text>
               <Text style={styles.statLbl}>{language === "si" ? "සිසුන්" : "Students"}</Text>
             </View>
           </View>

@@ -369,6 +369,7 @@ export default function StudentListView({
         key={`students-${numColumns}`}
         keyExtractor={(item) => item.studentId}
         contentContainerStyle={styles.listContent}
+        style={{ flex: 1 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

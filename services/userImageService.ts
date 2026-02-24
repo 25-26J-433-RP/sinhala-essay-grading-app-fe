@@ -356,6 +356,7 @@ export class UserImageService {
 
       // Also check for old images in the legacy `images/` folder
       // Note: This is a temporary migration - in production you'd want to migrate these properly
+      /* 
       let legacyImages: UserImageUpload[] = [];
 
       if (storage) {
@@ -391,11 +392,12 @@ export class UserImageService {
           dwarn("No legacy images found or error accessing them:", legacyError);
         }
       }
+      */
 
       // Combine and sort all images
-      const allImages = [...firestoreImages, ...legacyImages];
+      const allImages = [...firestoreImages]; // Removed legacyImages
       dlog(
-        `✅ Returning ${allImages.length} total images (${firestoreImages.length} new + ${legacyImages.length} legacy)`
+        `✅ Returning ${allImages.length} total images (${firestoreImages.length} new)`
       );
 
       return allImages.sort(
@@ -486,12 +488,31 @@ export class UserImageService {
   static async getUserUploadStats(userId: string): Promise<{
     totalImages: number;
     totalSize: number;
+    avgScore: number;
+    totalStudents: number;
     firstUpload?: Date;
     lastUpload?: Date;
   }> {
     const images = await this.getUserImages(userId);
 
     const totalSize = images.reduce((sum, img) => sum + (img.fileSize || 0), 0);
+
+    // Calculate Average Score
+    const scoredImages = images.filter((img) => typeof img.score === "number");
+    const avgScore =
+      scoredImages.length > 0
+        ? Math.round(
+          scoredImages.reduce((sum, img) => sum + (img.score || 0), 0) /
+          scoredImages.length
+        )
+        : 0;
+
+    // Calculate Unique Student Count
+    const studentIds = new Set(
+      images.map((img) => img.studentId).filter(Boolean)
+    );
+    const totalStudents = studentIds.size;
+
     const uploadDates = images
       .map((img) => img.uploadedAt)
       .filter((date) => date)
@@ -500,6 +521,8 @@ export class UserImageService {
     return {
       totalImages: images.length,
       totalSize,
+      avgScore,
+      totalStudents,
       firstUpload: uploadDates[0],
       lastUpload: uploadDates[uploadDates.length - 1]
     };

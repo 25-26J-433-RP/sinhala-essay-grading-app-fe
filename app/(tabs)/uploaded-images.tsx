@@ -48,47 +48,24 @@ export default function UploadedImagesScreen() {
     );
   }
 
-  // Show StudentListView for both students and teachers (teachers manage student essays)
   if (user && (isStudent() || isTeacher() || isParent() || !userProfile)) {
     console.log("📚 Showing StudentListView for user");
-
-    const Content = (
-      <StudentListView
-        onStudentPress={(studentInfo) => {
-          // Navigate to student essays page
-          router.push({
-            pathname: "/student-essays",
-            params: {
-              studentId: studentInfo.studentId,
-            },
-          });
-        }}
-        scrollEnabled={Platform.OS !== "web"}
-      />
-    );
-
-    if (Platform.OS === "web") {
-      return (
-        <View style={styles.fullBg}>
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={true}
-          >
-            <View style={styles.container}>
-              <AppHeader />
-              {Content}
-            </View>
-          </ScrollView>
-        </View>
-      );
-    }
-
     return (
       <View style={styles.fullBg}>
         <View style={styles.container}>
           <AppHeader />
-          {Content}
+          <StudentListView
+            onStudentPress={(studentInfo) => {
+              // Navigate to student essays page
+              router.push({
+                pathname: "/student-essays",
+                params: {
+                  studentId: studentInfo.studentId,
+                },
+              });
+            }}
+            scrollEnabled={true}
+          />
         </View>
       </View>
     );

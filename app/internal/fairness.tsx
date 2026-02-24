@@ -175,8 +175,12 @@ export default function FairnessDashboard() {
     setAnalyzing(true);
     try {
       await runFairnessAnalysis();
-      Alert.alert("Success", "Fairness analysis complete. Refreshing data...");
-      await loadData();
+      Alert.alert(
+        "Analysis Started",
+        "The fairness analysis is now running in the background. It will take ~30-60 seconds to process all grades. Please refresh in a moment to see the updated results."
+      );
+      // Wait a few seconds then refresh data automatically
+      setTimeout(() => loadData(), 3000);
     } catch (err) {
       Alert.alert("Error", String(err));
     } finally {
