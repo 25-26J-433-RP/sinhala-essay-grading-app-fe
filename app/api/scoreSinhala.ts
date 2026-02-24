@@ -29,10 +29,46 @@ export interface SinhalaScoreResponse {
   };
 
   fairness_report: {
-    spd: number;
-    dir: number;
-    eod: number;
-    mitigation_used: string;
+    mitigation_applied: boolean;
+    method: string;
+    protected_attribute: string;
+    protected_value: any;
+    grade: number;
+
+    original_richness_5: number;
+    original_organization_6: number;
+    original_technical_3: number;
+    original_total_14: number;
+
+    adjusted_richness_5: number;
+    adjusted_organization_6: number;
+    adjusted_technical_3: number;
+    adjusted_total_14: number;
+
+    richness_multiplier: number;
+    organization_multiplier: number;
+    technical_multiplier: number;
+
+    richness_boost: number;
+    organization_boost: number;
+    technical_boost: number;
+    total_boost: number;
+
+    justification: string;
+    data_source: string;
+    note?: string;
+
+    rubric_notes: {
+      scoring_method: string;
+      theme_relevance: number;
+      theme_penalty: number;
+      word_count: number;
+      word_count_penalty: number;
+      technical_violations: string[];
+      grammar_issues: string[];
+      technical_penalty: number;
+      grade_adjustment_factor: number;
+    };
   };
 }
 
