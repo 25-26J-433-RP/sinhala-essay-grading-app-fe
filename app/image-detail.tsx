@@ -20,7 +20,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 // Resolve Firebase Storage download URLs when a gs:// path or storagePath is provided
@@ -34,7 +34,7 @@ import { scoreSinhala, SinhalaScoreResponse } from "@/app/api/scoreSinhala"; // 
 
 import {
   fetchTextFeedback,
-  TextFeedbackResponse
+  TextFeedbackResponse,
 } from "@/app/api/textFeedback";
 
 import AICorrectionPanel from "@/components/AICorrectionPanel";
@@ -48,12 +48,12 @@ const PATTERN_COLORS: Record<
   Phonetic: { border: "#F59E0B", bg: "#78350F", text: "#FDE68A" },
   Spelling: { border: "#EF4444", bg: "#7F1D1D", text: "#FCA5A5" },
   Visual: { border: "#8B5CF6", bg: "#4C1D95", text: "#DDD6FE" },
-  Grammar: { border: "#3B82F6", bg: "#1E3A5F", text: "#BFDBFE" }
+  Grammar: { border: "#3B82F6", bg: "#1E3A5F", text: "#BFDBFE" },
 };
 // ðŸ”¥ Prevent Firestore from rejecting undefined/null fields
 function cleanFirestore(obj: any) {
   return JSON.parse(
-    JSON.stringify(obj, (key, value) => (value === undefined ? null : value))
+    JSON.stringify(obj, (key, value) => (value === undefined ? null : value)),
   );
 }
 
@@ -63,7 +63,7 @@ export default function ImageDetailScreen() {
   const [imageUrlResolved, setImageUrlResolved] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(true);
   const [imageLoadingError, setImageLoadingError] = useState<string | null>(
-    null
+    null,
   );
   const ocrAppliedRef = useRef(false);
 
@@ -74,7 +74,7 @@ export default function ImageDetailScreen() {
   const [showPatternDetails, setShowPatternDetails] = useState(false);
   const [showFairnessReport, setShowFairnessReport] = useState(true);
   const [dyslexiaLabel, setDyslexiaLabel] = useState<string | undefined>(
-    undefined
+    undefined,
   );
 
   const [selectedGrade, setSelectedGrade] = useState<number>(6);
@@ -92,18 +92,18 @@ export default function ImageDetailScreen() {
 
   // Text feedback state
   const [textFeedback, setTextFeedback] = useState<TextFeedbackResponse | null>(
-    null
+    null,
   );
   const [textFeedbackLoading, setTextFeedbackLoading] = useState(false);
   const [textFeedbackError, setTextFeedbackError] = useState<string | null>(
-    null
+    null,
   );
 
   // Audio feedback state
   const [audioFeedback, setAudioFeedback] = useState<any>(null);
   const [audioFeedbackLoading, setAudioFeedbackLoading] = useState(false);
   const [audioFeedbackError, setAudioFeedbackError] = useState<string | null>(
-    null
+    null,
   );
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const audioPlayerRef = useRef<Audio.Sound | null>(null);
@@ -289,7 +289,7 @@ export default function ImageDetailScreen() {
           "🧠 Early dyslexia detection:",
           result.essay_label,
           "confidence:",
-          result.confidence
+          result.confidence,
         );
       } catch (err) {
         console.warn("Early dyslexia detection failed:", err);
@@ -304,7 +304,7 @@ export default function ImageDetailScreen() {
       title: t("essay.deleteEssay"),
       message: t("essay.deleteConfirm"),
       confirmText: t("common.delete"),
-      cancelText: t("common.cancel")
+      cancelText: t("common.cancel"),
     });
 
     if (!ok) return;
@@ -319,7 +319,7 @@ export default function ImageDetailScreen() {
     try {
       await UserImageService.deleteUserImage(
         imageData.id,
-        imageData.storagePath
+        imageData.storagePath,
       );
 
       showToast(t("essay.essayDeleted"), { type: "success" });
@@ -350,7 +350,7 @@ export default function ImageDetailScreen() {
           score: freshImage.score,
           details: freshImage.details || {},
           rubric: freshImage.rubric || {},
-          fairness_report: freshImage.fairness_report || {}
+          fairness_report: freshImage.fairness_report || {},
         });
       }
 
@@ -410,7 +410,7 @@ export default function ImageDetailScreen() {
   const handleGenerateAudioFeedback = async () => {
     if (!imageData?.id || !textFeedback?.feedback) {
       showToast("Generate text feedback first to create audio", {
-        type: "error"
+        type: "error",
       });
       return;
     }
@@ -423,7 +423,7 @@ export default function ImageDetailScreen() {
 
       const response = await generateAudioFeedback(
         imageData.id,
-        textFeedback.feedback
+        textFeedback.feedback,
       );
 
       setAudioFeedback(response);
@@ -495,12 +495,12 @@ export default function ImageDetailScreen() {
                   width: "100%",
                   height: 300,
                   borderRadius: 8,
-                  objectFit: "contain"
+                  objectFit: "contain",
                 }}
                 onError={(e) => {
                   console.error("Web img failed to load", {
                     resolvedUrl: imageUrlResolved,
-                    errorEvent: e
+                    errorEvent: e,
                   });
                   setImageUrlResolved(null);
                 }}
@@ -516,7 +516,7 @@ export default function ImageDetailScreen() {
                     error: e.nativeEvent?.error,
                     resolvedUrl: imageUrlResolved,
                     originalUrl: imageData?.imageUrl,
-                    storagePath: imageData?.storagePath
+                    storagePath: imageData?.storagePath,
                   });
                   setImageUrlResolved(null);
                 }}
@@ -538,7 +538,7 @@ export default function ImageDetailScreen() {
                   // Try resolving again and log details
                   console.info("Retrying image URL resolution", {
                     originalUrl: imageData?.imageUrl,
-                    storagePath: imageData?.storagePath
+                    storagePath: imageData?.storagePath,
                   });
                   try {
                     const candidate =
@@ -579,7 +579,7 @@ export default function ImageDetailScreen() {
             onCorrectedText={(correctedText) => {
               setInputText(correctedText);
               showToast("Corrected text applied to scoring field ✓", {
-                type: "success"
+                type: "success",
               });
               // Highlight the scoring field briefly & scroll to it
               setCorrectionHighlight(true);
@@ -590,10 +590,10 @@ export default function ImageDetailScreen() {
                   (_x: number, y: number) => {
                     scrollViewRef.current?.scrollTo({
                       y: y - 20,
-                      animated: true
+                      animated: true,
                     });
                   },
-                  () => { }
+                  () => {},
                 );
               }, 300);
             }}
@@ -620,8 +620,8 @@ export default function ImageDetailScreen() {
               shadowColor: "#10B981",
               shadowOpacity: 0.3,
               shadowRadius: 8,
-              elevation: 4
-            }
+              elevation: 4,
+            },
           ]}
         >
           <View style={styles.cardHeader}>
@@ -640,9 +640,7 @@ export default function ImageDetailScreen() {
               {imageData?.studentId && (
                 <View style={styles.idBadge}>
                   <MaterialIcons name="person" size={14} color="#10B981" />
-                  <Text style={styles.idBadgeText}>
-                    {imageData.studentId}
-                  </Text>
+                  <Text style={styles.idBadgeText}>{imageData.studentId}</Text>
                 </View>
               )}
             </View>
@@ -719,7 +717,7 @@ export default function ImageDetailScreen() {
                 // Save binary result
                 await UserImageService.updateImageDyslexiaResult(imageData.id, {
                   ...binaryResult,
-                  model_version: "v2"
+                  model_version: "v2",
                 });
 
                 // STEP 2: ONLY if dyslexic → run patterns
@@ -738,12 +736,12 @@ export default function ImageDetailScreen() {
                       patternResult.pattern_sentence_count,
                     pattern_sentence_examples:
                       patternResult.pattern_sentence_examples,
-                    total_sentences: patternResult.total_sentences
+                    total_sentences: patternResult.total_sentences,
                   };
 
                   await UserImageService.updateImagePatterns(
                     imageData.id,
-                    normalizedPatterns
+                    normalizedPatterns,
                   );
                 }
                 // STEP 3: Extract dyslexic sentence-level error tags
@@ -769,7 +767,7 @@ export default function ImageDetailScreen() {
                   // Structured error_tags temporarily disabled
                   // Backend scoring service currently expects flat input.
                   // Sentence-level dyslexia tags are stored in Firestore but not yet consumed by scorer.
-                  error_tags: []
+                  error_tags: [],
                 });
 
                 // UI update
@@ -785,7 +783,7 @@ export default function ImageDetailScreen() {
                     // grade: result.details.grade,
                     // topic: result.details.topic ?? null,
                     dyslexic_flag: result.details.dyslexic_flag,
-                    error_tags: result.details.error_tags ?? []
+                    error_tags: result.details.error_tags ?? [],
                     // model: result.details.model,
                   },
 
@@ -793,7 +791,7 @@ export default function ImageDetailScreen() {
                     richness_5: result.rubric.richness_5,
                     organization_6: result.rubric.organization_6,
                     technical_3: result.rubric.technical_3,
-                    total_14: result.rubric.total_14
+                    total_14: result.rubric.total_14,
                   },
 
                   // Firestore-safe (can be null)
@@ -802,12 +800,12 @@ export default function ImageDetailScreen() {
                   essay_text: trimmedEssay,
                   essay_topic: trimmedTopic || null,
 
-                  scored_at: new Date().toISOString()
+                  scored_at: new Date().toISOString(),
                 });
 
                 await UserImageService.updateImageScore(
                   imageData.id,
-                  firestoreScorePayload
+                  firestoreScorePayload,
                 );
 
                 showToast(t("essay.scoreSaved"), { type: "success" });
@@ -831,7 +829,7 @@ export default function ImageDetailScreen() {
                 } catch (mindmapErr: any) {
                   console.error("❌ Mindmap generation failed:", mindmapErr);
                   setMindmapError(
-                    mindmapErr?.message || t("mindmap.generationFailed")
+                    mindmapErr?.message || t("mindmap.generationFailed"),
                   );
                   setMindmapLoading(false);
                   // Don't block the main flow - mindmap is optional
@@ -841,11 +839,11 @@ export default function ImageDetailScreen() {
                 try {
                   console.log(
                     "📝 Fetching text feedback for essay:",
-                    imageData.id
+                    imageData.id,
                   );
                   const feedback = await fetchTextFeedback(
                     imageData.id,
-                    inputText
+                    inputText,
                   );
                   setTextFeedback(feedback);
                   console.log("✅ Text feedback received:", feedback);
@@ -855,17 +853,17 @@ export default function ImageDetailScreen() {
                 } catch (feedbackErr: any) {
                   console.error(
                     "❌ Text feedback generation failed:",
-                    feedbackErr
+                    feedbackErr,
                   );
                   setTextFeedbackError(
-                    feedbackErr?.message || "Failed to generate text feedback"
+                    feedbackErr?.message || "Failed to generate text feedback",
                   );
                   // Don't block the main flow - text feedback is optional
                 }
               } catch (err: any) {
                 console.log(
                   "🔥 FIREBASE ERROR (full):",
-                  JSON.stringify(err, null, 2)
+                  JSON.stringify(err, null, 2),
                 );
                 console.log("🔥 FIREBASE ERROR MESSAGE:", err?.message);
                 console.log("🔥 FIREBASE ERROR CODE:", err?.code);
@@ -874,7 +872,7 @@ export default function ImageDetailScreen() {
                   err?.message?.includes("Missing or insufficient permissions")
                 ) {
                   showToast("❌ Firestore rules blocked the write", {
-                    type: "error"
+                    type: "error",
                   });
                 }
 
@@ -922,7 +920,10 @@ export default function ImageDetailScreen() {
               </Text> */}
 
               <Text style={styles.scoreDetail}>
-                {t("fairness.dyslexic")}: {scoreData.details.dyslexic_flag ? t("common.yes") : t("common.no")}
+                {t("fairness.dyslexic")}:{" "}
+                {scoreData.details.dyslexic_flag
+                  ? t("common.yes")
+                  : t("common.no")}
               </Text>
 
               {/* <Text style={styles.scoreDetail}>
@@ -1027,12 +1028,14 @@ export default function ImageDetailScreen() {
                           </Text>
                           <Text style={[styles.tableValue, { flex: 1.2 }]}>
                             {scoreData.fairness_report.original_richness_5?.toFixed(
-                              2
+                              2,
                             )}
                           </Text>
-                          <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
+                          <Text
+                            style={[styles.tableValueAdjusted, { flex: 1.2 }]}
+                          >
                             {scoreData.fairness_report.adjusted_richness_5?.toFixed(
-                              2
+                              2,
                             )}
                           </Text>
                         </View>
@@ -1043,12 +1046,14 @@ export default function ImageDetailScreen() {
                           </Text>
                           <Text style={[styles.tableValue, { flex: 1.2 }]}>
                             {scoreData.fairness_report.original_organization_6?.toFixed(
-                              2
+                              2,
                             )}
                           </Text>
-                          <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
+                          <Text
+                            style={[styles.tableValueAdjusted, { flex: 1.2 }]}
+                          >
                             {scoreData.fairness_report.adjusted_organization_6?.toFixed(
-                              2
+                              2,
                             )}
                           </Text>
                         </View>
@@ -1059,12 +1064,14 @@ export default function ImageDetailScreen() {
                           </Text>
                           <Text style={[styles.tableValue, { flex: 1.2 }]}>
                             {scoreData.fairness_report.original_technical_3?.toFixed(
-                              2
+                              2,
                             )}
                           </Text>
-                          <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
+                          <Text
+                            style={[styles.tableValueAdjusted, { flex: 1.2 }]}
+                          >
                             {scoreData.fairness_report.adjusted_technical_3?.toFixed(
-                              2
+                              2,
                             )}
                           </Text>
                         </View>
@@ -1074,9 +1081,8 @@ export default function ImageDetailScreen() {
                         <View style={styles.boostDot} />
                         <Text style={styles.boostText}>
                           {t("fairness.boostText", {
-                            boost: scoreData.fairness_report.total_boost?.toFixed(
-                              2
-                            )
+                            boost:
+                              scoreData.fairness_report.total_boost?.toFixed(2),
                           })}
                         </Text>
                       </View>
@@ -1096,20 +1102,24 @@ export default function ImageDetailScreen() {
                         </Text>
                         <Text style={styles.noteGridValue}>
                           {scoreData.fairness_report.rubric_notes?.theme_relevance?.toFixed(
-                            2
+                            2,
                           )}
                         </Text>
                       </View>
                       <View style={styles.noteGridItem}>
-                        <Text style={styles.noteGridLabel}>{t("fairness.themePenalty")}</Text>
+                        <Text style={styles.noteGridLabel}>
+                          {t("fairness.themePenalty")}
+                        </Text>
                         <Text style={styles.noteGridValue}>
                           {scoreData.fairness_report.rubric_notes?.theme_penalty?.toFixed(
-                            2
+                            2,
                           )}
                         </Text>
                       </View>
                       <View style={styles.noteGridItem}>
-                        <Text style={styles.noteGridLabel}>{t("fairness.wordCount")}</Text>
+                        <Text style={styles.noteGridLabel}>
+                          {t("fairness.wordCount")}
+                        </Text>
                         <Text style={styles.noteGridValue}>
                           {scoreData.fairness_report.rubric_notes?.word_count}
                         </Text>
@@ -1120,7 +1130,7 @@ export default function ImageDetailScreen() {
                         </Text>
                         <Text style={styles.noteGridValue}>
                           {scoreData.fairness_report.rubric_notes?.word_count_penalty?.toFixed(
-                            2
+                            2,
                           )}
                         </Text>
                       </View>
@@ -1132,7 +1142,7 @@ export default function ImageDetailScreen() {
                       </Text>
                       <Text style={styles.noteGridValue}>
                         {scoreData.fairness_report.rubric_notes?.technical_penalty?.toFixed(
-                          2
+                          2,
                         )}
                       </Text>
                     </View>
@@ -1146,20 +1156,22 @@ export default function ImageDetailScreen() {
                         {scoreData.fairness_report.rubric_notes
                           ?.technical_violations?.length > 0
                           ? scoreData.fairness_report.rubric_notes.technical_violations.join(
-                            ", "
-                          )
+                              ", ",
+                            )
                           : t("fairness.none")}
                       </Text>
                     </View>
 
                     <View style={styles.textListSection}>
-                      <Text style={styles.textListLabel}>{t("fairness.grammarIssues")}</Text>
+                      <Text style={styles.textListLabel}>
+                        {t("fairness.grammarIssues")}
+                      </Text>
                       <Text style={styles.textListContent}>
                         {scoreData.fairness_report.rubric_notes?.grammar_issues
                           ?.length > 0
                           ? scoreData.fairness_report.rubric_notes.grammar_issues.join(
-                            ", "
-                          )
+                              ", ",
+                            )
                           : t("fairness.none")}
                       </Text>
                     </View>
@@ -1183,7 +1195,7 @@ export default function ImageDetailScreen() {
                       styles.patternRiskBadge,
                       {
                         backgroundColor: patternData.risk_level?.includes(
-                          "High"
+                          "High",
                         )
                           ? "#7F1D1D"
                           : patternData.risk_level?.includes("Moderate")
@@ -1193,8 +1205,8 @@ export default function ImageDetailScreen() {
                           ? "#EF4444"
                           : patternData.risk_level?.includes("Moderate")
                             ? "#F59E0B"
-                            : "#10B981"
-                      }
+                            : "#10B981",
+                      },
                     ]}
                   >
                     <Text
@@ -1205,8 +1217,8 @@ export default function ImageDetailScreen() {
                             ? "#FCA5A5"
                             : patternData.risk_level?.includes("Moderate")
                               ? "#FDE68A"
-                              : "#D1FAE5"
-                        }
+                              : "#D1FAE5",
+                        },
                       ]}
                     >
                       {patternData.severity || patternData.risk_level || "—"}
@@ -1224,8 +1236,8 @@ export default function ImageDetailScreen() {
                             ? "#EF4444"
                             : (patternData.risk_score ?? 0) >= 40
                               ? "#F59E0B"
-                              : "#10B981"
-                      }
+                              : "#10B981",
+                      },
                     ]}
                   >
                     {patternData.risk_score !== undefined
@@ -1244,7 +1256,7 @@ export default function ImageDetailScreen() {
                       const colors = PATTERN_COLORS[key] || {
                         border: "#6B7280",
                         bg: "#1F2937",
-                        text: "#9CA3AF"
+                        text: "#9CA3AF",
                       };
                       const isDominant =
                         patternData.dominant_pattern?.startsWith(key);
@@ -1256,23 +1268,23 @@ export default function ImageDetailScreen() {
                             {
                               borderColor: colors.border,
                               backgroundColor: colors.bg,
-                              opacity: 1
+                              opacity: 1,
                             },
-                            isDominant && styles.patternPillDominant
+                            isDominant && styles.patternPillDominant,
                           ]}
                         >
                           {isDominant && (
                             <View
                               style={[
                                 styles.patternPillDot,
-                                { backgroundColor: colors.border }
+                                { backgroundColor: colors.border },
                               ]}
                             />
                           )}
                           <Text
                             style={[
                               styles.patternPillLabel,
-                              { color: colors.text }
+                              { color: colors.text },
                             ]}
                           >
                             {key}
@@ -1280,7 +1292,7 @@ export default function ImageDetailScreen() {
                           <Text
                             style={[
                               styles.patternPillValue,
-                              { color: colors.border }
+                              { color: colors.border },
                             ]}
                           >
                             {(value * 100).toFixed(0)}%
@@ -1289,7 +1301,7 @@ export default function ImageDetailScreen() {
                             <Text
                               style={[
                                 styles.patternPillDominantTag,
-                                { color: colors.border }
+                                { color: colors.border },
                               ]}
                             >
                               DOM
@@ -1310,7 +1322,7 @@ export default function ImageDetailScreen() {
                       const colors = PATTERN_COLORS[key] || {
                         border: "#6B7280",
                         bg: "#1F2937",
-                        text: "#9CA3AF"
+                        text: "#9CA3AF",
                       };
                       const count =
                         patternData.pattern_sentence_count?.[key] ?? 0;
@@ -1319,7 +1331,7 @@ export default function ImageDetailScreen() {
                           <Text
                             style={[
                               styles.patternBarLabel,
-                              { color: colors.text }
+                              { color: colors.text },
                             ]}
                           >
                             {key}
@@ -1330,15 +1342,15 @@ export default function ImageDetailScreen() {
                                 styles.patternBarFill,
                                 {
                                   width: `${(value as number) * 100}%` as any,
-                                  backgroundColor: colors.border
-                                }
+                                  backgroundColor: colors.border,
+                                },
                               ]}
                             />
                           </View>
                           <Text
                             style={[
                               styles.patternBarCount,
-                              { color: colors.text }
+                              { color: colors.text },
                             ]}
                           >
                             {count}s
@@ -1394,20 +1406,20 @@ export default function ImageDetailScreen() {
                             const colors = PATTERN_COLORS[key] || {
                               border: "#6B7280",
                               bg: "#1F2937",
-                              text: "#9CA3AF"
+                              text: "#9CA3AF",
                             };
                             return (
                               <View
                                 key={key}
                                 style={[
                                   styles.patternDensityItem,
-                                  { borderColor: colors.border }
+                                  { borderColor: colors.border },
                                 ]}
                               >
                                 <Text
                                   style={[
                                     styles.patternDensityKey,
-                                    { color: colors.text }
+                                    { color: colors.text },
                                   ]}
                                 >
                                   {key}
@@ -1415,14 +1427,14 @@ export default function ImageDetailScreen() {
                                 <Text
                                   style={[
                                     styles.patternDensityVal,
-                                    { color: colors.border }
+                                    { color: colors.border },
                                   ]}
                                 >
                                   {value.toFixed(1)}%
                                 </Text>
                               </View>
                             );
-                          }
+                          },
                         )}
                       </View>
                     </View>
@@ -1435,13 +1447,13 @@ export default function ImageDetailScreen() {
                         {t("imageDetail.patternExampleSentences")}
                       </Text>
                       {Object.entries(
-                        patternData.pattern_sentence_examples
+                        patternData.pattern_sentence_examples,
                       ).map(([type, arr]: any) => {
                         if (!arr || arr.length === 0) return null;
                         const colors = PATTERN_COLORS[type] || {
                           border: "#6B7280",
                           bg: "#1F2937",
-                          text: "#9CA3AF"
+                          text: "#9CA3AF",
                         };
                         const count =
                           patternData.pattern_sentence_count?.[type] ??
@@ -1451,20 +1463,20 @@ export default function ImageDetailScreen() {
                             key={type}
                             style={[
                               styles.patternExampleGroup,
-                              { borderLeftColor: colors.border }
+                              { borderLeftColor: colors.border },
                             ]}
                           >
                             <View style={styles.patternExampleGroupHeader}>
                               <View
                                 style={[
                                   styles.patternExampleDot,
-                                  { backgroundColor: colors.border }
+                                  { backgroundColor: colors.border },
                                 ]}
                               />
                               <Text
                                 style={[
                                   styles.patternExampleTitle,
-                                  { color: colors.border }
+                                  { color: colors.border },
                                 ]}
                               >
                                 {type}
@@ -1472,13 +1484,13 @@ export default function ImageDetailScreen() {
                               <View
                                 style={[
                                   styles.patternExampleCountBadge,
-                                  { backgroundColor: colors.bg }
+                                  { backgroundColor: colors.bg },
                                 ]}
                               >
                                 <Text
                                   style={[
                                     styles.patternExampleCountText,
-                                    { color: colors.text }
+                                    { color: colors.text },
                                   ]}
                                 >
                                   {count} sentence{count !== 1 ? "s" : ""}
@@ -1493,7 +1505,7 @@ export default function ImageDetailScreen() {
                                 <Text
                                   style={[
                                     styles.patternExampleBullet,
-                                    { color: colors.border }
+                                    { color: colors.border },
                                   ]}
                                 >
                                   ›
@@ -1523,7 +1535,7 @@ export default function ImageDetailScreen() {
                 <TouchableOpacity
                   style={[
                     styles.feedbackRefreshButton,
-                    textFeedbackLoading && { opacity: 0.6 }
+                    textFeedbackLoading && { opacity: 0.6 },
                   ]}
                   onPress={handleFetchTextFeedback}
                   disabled={textFeedbackLoading}
@@ -1624,7 +1636,7 @@ export default function ImageDetailScreen() {
                           </Text>
                           <Text style={styles.metricValue}>
                             {textFeedback.metrics.avg_sentence_length.toFixed(
-                              1
+                              1,
                             )}
                           </Text>
                         </View>
@@ -1653,7 +1665,7 @@ export default function ImageDetailScreen() {
                           </Text>
                           <Text style={styles.metricValue}>
                             {Math.round(
-                              textFeedback.metrics.duplicate_word_count
+                              textFeedback.metrics.duplicate_word_count,
                             )}
                           </Text>
                         </View>
@@ -1687,7 +1699,7 @@ export default function ImageDetailScreen() {
                 <TouchableOpacity
                   style={[
                     styles.generateAudioButton,
-                    audioFeedbackLoading && { opacity: 0.6 }
+                    audioFeedbackLoading && { opacity: 0.6 },
                   ]}
                   onPress={handleGenerateAudioFeedback}
                   disabled={audioFeedbackLoading}
@@ -1766,7 +1778,7 @@ export default function ImageDetailScreen() {
                               console.log(
                                 audioFeedback.audio_url
                                   ? "ðŸŽµ Playing audio from URL"
-                                  : "ðŸŽµ Playing audio from base64"
+                                  : "ðŸŽµ Playing audio from base64",
                               );
                             }
 
@@ -1810,13 +1822,13 @@ export default function ImageDetailScreen() {
                         <View
                           style={[
                             styles.audioStatusBadge,
-                            isAudioPlaying && styles.audioStatusBadgeActive
+                            isAudioPlaying && styles.audioStatusBadgeActive,
                           ]}
                         >
                           <Text
                             style={[
                               styles.audioStatusText,
-                              isAudioPlaying && styles.audioStatusTextActive
+                              isAudioPlaying && styles.audioStatusTextActive,
                             ]}
                           >
                             {isAudioPlaying
@@ -1828,7 +1840,7 @@ export default function ImageDetailScreen() {
                           <View style={styles.audioDurationBadge}>
                             <Text style={styles.audioDurationText}>
                               {t("essay.audioDuration", {
-                                duration: audioFeedback.duration
+                                duration: audioFeedback.duration,
                               })}
                             </Text>
                           </View>
@@ -1849,22 +1861,71 @@ export default function ImageDetailScreen() {
           )}
         </View>
 
-        {/* MINDMAP SECTION */}
-        <View style={styles.detailsCard}>
-          <Text style={styles.cardTitle}>{t("mindmap.title")}</Text>
+        {/* MINDMAP SECTION - ENHANCED WITH AI INTELLIGENCE */}
+        <View style={styles.mindmapCard}>
+          <View style={styles.mindmapHeaderRow}>
+            <View style={styles.mindmapHeaderLeft}>
+              <Text style={styles.mindmapTitle}>{t("mindmap.title")}</Text>
+              {mindmapData?.metadata?.intelligence_level && (
+                <View style={styles.intelligenceBadge}>
+                  <MaterialIcons
+                    name="psychology"
+                    size={12}
+                    color="#10B981"
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={styles.intelligenceBadgeText}>
+                    {mindmapData.metadata.intelligence_level.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.mindmapRefreshButton,
+                mindmapLoading && { opacity: 0.6 },
+              ]}
+              onPress={() => {
+                if (!imageData?.id || !inputText.trim()) return;
+                setMindmapLoading(true);
+                setMindmapError(null);
+                generateMindmap(imageData.id, inputText)
+                  .then(() => fetchMindmap(imageData.id))
+                  .then(setMindmapData)
+                  .catch((e) =>
+                    setMindmapError(e.message || t("mindmap.failed")),
+                  )
+                  .finally(() => setMindmapLoading(false));
+              }}
+              disabled={mindmapLoading}
+            >
+              {mindmapLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <MaterialIcons name="refresh" size={18} color="#fff" />
+              )}
+            </TouchableOpacity>
+          </View>
+
           {mindmapLoading && (
             <View style={styles.mindmapStatusBox}>
-              <ActivityIndicator color="#007AFF" />
-              <Text style={styles.loadingText}>{t("mindmap.loading")}</Text>
+              <ActivityIndicator color="#4ECDC4" size="large" />
+              <Text style={styles.mindmapLoadingText}>
+                {t("mindmap.loading")}
+              </Text>
+              <Text style={styles.mindmapLoadingSubtext}>
+                Analyzing essay structure with AI...
+              </Text>
             </View>
           )}
+
           {mindmapError && (
-            <View style={styles.mindmapStatusBox}>
-              <MaterialIcons name="error-outline" size={32} color="#FF3B30" />
-              <Text style={styles.errorTitle}>{t("mindmap.error")}</Text>
-              <Text style={styles.errorTextSmall}>{mindmapError}</Text>
+            <View style={styles.mindmapErrorBox}>
+              <MaterialIcons name="error-outline" size={32} color="#EF4444" />
+              <Text style={styles.mindmapErrorTitle}>{t("mindmap.error")}</Text>
+              <Text style={styles.mindmapErrorText}>{mindmapError}</Text>
               <TouchableOpacity
-                style={styles.reloadMindmapButton}
+                style={styles.mindmapRetryButton}
                 onPress={() => {
                   if (!imageData?.id) return;
                   setMindmapLoading(true);
@@ -1872,27 +1933,80 @@ export default function ImageDetailScreen() {
                   fetchMindmap(imageData.id)
                     .then(setMindmapData)
                     .catch((e) =>
-                      setMindmapError(e.message || t("mindmap.failed"))
+                      setMindmapError(e.message || t("mindmap.failed")),
                     )
                     .finally(() => setMindmapLoading(false));
                 }}
               >
                 <MaterialIcons name="refresh" size={18} color="#fff" />
-                <Text style={styles.reloadMindmapText}>
-                  {t("common.retry")}
-                </Text>
+                <Text style={styles.mindmapRetryText}>{t("common.retry")}</Text>
               </TouchableOpacity>
             </View>
           )}
+
           {mindmapData && !mindmapLoading && !mindmapError && (
-            <View style={styles.mindmapContainer}>
-              <MindmapView data={mindmapData} />
-              <Text style={styles.mindmapMeta}>
-                {t("mindmap.nodes")}: {mindmapData.metadata.total_nodes}
-                {t("mindmap.edges")}: {mindmapData.metadata.total_edges}
-              </Text>
-              <Text style={styles.mindmapHint}>{t("mindmap.hint")}</Text>
-            </View>
+            <>
+              {/* AI Metadata Pills */}
+              <View style={styles.mindmapMetaPillsRow}>
+                {mindmapData.metadata.entities_found !== undefined && (
+                  <View style={styles.mindmapMetaPill}>
+                    <MaterialIcons name="lightbulb" size={14} color="#FFD93D" />
+                    <Text style={styles.mindmapMetaPillLabel}>Entities</Text>
+                    <Text style={styles.mindmapMetaPillValue}>
+                      {mindmapData.metadata.entities_found}
+                    </Text>
+                  </View>
+                )}
+                {mindmapData.metadata.relationships_found !== undefined && (
+                  <View style={styles.mindmapMetaPill}>
+                    <MaterialIcons name="hub" size={14} color="#6C5CE7" />
+                    <Text style={styles.mindmapMetaPillLabel}>Relations</Text>
+                    <Text style={styles.mindmapMetaPillValue}>
+                      {mindmapData.metadata.relationships_found}
+                    </Text>
+                  </View>
+                )}
+                {mindmapData.metadata.clusters !== undefined && (
+                  <View style={styles.mindmapMetaPill}>
+                    <MaterialIcons
+                      name="bubble-chart"
+                      size={14}
+                      color="#00B894"
+                    />
+                    <Text style={styles.mindmapMetaPillLabel}>Clusters</Text>
+                    <Text style={styles.mindmapMetaPillValue}>
+                      {mindmapData.metadata.clusters}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Mindmap Visualization */}
+              <View style={styles.mindmapVisualizationBox}>
+                <MindmapView data={mindmapData} />
+              </View>
+
+              {/* Enhanced Info Box */}
+              <View style={styles.mindmapInfoBox}>
+                <MaterialIcons
+                  name="info-outline"
+                  size={14}
+                  color="#6C5CE7"
+                  style={{ marginTop: 1 }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mindmapInfoText}>
+                    {t("mindmap.hint")}
+                  </Text>
+                  {mindmapData.metadata.text_length && (
+                    <Text style={styles.mindmapInfoSubtext}>
+                      Analyzed {mindmapData.metadata.text_length} characters
+                      with AI-powered semantic extraction
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </>
           )}
         </View>
 
@@ -1929,7 +2043,7 @@ export default function ImageDetailScreen() {
           </View>
         </View>
       </View>
-    </ScrollView >
+    </ScrollView>
   );
 }
 
@@ -1939,7 +2053,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24
+    padding: 24,
   },
   content: { padding: 16 },
 
@@ -1954,7 +2068,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
-    elevation: 5
+    elevation: 5,
   },
 
   image: { width: "100%", height: 320, borderRadius: 16 },
@@ -1967,12 +2081,12 @@ const styles = StyleSheet.create({
     borderColor: "#2D313E",
     alignItems: "center",
     justifyContent: "center",
-    gap: 12
+    gap: 12,
   },
   imageFallbackText: {
     color: "#6B7280",
     fontSize: 14,
-    fontWeight: "500"
+    fontWeight: "500",
   },
 
   cardTitle: {
@@ -1980,7 +2094,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     marginBottom: 16,
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
   },
   cardHeader: {
     flexDirection: "row",
@@ -1988,12 +2102,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
     flexWrap: "wrap",
-    gap: 8
+    gap: 8,
   },
   headerBadges: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8
+    gap: 8,
   },
   gradeBadge: {
     flexDirection: "row",
@@ -2004,13 +2118,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "rgba(59, 130, 246, 0.4)",
-    gap: 5
+    gap: 5,
   },
   gradeBadgeText: {
     color: "#60A5FA",
     fontSize: 12,
     fontWeight: "800",
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
   },
   idBadge: {
     flexDirection: "row",
@@ -2021,13 +2135,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "rgba(16, 185, 129, 0.4)",
-    gap: 5
+    gap: 5,
   },
   idBadgeText: {
     color: "#34D399",
     fontSize: 12,
     fontWeight: "800",
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
   },
 
   inputCard: {
@@ -2036,7 +2150,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: "#2D313E"
+    borderColor: "#2D313E",
   },
 
   textInput: {
@@ -2048,7 +2162,7 @@ const styles = StyleSheet.create({
     borderColor: "#2D313E",
     borderWidth: 1,
     fontSize: 16,
-    lineHeight: 24 // Better for Sinhala
+    lineHeight: 24, // Better for Sinhala
   },
 
   detailLabel: {
@@ -2056,14 +2170,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontSize: 14,
     fontWeight: "600",
-    letterSpacing: 0.3
+    letterSpacing: 0.3,
   },
 
   scoreButton: {
     padding: 0, // Handled by gradient
     borderRadius: 12,
     marginTop: 12,
-    overflow: "hidden"
+    overflow: "hidden",
   },
 
   scoreButtonGradient: {
@@ -2071,14 +2185,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 10
+    gap: 10,
   },
 
   scoreButtonText: {
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 17,
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
   },
 
   detailsCard: {
@@ -2092,7 +2206,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
-    elevation: 8
+    elevation: 8,
   },
 
   scoreBox: {
@@ -2107,7 +2221,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 15,
     elevation: 10,
-    alignItems: "center"
+    alignItems: "center",
   },
 
   scoreMain: {
@@ -2115,14 +2229,14 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#007AFF",
     marginBottom: 8,
-    textAlign: "center"
+    textAlign: "center",
   },
 
   scoreDetail: {
     color: "#9CA3AF",
     marginBottom: 4,
     fontSize: 15,
-    fontWeight: "500"
+    fontWeight: "500",
   },
 
   detailRow: {
@@ -2131,7 +2245,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     backgroundColor: "#22252F",
     padding: 16,
-    borderRadius: 12
+    borderRadius: 12,
   },
 
   detailContent: { marginLeft: 12, flex: 1 },
@@ -2141,16 +2255,16 @@ const styles = StyleSheet.create({
   actionContainer: {
     gap: 12,
     marginBottom: 60,
-    marginTop: 20
+    marginTop: 20,
   },
 
   actionGrid: {
     flexDirection: "row",
-    gap: 12
+    gap: 12,
   },
 
   flexRowItem: {
-    flex: 1
+    flex: 1,
   },
 
   primaryActionButton: {
@@ -2166,7 +2280,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
-    minHeight: 64
+    minHeight: 64,
   },
 
   secondaryActionButton: {
@@ -2183,13 +2297,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
-    elevation: 4
+    elevation: 4,
   },
 
   deleteActionButton: {
     backgroundColor: "#EF4444",
     shadowColor: "#EF4444",
-    shadowOpacity: 0.2
+    shadowOpacity: 0.2,
   },
 
   actionButtonText: {
@@ -2197,7 +2311,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     textAlign: "center",
-    letterSpacing: 0.3
+    letterSpacing: 0.3,
   },
 
   actionButtonTextPrimary: {
@@ -2205,47 +2319,47 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     textAlign: "center",
-    letterSpacing: 0.3
+    letterSpacing: 0.3,
   },
   loadingText: {
     color: "#9CA3AF",
     marginTop: 16,
     fontSize: 16,
-    fontWeight: "500"
+    fontWeight: "500",
   },
 
   errorTitle: {
     color: "#FF3B30",
     fontSize: 18,
     fontWeight: "bold",
-    marginVertical: 10
+    marginVertical: 10,
   },
 
   backButtonTop: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16
+    marginBottom: 16,
   },
   backButtonTopText: { color: "#007AFF", marginLeft: 8 },
   backButton: {
     backgroundColor: "#007AFF",
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 8
+    borderRadius: 8,
   },
   backButtonText: { color: "#fff", fontWeight: "bold" },
   // Mindmap styles
   mindmapStatusBox: {
     alignItems: "center",
     gap: 8,
-    paddingVertical: 12
+    paddingVertical: 12,
   },
   errorTextSmall: {
     color: "#9CA3AF",
     fontSize: 12,
     textAlign: "center",
     marginTop: 4,
-    marginBottom: 12
+    marginBottom: 12,
   },
   reloadMindmapButton: {
     flexDirection: "row",
@@ -2255,31 +2369,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
-    alignSelf: "center"
+    alignSelf: "center",
   },
   reloadMindmapText: {
     color: "#fff",
     fontWeight: "600",
-    fontSize: 14
+    fontSize: 14,
   },
   mindmapContainer: {
     height: 400,
     backgroundColor: "#fff",
     borderRadius: 12,
-    overflow: "hidden"
+    overflow: "hidden",
   },
   mindmapMeta: {
     color: "#9CA3AF",
     fontSize: 12,
     marginTop: 8,
-    textAlign: "center"
+    textAlign: "center",
   },
   mindmapHint: {
     color: "#666",
     fontSize: 11,
     textAlign: "center",
     marginTop: 4,
-    marginBottom: 4
+    marginBottom: 4,
   },
   rubricCard: {
     backgroundColor: "#16181F",
@@ -2287,7 +2401,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#2D313E",
-    marginBottom: 24
+    marginBottom: 24,
   },
 
   rubricTitle: {
@@ -2295,7 +2409,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     marginBottom: 16,
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
   },
 
   rubricRow: {
@@ -2303,7 +2417,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center", // Fix alignment for Sinhala
     marginBottom: 12,
-    paddingVertical: 2
+    paddingVertical: 2,
   },
 
   rubricLabel: {
@@ -2311,13 +2425,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
     flex: 1,
-    marginRight: 8
+    marginRight: 8,
   },
 
   rubricValue: {
     color: "#007AFF",
     fontSize: 17,
-    fontWeight: "800"
+    fontWeight: "800",
   },
 
   rubricTotalRow: {
@@ -2327,13 +2441,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: "#2D313E"
+    borderTopColor: "#2D313E",
   },
 
   rubricTotalValue: {
     color: "#10B981",
     fontSize: 22,
-    fontWeight: "900"
+    fontWeight: "900",
   },
 
   fairnessCard: {
@@ -2347,26 +2461,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
-    elevation: 4
+    elevation: 4,
   },
   fairnessToggleHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8
+    gap: 8,
   },
   fairnessToggleText: {
     color: "#10B981",
     fontSize: 16,
-    fontWeight: "700"
+    fontWeight: "700",
   },
   fairnessContent: {
-    marginTop: 20
+    marginTop: 20,
   },
   fairnessSectionTitle: {
     color: "#10B981",
     fontSize: 18,
     fontWeight: "800",
-    marginBottom: 20
+    marginBottom: 20,
   },
   comparisonTable: {
     backgroundColor: "#0F1117",
@@ -2374,7 +2488,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#2D313E",
     overflow: "hidden",
-    marginBottom: 20
+    marginBottom: 20,
   },
   tableHeader: {
     flexDirection: "row",
@@ -2382,12 +2496,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#2D313E"
+    borderBottomColor: "#2D313E",
   },
   tableHeaderText: {
     color: "#9CA3AF",
     fontSize: 14,
-    fontWeight: "700"
+    fontWeight: "700",
   },
   tableRow: {
     flexDirection: "row",
@@ -2395,59 +2509,59 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#2D313E",
-    alignItems: "center"
+    alignItems: "center",
   },
   tableLabel: {
     color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: "700"
+    fontWeight: "700",
   },
   tableValue: {
     color: "#9CA3AF",
     fontSize: 16,
-    fontWeight: "600"
+    fontWeight: "600",
   },
   tableValueAdjusted: {
     color: "#00BAFF", // Highlight adjusted values
     fontSize: 17,
-    fontWeight: "900"
+    fontWeight: "900",
   },
   boostInfoRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 24,
-    gap: 10
+    gap: 10,
   },
   boostDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#10B981"
+    backgroundColor: "#10B981",
   },
   boostText: {
     color: "#9CA3AF",
     fontSize: 14,
-    flex: 1
+    flex: 1,
   },
   rubricNotesContainerSection: {
     backgroundColor: "#0F1117",
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#2D313E"
+    borderColor: "#2D313E",
   },
   rubricNotesTitle: {
     color: "#10B981",
     fontSize: 14,
     fontWeight: "800",
     letterSpacing: 1,
-    marginBottom: 16
+    marginBottom: 16,
   },
   notesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginBottom: 8
+    marginBottom: 8,
   },
   noteGridItem: {
     flex: 1,
@@ -2456,7 +2570,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#2D313E"
+    borderColor: "#2D313E",
   },
   longNoteItem: {
     width: "100%",
@@ -2465,42 +2579,42 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#2D313E",
-    marginBottom: 12
+    marginBottom: 12,
   },
   noteGridLabel: {
     color: "#6B7280",
     fontSize: 11,
     fontWeight: "600",
-    marginBottom: 4
+    marginBottom: 4,
   },
   noteGridValue: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "800"
+    fontWeight: "800",
   },
   textListSection: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#2D313E"
+    borderTopColor: "#2D313E",
   },
   textListLabel: {
     color: "#6B7280",
     fontSize: 12,
     fontWeight: "600",
-    marginBottom: 4
+    marginBottom: 4,
   },
   textListContent: {
     color: "#FFFFFF",
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: "700"
+    fontWeight: "700",
   },
 
   fairnessNote: {
     color: "#9CA3AF",
     fontSize: 14,
-    lineHeight: 20
+    lineHeight: 20,
   },
 
   feedbackCard: {
@@ -2509,33 +2623,33 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#10B981",
-    marginBottom: 24
+    marginBottom: 24,
   },
 
   feedbackItem: {
     flexDirection: "row",
     alignItems: "flex-start",
     marginBottom: 12,
-    paddingHorizontal: 4
+    paddingHorizontal: 4,
   },
 
   feedbackIcon: {
     marginRight: 12,
-    marginTop: 2
+    marginTop: 2,
   },
 
   feedbackText: {
     color: "#E5E7EB",
     fontSize: 14,
     flex: 1,
-    lineHeight: 20
+    lineHeight: 20,
   },
 
   feedbackHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 12
+    marginBottom: 12,
   },
 
   feedbackRefreshButton: {
@@ -2543,7 +2657,7 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
   },
 
   feedbackStatusBox: {
@@ -2553,12 +2667,12 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#111827",
     borderRadius: 8,
-    marginBottom: 12
+    marginBottom: 12,
   },
 
   feedbackStatusText: {
     color: "#007AFF",
-    fontSize: 13
+    fontSize: 13,
   },
 
   feedbackErrorBox: {
@@ -2568,17 +2682,17 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#7F1D1D",
     borderRadius: 8,
-    marginBottom: 12
+    marginBottom: 12,
   },
 
   feedbackErrorText: {
     color: "#FCA5A5",
     fontSize: 13,
-    flex: 1
+    flex: 1,
   },
 
   feedbackContent: {
-    gap: 12
+    gap: 12,
   },
 
   feedbackMainBox: {
@@ -2588,13 +2702,13 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: "#F59E0B"
+    borderLeftColor: "#F59E0B",
   },
 
   feedbackLabel: {
     color: "#9CA3AF",
     fontSize: 12,
-    marginBottom: 4
+    marginBottom: 4,
   },
 
   suggestionsBox: {
@@ -2602,34 +2716,34 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: "#10B981"
+    borderLeftColor: "#10B981",
   },
 
   suggestionsTitle: {
     color: "#10B981",
     fontSize: 13,
     fontWeight: "600",
-    marginBottom: 10
+    marginBottom: 10,
   },
 
   suggestionItem: {
     flexDirection: "row",
     marginBottom: 8,
-    alignItems: "flex-start"
+    alignItems: "flex-start",
   },
 
   suggestionBullet: {
     color: "#10B981",
     fontSize: 16,
     marginRight: 8,
-    fontWeight: "bold"
+    fontWeight: "bold",
   },
 
   suggestionText: {
     color: "#D1D5DB",
     fontSize: 13,
     flex: 1,
-    lineHeight: 18
+    lineHeight: 18,
   },
 
   feedbackPlaceholder: {
@@ -2637,7 +2751,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: "italic",
     textAlign: "center",
-    paddingVertical: 12
+    paddingVertical: 12,
   },
 
   apiScoreBox: {
@@ -2647,19 +2761,19 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: "#007AFF",
     marginBottom: 12,
-    alignItems: "center"
+    alignItems: "center",
   },
 
   apiScoreLabel: {
     color: "#9CA3AF",
     fontSize: 12,
-    marginBottom: 4
+    marginBottom: 4,
   },
 
   apiScoreValue: {
     color: "#007AFF",
     fontSize: 24,
-    fontWeight: "bold"
+    fontWeight: "bold",
   },
 
   metricsBox: {
@@ -2668,20 +2782,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderLeftWidth: 3,
     borderLeftColor: "#8B5CF6",
-    marginTop: 12
+    marginTop: 12,
   },
 
   metricsTitle: {
     color: "#8B5CF6",
     fontSize: 13,
     fontWeight: "600",
-    marginBottom: 10
+    marginBottom: 10,
   },
 
   metricsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8
+    gap: 8,
   },
 
   metricItem: {
@@ -2692,19 +2806,19 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: "#374151",
-    alignItems: "center"
+    alignItems: "center",
   },
 
   metricLabel: {
     color: "#9CA3AF",
     fontSize: 11,
-    marginBottom: 4
+    marginBottom: 4,
   },
 
   metricValue: {
     color: "#E5E7EB",
     fontSize: 14,
-    fontWeight: "bold"
+    fontWeight: "bold",
   },
 
   // Audio Feedback Styles
@@ -2714,25 +2828,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#10B981",
-    marginBottom: 20
+    marginBottom: 20,
   },
 
   audioFeedbackHeader: {
     flexDirection: "column",
     alignItems: "center",
     marginBottom: 16,
-    gap: 12
+    gap: 12,
   },
 
   audioFeedbackTitleContainer: {
     flexDirection: "row",
     alignItems: "flex-start",
-    width: "100%"
+    width: "100%",
   },
 
   audioHeaderIcon: {
     marginTop: 2,
-    marginRight: 10
+    marginRight: 10,
   },
 
   audioFeedbackTitle: {
@@ -2740,7 +2854,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     flex: 1,
-    lineHeight: 28
+    lineHeight: 28,
   },
 
   generateAudioButton: {
@@ -2751,7 +2865,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
-    minWidth: 160
+    minWidth: 160,
   },
 
   generateAudioGradient: {
@@ -2760,14 +2874,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
   },
 
   generateAudioButtonText: {
     color: "#fff",
     fontSize: 15,
     fontWeight: "700",
-    letterSpacing: 0.4
+    letterSpacing: 0.4,
   },
 
   audioLoadingBox: {
@@ -2777,12 +2891,12 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#111827",
     borderRadius: 8,
-    marginBottom: 12
+    marginBottom: 12,
   },
 
   audioLoadingText: {
     color: "#10B981",
-    fontSize: 13
+    fontSize: 13,
   },
 
   audioErrorBox: {
@@ -2792,13 +2906,13 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#7F1D1D",
     borderRadius: 8,
-    marginBottom: 12
+    marginBottom: 12,
   },
 
   audioErrorText: {
     color: "#FCA5A5",
     fontSize: 13,
-    flex: 1
+    flex: 1,
   },
 
   audioPlayerBox: {
@@ -2810,7 +2924,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
     borderColor: "#1F2937",
-    gap: 12
+    gap: 12,
   },
 
   playButton: {
@@ -2825,24 +2939,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
-    elevation: 3
+    elevation: 3,
   },
 
   audioInfoBox: {
-    flex: 1
+    flex: 1,
   },
 
   audioPlayingText: {
     color: "#E5E7EB",
     fontSize: 14,
-    fontWeight: "600"
+    fontWeight: "600",
   },
   audioMetaRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginTop: 6,
-    flexWrap: "wrap"
+    flexWrap: "wrap",
   },
   audioStatusBadge: {
     borderWidth: 1,
@@ -2850,20 +2964,20 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 999,
-    backgroundColor: "#0B1220"
+    backgroundColor: "#0B1220",
   },
   audioStatusBadgeActive: {
     borderColor: "#10B981",
-    backgroundColor: "#064E3B"
+    backgroundColor: "#064E3B",
   },
   audioStatusText: {
     color: "#9CA3AF",
     fontSize: 10,
     fontWeight: "700",
-    letterSpacing: 0.6
+    letterSpacing: 0.6,
   },
   audioStatusTextActive: {
-    color: "#D1FAE5"
+    color: "#D1FAE5",
   },
   audioDurationBadge: {
     borderWidth: 1,
@@ -2871,13 +2985,13 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 999,
-    backgroundColor: "#111827"
+    backgroundColor: "#111827",
   },
 
   audioDurationText: {
     color: "#9CA3AF",
 
-    fontSize: 11
+    fontSize: 11,
   },
 
   audioPlaceholder: {
@@ -2885,7 +2999,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: "italic",
     textAlign: "center",
-    paddingVertical: 12
+    paddingVertical: 12,
   },
 
   debugRow: {
@@ -2897,13 +3011,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#2C2F36",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#4B5563"
+    borderColor: "#4B5563",
   },
 
   debugLabel: {
     color: "#E5E7EB",
     fontSize: 14,
-    fontWeight: "600"
+    fontWeight: "600",
   },
   patternCard: {
     backgroundColor: "#16181F",
@@ -2911,34 +3025,34 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#F59E0B",
-    marginBottom: 24
+    marginBottom: 24,
   },
   patternHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 16
+    marginBottom: 16,
   },
   patternHeaderLeft: {
     flex: 1,
-    gap: 8
+    gap: 8,
   },
   patternTitle: {
     color: "#F59E0B",
     fontSize: 18,
-    fontWeight: "800"
+    fontWeight: "800",
   },
   patternRiskBadge: {
     alignSelf: "flex-start",
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 10,
-    paddingVertical: 3
+    paddingVertical: 3,
   },
   patternRiskBadgeText: {
     fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 0.4
+    letterSpacing: 0.4,
   },
   patternRiskScoreBox: {
     alignItems: "center",
@@ -2948,23 +3062,23 @@ const styles = StyleSheet.create({
     borderColor: "#2D313E",
     paddingHorizontal: 14,
     paddingVertical: 8,
-    minWidth: 60
+    minWidth: 60,
   },
   patternRiskScoreLabel: {
     color: "#6B7280",
     fontSize: 10,
     fontWeight: "600",
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
   },
   patternRiskScoreValue: {
     fontSize: 22,
-    fontWeight: "900"
+    fontWeight: "900",
   },
   patternPillRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginBottom: 14
+    marginBottom: 14,
   },
   patternPill: {
     flexDirection: "row",
@@ -2973,60 +3087,60 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 999
+    borderRadius: 999,
   },
   patternPillDominant: {
-    borderWidth: 1.5
+    borderWidth: 1.5,
   },
   patternPillDot: {
     width: 6,
     height: 6,
-    borderRadius: 3
+    borderRadius: 3,
   },
   patternPillLabel: {
     fontSize: 12,
-    fontWeight: "600"
+    fontWeight: "600",
   },
   patternPillValue: {
     fontSize: 13,
-    fontWeight: "900"
+    fontWeight: "900",
   },
   patternPillDominantTag: {
     fontSize: 9,
     fontWeight: "800",
     letterSpacing: 0.5,
-    marginLeft: 2
+    marginLeft: 2,
   },
   patternBarsBox: {
     gap: 10,
-    marginBottom: 14
+    marginBottom: 14,
   },
   patternBarRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8
+    gap: 8,
   },
   patternBarLabel: {
     fontSize: 12,
     fontWeight: "600",
-    width: 64
+    width: 64,
   },
   patternBarTrack: {
     flex: 1,
     height: 6,
     backgroundColor: "#2D313E",
     borderRadius: 3,
-    overflow: "hidden"
+    overflow: "hidden",
   },
   patternBarFill: {
     height: 6,
-    borderRadius: 3
+    borderRadius: 3,
   },
   patternBarCount: {
     fontSize: 11,
     fontWeight: "600",
     width: 24,
-    textAlign: "right"
+    textAlign: "right",
   },
   patternExplanationBox: {
     flexDirection: "row",
@@ -3037,23 +3151,23 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#2D313E",
-    marginBottom: 14
+    marginBottom: 14,
   },
   patternExplanation: {
     color: "#D1D5DB",
     fontSize: 13,
     lineHeight: 20,
-    flex: 1
+    flex: 1,
   },
   patternToggleButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6
+    gap: 6,
   },
   patternToggleText: {
     color: "#F59E0B",
     fontWeight: "600",
-    fontSize: 14
+    fontSize: 14,
   },
   patternAdvancedBox: {
     marginTop: 16,
@@ -3062,7 +3176,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#2D313E",
-    gap: 16
+    gap: 16,
   },
   patternSectionTitle: {
     color: "#9CA3AF",
@@ -3070,15 +3184,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.6,
     textTransform: "uppercase",
-    marginBottom: 10
+    marginBottom: 10,
   },
   patternDensitySection: {
-    gap: 4
+    gap: 4,
   },
   patternDensityGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8
+    gap: 8,
   },
   patternDensityItem: {
     borderWidth: 1,
@@ -3087,63 +3201,225 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: "#16181F",
     alignItems: "center",
-    minWidth: 80
+    minWidth: 80,
   },
   patternDensityKey: {
     fontSize: 11,
     fontWeight: "600",
-    marginBottom: 2
+    marginBottom: 2,
   },
   patternDensityVal: {
     fontSize: 16,
-    fontWeight: "900"
+    fontWeight: "900",
   },
+
+  // ── ENHANCED MINDMAP STYLES ──
+  mindmapCard: {
+    backgroundColor: "#16181F",
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#4ECDC4",
+    marginBottom: 24,
+  },
+  mindmapHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  mindmapHeaderLeft: {
+    flex: 1,
+    gap: 8,
+  },
+  mindmapTitle: {
+    color: "#4ECDC4",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  intelligenceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#064E3B",
+    borderWidth: 1,
+    borderColor: "#10B981",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  intelligenceBadgeText: {
+    color: "#D1FAE5",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  mindmapRefreshButton: {
+    backgroundColor: "#4ECDC4",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#4ECDC4",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  mindmapStatusBox: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    gap: 12,
+  },
+  mindmapLoadingText: {
+    color: "#E5E7EB",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  mindmapLoadingSubtext: {
+    color: "#6B7280",
+    fontSize: 12,
+    fontStyle: "italic",
+  },
+  mindmapErrorBox: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 32,
+    gap: 10,
+  },
+  mindmapErrorTitle: {
+    color: "#EF4444",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  mindmapErrorText: {
+    color: "#9CA3AF",
+    fontSize: 13,
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+  mindmapRetryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#4ECDC4",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 8,
+  },
+  mindmapRetryText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  mindmapMetaPillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 16,
+  },
+  mindmapMetaPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#0F1117",
+    borderWidth: 1,
+    borderColor: "#2D313E",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  mindmapMetaPillLabel: {
+    color: "#9CA3AF",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  mindmapMetaPillValue: {
+    color: "#E5E7EB",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  mindmapVisualizationBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    overflow: "hidden",
+    minHeight: 400,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#2D313E",
+  },
+  mindmapInfoBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#0F1117",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#2D313E",
+  },
+  mindmapInfoText: {
+    color: "#D1D5DB",
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  mindmapInfoSubtext: {
+    color: "#6B7280",
+    fontSize: 11,
+    lineHeight: 16,
+    fontStyle: "italic",
+  },
+
   patternExamplesSection: {
-    gap: 10
+    gap: 10,
   },
   patternExampleGroup: {
     borderLeftWidth: 3,
     paddingLeft: 12,
-    gap: 6
+    gap: 6,
   },
   patternExampleGroupHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 4
+    marginBottom: 4,
   },
   patternExampleDot: {
     width: 8,
     height: 8,
-    borderRadius: 4
+    borderRadius: 4,
   },
   patternExampleTitle: {
     fontSize: 13,
-    fontWeight: "700"
+    fontWeight: "700",
   },
   patternExampleCountBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 999
+    borderRadius: 999,
   },
   patternExampleCountText: {
     fontSize: 10,
-    fontWeight: "600"
+    fontWeight: "600",
   },
   patternExampleSentenceRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 6
+    gap: 6,
   },
   patternExampleBullet: {
     fontSize: 16,
     fontWeight: "900",
-    lineHeight: 20
+    lineHeight: 20,
   },
   patternExampleText: {
     color: "#E5E7EB",
     fontSize: 13,
     lineHeight: 20,
-    flex: 1
-  }
+    flex: 1,
+  },
 });
