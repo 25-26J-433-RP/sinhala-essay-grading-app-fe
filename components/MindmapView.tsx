@@ -52,10 +52,12 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
     });
 
     const depthMap = new Map<string, number>();
-    const queue: { id: string; depth: number }[] = [{
-      id: rootId,
-      depth: 0,
-    }];
+    const queue: { id: string; depth: number }[] = [
+      {
+        id: rootId,
+        depth: 0,
+      },
+    ];
     const maxDepth = 3;
 
     while (queue.length) {
@@ -321,126 +323,128 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
   // Web: render Cytoscape.js directly
   useEffect(() => {
     if (Platform.OS === "web" && cyRef.current && data) {
-      console.log('🌐 Web platform detected, initializing Cytoscape...');
-      console.log('📊 Mindmap data:', data);
-      
+      console.log("🌐 Web platform detected, initializing Cytoscape...");
+      console.log("📊 Mindmap data:", data);
+
       // Dynamically load cytoscape if not present
       if (!(window as any).cytoscape) {
-        console.log('📦 Loading Cytoscape library from CDN...');
+        console.log("📦 Loading Cytoscape library from CDN...");
         const script = document.createElement("script");
         script.src = "https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js";
         script.async = true;
         script.onload = () => {
-          console.log('✅ Cytoscape loaded successfully');
+          console.log("✅ Cytoscape loaded successfully");
           renderCytoscape();
         };
         script.onerror = () => {
-          console.error('❌ Failed to load Cytoscape library');
+          console.error("❌ Failed to load Cytoscape library");
         };
         document.body.appendChild(script);
       } else {
-        console.log('✅ Cytoscape already loaded');
+        console.log("✅ Cytoscape already loaded");
         renderCytoscape();
       }
     }
     function renderCytoscape() {
       const cytoscape = (window as any).cytoscape;
       if (!cytoscape) {
-        console.error('❌ Cytoscape not available');
+        console.error("❌ Cytoscape not available");
         return;
       }
       if (!cyRef.current) {
-        console.error('❌ Container ref not available');
+        console.error("❌ Container ref not available");
         return;
       }
-      
-      console.log('🎨 Rendering Cytoscape graph...');
+
+      console.log("🎨 Rendering Cytoscape graph...");
       // Clear previous
       cyRef.current.innerHTML = "";
       const elements = buildElements(data);
-      
-      console.log(`📍 Rendering ${elements.nodes.length} nodes and ${elements.edges.length} edges`);
-      
+
+      console.log(
+        `📍 Rendering ${elements.nodes.length} nodes and ${elements.edges.length} edges`,
+      );
+
       try {
         const cy = cytoscape({
           container: cyRef.current,
           elements: elements,
           style: [
             {
-              selector: 'node',
+              selector: "node",
               style: {
-                'label': 'data(label)',
-                'text-valign': 'center',
-                'text-halign': 'center',
-                'background-color': '#007AFF',
-                'color': '#ffffff',
-                'text-outline-width': 0,
-                'width': 'label',
-                'height': 'label',
-                'padding': '10px',
-                'font-size': function(ele: any) {
-                  const level = ele.data('level');
-                  return level === 0 ? '14px' : level === 1 ? '13px' : '12px';
+                label: "data(label)",
+                "text-valign": "center",
+                "text-halign": "center",
+                "background-color": "#007AFF",
+                color: "#ffffff",
+                "text-outline-width": 0,
+                width: "label",
+                height: "label",
+                padding: "10px",
+                "font-size": function (ele: any) {
+                  const level = ele.data("level");
+                  return level === 0 ? "14px" : level === 1 ? "13px" : "12px";
                 },
-                'font-weight': 'data(fontWeight)',
-                'text-wrap': 'wrap',
-                'text-max-width': '200px',
-                'shape': 'rectangle',
-                'border-width': 1.5,
-                'border-color': '#007AFF'
-              }
+                "font-weight": "data(fontWeight)",
+                "text-wrap": "wrap",
+                "text-max-width": "200px",
+                shape: "rectangle",
+                "border-width": 1.5,
+                "border-color": "#007AFF",
+              },
             },
             {
-              selector: 'node[isSection]',
+              selector: "node[isSection]",
               style: {
-                'border-width': 2
-              }
+                "border-width": 2,
+              },
             },
             {
-              selector: 'edge',
+              selector: "edge",
               style: {
-                'width': 1.5,
-                'line-color': '#000000',
-                'target-arrow-color': '#000000',
-                'target-arrow-shape': 'none',
-                'curve-style': 'bezier',
-                'arrow-scale': 1.2
-              }
-            }
+                width: 1.5,
+                "line-color": "#000000",
+                "target-arrow-color": "#000000",
+                "target-arrow-shape": "none",
+                "curve-style": "bezier",
+                "arrow-scale": 1.2,
+              },
+            },
           ],
           layout: {
-            name: 'concentric',
+            name: "concentric",
             fit: true,
             padding: 40,
             animate: true,
             animationDuration: 400,
-            concentric: function(node: any) {
-              const level = node.data('level') || 0;
+            concentric: function (node: any) {
+              const level = node.data("level") || 0;
               return 4 - level;
             },
-            levelWidth: function() {
+            levelWidth: function () {
               return 1;
             },
-            minNodeSpacing: 50
+            minNodeSpacing: 50,
           },
           minZoom: 0.5,
           maxZoom: 3,
-          wheelSensitivity: 0.2
+          wheelSensitivity: 0.2,
         });
-        
+
         cy.userPanningEnabled(true);
         cy.userZoomingEnabled(true);
         cy.boxSelectionEnabled(false);
-        cy.on('tap', 'node', function(evt: any) {
+        cy.on("tap", "node", function (evt: any) {
           const node = evt.target;
-          console.log('Tapped node:', node.data('label'));
+          console.log("Tapped node:", node.data("label"));
         });
-        setTimeout(() => { 
-          cy.fit(50); 
-          console.log('✅ Cytoscape graph rendered successfully');
+        setTimeout(() => {
+          cy.fit(50);
+          console.log("✅ Cytoscape graph rendered successfully");
         }, 100);
       } catch (error) {
-        console.error('❌ Error rendering Cytoscape:', error);
+        console.error("❌ Error rendering Cytoscape:", error);
       }
     }
     // eslint-disable-next-line
@@ -450,7 +454,15 @@ export function MindmapView({ data, loading, error }: MindmapViewProps) {
   if (Platform.OS === "web") {
     return (
       <View style={styles.webContainer}>
-        <div ref={cyRef} style={{ width: "100%", height: 400, borderRadius: 12, background: "#fff" }} />
+        <div
+          ref={cyRef}
+          style={{
+            width: "100%",
+            height: 400,
+            borderRadius: 12,
+            background: "#fff",
+          }}
+        />
       </View>
     );
   }

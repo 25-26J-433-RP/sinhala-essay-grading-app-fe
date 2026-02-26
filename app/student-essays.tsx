@@ -6,28 +6,30 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useFocusEffect } from "@react-navigation/native";
 import { Audio } from "expo-av";
 import { router, useLocalSearchParams } from "expo-router";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View
+    ActivityIndicator,
+    FlatList,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View
 } from "react-native";
+import Svg, { Path as SvgPath } from "react-native-svg";
 
 import { generateAudioFeedback } from "@/app/api/audioFeedback";
 import {
-  BatchFeedbackRequest,
-  BatchFeedbackResponse,
-  fetchBatchTextFeedback
+    BatchFeedbackRequest,
+    BatchFeedbackResponse,
+    fetchBatchTextFeedback
 } from "@/app/api/batchTextFeedback";
 import { LearningSupport } from "./LearningSupport";
 import { StudentWritingPatternProfile } from "./WritingPatternProfile";
@@ -155,6 +157,7 @@ export default function StudentEssaysScreen() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [chartAreaWidth, setChartAreaWidth] = useState<number>(0);
 
   // Batch feedback state
   const [batchFeedback, setBatchFeedback] =
@@ -329,6 +332,16 @@ export default function StudentEssaysScreen() {
             lastUploadDate,
             essays
           });
+          
+          console.log('📊 Study Student Essays - Loaded essays:', {
+            totalEssays: essays.length,
+            scoredEssays: essays.filter(e => e.score).length,
+            essays: essays.slice(0, 3).map(e => ({
+              id: e.id,
+              score: e.score,
+              uploadedAt: e.uploadedAt
+            }))
+          });
         }
       } catch (error) {
         console.error("Error loading student essays:", error);
@@ -348,6 +361,60 @@ export default function StudentEssaysScreen() {
       isMounted = false;
     };
   }, [studentId, user?.uid]);
+
+  // Reload data whenever this screen is focused (after scoring essays)
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('🔄 Student Essays screen focused - reloading data');
+      let isMounted = true;
+
+      const reloadStudentEssays = async () => {
+        if (!studentId || !user?.uid) {
+          return;
+        }
+
+        try {
+          const userImages = await UserImageService.getUserImages(user.uid);
+          const essays = userImages.filter(
+            (image) => image.studentId === studentId
+          );
+          const latestEssay = essays[0];
+          const lastUploadDate = latestEssay?.uploadedAt || new Date();
+
+          if (isMounted) {
+            setStudentInfo({
+              id: studentId,
+              studentId,
+              studentAge: latestEssay?.studentAge,
+              studentGrade: latestEssay?.studentGrade,
+              studentGender: latestEssay?.studentGender,
+              essayCount: essays.length,
+              lastUploadDate,
+              essays
+            });
+            
+            console.log('✅ Student Essays refreshed on focus:', {
+              totalEssays: essays.length,
+              scoredEssays: essays.filter(e => e.score).length,
+              essays: essays.slice(0, 3).map(e => ({
+                id: e.id,
+                score: e.score,
+                uploadedAt: e.uploadedAt
+              }))
+            });
+          }
+        } catch (error) {
+          console.error("Error reloading student essays:", error);
+        }
+      };
+
+      reloadStudentEssays();
+
+      return () => {
+        isMounted = false;
+      };
+    }, [studentId, user?.uid])
+  );
 
   // Clamp current page when essays length changes (e.g., after deletion)
   useEffect(() => {
@@ -1048,6 +1115,24 @@ export default function StudentEssaysScreen() {
                 (essay: UserImageUpload) => essay.score
               );
 
+              console.log('📊 CHART DEBUG - All essays in studentInfo:', {
+                totalEssays: studentInfo.essays.length,
+                essays: studentInfo.essays.map((e: UserImageUpload) => ({
+                  id: e.id,
+                  score: e.score,
+                  hasScore: !!e.score
+                }))
+              });
+
+              console.log('📊 CHART DEBUG - Filtered scored essays:', {
+                scoredCount: scoredEssays.length,
+                scoredEssays: scoredEssays.map((e: UserImageUpload) => ({
+                  id: e.id,
+                  score: e.score,
+                  type: typeof e.score
+                }))
+              });
+
               if (scoredEssays.length === 0) {
                 return (
                   <View style={styles.noFeedbackContainer}>
@@ -1229,15 +1314,20 @@ export default function StudentEssaysScreen() {
                     <View style={styles.chartContainer}>
                       {/* Y-axis labels */}
                       <View style={styles.yAxisLabels}>
-                        <Text style={styles.yAxisLabel}>14</Text>
-                        <Text style={styles.yAxisLabel}>10</Text>
-                        <Text style={styles.yAxisLabel}>7</Text>
-                        <Text style={styles.yAxisLabel}>3</Text>
-                        <Text style={styles.yAxisLabel}>0</Text>
+                        <Text style={styles.yAxisLabel}>100%</Text>
+                        <Text style={styles.yAxisLabel}>75%</Text>
+                        <Text style={styles.yAxisLabel}>50%</Text>
+                        <Text style={styles.yAxisLabel}>25%</Text>
+                        <Text style={styles.yAxisLabel}>0%</Text>
                       </View>
 
                       {/* Chart area */}
-                      <View style={styles.chartArea}>
+                      <View
+                        style={styles.chartArea}
+                        onLayout={(event) =>
+                          setChartAreaWidth(event.nativeEvent.layout.width)
+                        }
+                      >
                         {/* Grid lines */}
                         <View style={styles.gridLines}>
                           {[0, 1, 2, 3, 4].map((i) => (
@@ -1245,42 +1335,140 @@ export default function StudentEssaysScreen() {
                           ))}
                         </View>
 
-                        {/* Data points and line */}
+                        {/* Line Chart */}
                         <View style={styles.chartDataContainer}>
-                          {(scoredEssays as UserImageUpload[])
-                            .slice(0, Math.min(10, scoredEssays.length))
-                            .reverse()
-                            .map((essay: UserImageUpload, index: number) => {
-                              const heightPercent =
-                                ((essay.score || 0) / 14) * 100;
-                              return (
-                                <View key={index} style={styles.chartColumn}>
-                                  <View style={styles.chartBarWrapper}>
-                                    <View
-                                      style={[
-                                        styles.chartBar,
-                                        {
-                                          height: `${heightPercent}%`,
-                                          backgroundColor:
-                                            index === scoredEssays.length - 1
-                                              ? "#007AFF"
-                                              : "#60A5FA"
-                                        }
-                                      ]}
-                                    />
-                                    <View
-                                      style={[
-                                        styles.chartDot,
-                                        { bottom: `${heightPercent}%` }
-                                      ]}
-                                    />
+                          {(() => {
+                            const essaysToShow = (scoredEssays as UserImageUpload[])
+                              .slice(0, Math.min(10, scoredEssays.length))
+                              .reverse();
+                            
+                            console.log('📊 Line Chart DISPLAY INFO:', {
+                              essaysToShow: essaysToShow.length,
+                              maxScore: Math.max(...essaysToShow.map(e => e.score || 0)),
+                              minScore: Math.min(...essaysToShow.map(e => e.score || 0)),
+                              avgScore: (essaysToShow.reduce((s, e) => s + (e.score || 0), 0) / essaysToShow.length).toFixed(2),
+                              allScores: essaysToShow.map(e => e.score),
+                            });
+                            
+                            // Calculate chart dimensions - fill full width
+                            const chartHeight = 180;
+                            const padding = 10;
+                            const availableWidth = Math.max(chartAreaWidth, 0);
+                            if (availableWidth === 0) {
+                              return null;
+                            }
+                            const chartWidth = Math.max(availableWidth - padding * 2, 0);
+                            const svgDimension = chartWidth + padding * 2;
+
+                            // Calculate points for line chart - distribute evenly across width
+                            const points = essaysToShow.map((essay: UserImageUpload, index: number) => {
+                              const score = essay.score || 0;
+                              
+                              // Calculate percentage (same logic as before)
+                              let scorePercent: number;
+                              if (score > 14) {
+                                scorePercent = Math.min(score, 100);
+                              } else {
+                                scorePercent = (score / 14) * 100;
+                              }
+                              
+                              // Distribute points evenly across full width
+                              const xSpacing = essaysToShow.length > 1 
+                                ? chartWidth / (essaysToShow.length - 1) 
+                                : chartWidth / 2;
+                              const x = xSpacing * index + padding;
+                              const y = chartHeight - (scorePercent / 100) * chartHeight;
+                              
+                              return { x, y, score, scorePercent, index };
+                            });
+                            
+                            // Generate SVG path for line
+                            const pathD = points
+                              .map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+                              .join(' ');
+                            
+                            return (
+                              <View style={{ width: '100%', height: '100%', position: 'relative' }}>
+                                {/* SVG Canvas for line - responsive scaling */}
+                                <Svg 
+                                  width="100%" 
+                                  height={chartHeight} 
+                                  viewBox={`0 0 ${svgDimension} ${chartHeight}`}
+                                  preserveAspectRatio="none"
+                                  style={{ position: 'absolute', left: 0, top: 0 }}
+                                >
+                                  {/* Line path */}
+                                  <SvgPath
+
+                                    d={pathD} 
+                                    stroke="#007AFF" 
+                                    strokeWidth={2} 
+                                    fill="none" 
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </Svg>
+                                
+                                {/* Data point markers and labels */}
+                                <View
+                                  style={{
+                                    position: 'absolute',
+                                    left: 0,
+                                    top: 0,
+                                    width: '100%',
+                                    height: '100%'
+                                  }}
+                                >
+                                  <View
+                                    style={{ position: 'relative', width: svgDimension, height: '100%' }}
+                                  >
+                                    {points.map((point) => (
+                                      <View key={point.index}>
+                                        {/* Score label */}
+                                        <Text style={[
+                                          styles.chartScoreLabel,
+                                          {
+                                            position: 'absolute',
+                                            left: point.x - 15,
+                                            top: point.y - 25,
+                                          }
+                                        ]}>
+                                          {point.score.toFixed(1)}
+                                        </Text>
+                                        
+                                        {/* Marker circle */}
+                                        <View
+                                          style={{
+                                            position: 'absolute',
+                                            left: point.x - 6,
+                                            top: point.y - 6,
+                                            width: 12,
+                                            height: 12,
+                                            borderRadius: 6,
+                                            backgroundColor: '#007AFF',
+                                            borderWidth: 2,
+                                            borderColor: '#fff',
+                                          }}
+                                        />
+                                        
+                                        {/* X-axis label */}
+                                        <Text style={[
+                                          styles.xAxisLabel,
+                                          {
+                                            position: 'absolute',
+                                            left: point.x - 8,
+                                            bottom: -18,
+                                          }
+                                        ]}>
+                                          {point.index + 1}
+                                        </Text>
+                                      </View>
+                                    ))}
                                   </View>
-                                  <Text style={styles.xAxisLabel}>
-                                    {index + 1}
-                                  </Text>
                                 </View>
-                              );
-                            })}
+                              </View>
+                            );
+                          })()}
                         </View>
                       </View>
                     </View>
@@ -2214,14 +2402,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#333640"
   },
   chartDataContainer: {
-    flexDirection: "row",
+    width: "100%",
     height: "100%",
-    alignItems: "flex-end",
-    justifyContent: "space-around",
-    paddingHorizontal: 4
+    position: "relative",
+    paddingHorizontal: 4,
+    paddingBottom: 20
   },
   chartColumn: {
     flex: 1,
+    height: "100%",
     alignItems: "center",
     justifyContent: "flex-end",
     maxWidth: 40
@@ -2248,6 +2437,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#fff",
     position: "absolute"
+  },
+  chartScoreLabel: {
+    color: "#007AFF",
+    fontSize: 11,
+    fontWeight: "600",
+    marginBottom: 4,
+    textAlign: "center",
+    minHeight: 16
   },
   xAxisLabel: {
     color: "#B0B3C6",
