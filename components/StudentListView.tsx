@@ -5,18 +5,18 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+    useWindowDimensions,
 } from "react-native";
 import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
@@ -36,11 +36,13 @@ interface StudentInfo {
 interface StudentListViewProps {
   onStudentPress?: (studentInfo: StudentInfo) => void;
   scrollEnabled?: boolean;
+  hideStudentCount?: boolean;
 }
 
 export default function StudentListView({
   onStudentPress,
   scrollEnabled = true,
+  hideStudentCount = false,
 }: StudentListViewProps) {
   const [students, setStudents] = useState<StudentInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -353,15 +355,17 @@ export default function StudentListView({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t("student.collection")}</Text>
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryInfo}>
-            <Text style={styles.summaryLabel}>Total Student Count</Text>
-            <Text style={styles.summaryValue}>{students.length}</Text>
+        {!hideStudentCount && (
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryInfo}>
+              <Text style={styles.summaryLabel}>Total Student Count</Text>
+              <Text style={styles.summaryValue}>{students.length}</Text>
+            </View>
+            <View style={styles.summaryIcon}>
+              <MaterialIcons name="people" size={24} color="#007AFF" />
+            </View>
           </View>
-          <View style={styles.summaryIcon}>
-            <MaterialIcons name="people" size={24} color="#007AFF" />
-          </View>
-        </View>
+        )}
       </View>
       <FlatList
         data={students}
