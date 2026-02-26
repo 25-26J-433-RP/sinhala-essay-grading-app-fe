@@ -21,9 +21,12 @@ export default function AuthWrapper({
       segments[0] === "register" ||
       segments[0] === "guest";
 
+    // Allow public shares without authentication
+    const isPublicShare = segments[0] === "shared";
+
     if (!user) {
       // User is not logged in, redirect to guest page
-      if (!inAuthGroup && segments[0] !== "guest") {
+      if (!inAuthGroup && segments[0] !== "guest" && !isPublicShare) {
         router.replace("/guest");
       }
     } else {
