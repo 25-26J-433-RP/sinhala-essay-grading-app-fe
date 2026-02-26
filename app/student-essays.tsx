@@ -175,6 +175,7 @@ export default function StudentEssaysScreen() {
     null
   );
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioPlaybackRate, setAudioPlaybackRate] = useState(1.0);
   const audioPlayerRef = useRef<Audio.Sound | null>(null);
 
   const { user } = useAuth();
@@ -711,6 +712,77 @@ export default function StudentEssaysScreen() {
         <View style={responsiveContentStyle}>
           {/* Student Info Card */}
           <View style={styles.studentInfoCard}>
+            {/* Global Audio Playback Speed Control */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, marginTop: 8, alignSelf: 'flex-end' }}>
+              <Text style={{ color: '#fff', marginRight: 8 }}>Audio Speed:</Text>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: audioPlaybackRate === 0.75 ? '#10B981' : '#23262F',
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                  marginRight: 4
+                }}
+                onPress={async () => {
+                  setAudioPlaybackRate(0.75);
+                  if (audioPlayerRef.current) {
+                    await audioPlayerRef.current.setRateAsync(0.75, true);
+                  }
+                }}
+              >
+                <Text style={{ color: '#fff' }}>0.75x</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: audioPlaybackRate === 1.0 ? '#10B981' : '#23262F',
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                  marginRight: 4
+                }}
+                onPress={async () => {
+                  setAudioPlaybackRate(1.0);
+                  if (audioPlayerRef.current) {
+                    await audioPlayerRef.current.setRateAsync(1.0, true);
+                  }
+                }}
+              >
+                <Text style={{ color: '#fff' }}>1x</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: audioPlaybackRate === 1.25 ? '#10B981' : '#23262F',
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                  marginRight: 4
+                }}
+                onPress={async () => {
+                  setAudioPlaybackRate(1.25);
+                  if (audioPlayerRef.current) {
+                    await audioPlayerRef.current.setRateAsync(1.25, true);
+                  }
+                }}
+              >
+                <Text style={{ color: '#fff' }}>1.25x</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: audioPlaybackRate === 1.5 ? '#10B981' : '#23262F',
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 6
+                }}
+                onPress={async () => {
+                  setAudioPlaybackRate(1.5);
+                  if (audioPlayerRef.current) {
+                    await audioPlayerRef.current.setRateAsync(1.5, true);
+                  }
+                }}
+              >
+                <Text style={{ color: '#fff' }}>1.5x</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.studentHeader}>
               <View style={styles.iconContainer}>
                 <MaterialIcons name="person" size={40} color="#007AFF" />
@@ -1053,12 +1125,16 @@ export default function StudentEssaysScreen() {
                                     : { uri: audioFeedback.audio_base64 };
 
                                   await sound.loadAsync(source);
+                                  await sound.setRateAsync(audioPlaybackRate, true);
                                   audioPlayerRef.current = sound;
                                   console.log(
                                     audioFeedback.audio_url
                                       ? "🎵 Playing audio from URL"
                                       : "🎵 Playing audio from base64"
                                   );
+                                } else {
+                                  // Always set playback rate before playing
+                                  await audioPlayerRef.current.setRateAsync(audioPlaybackRate, true);
                                 }
 
                                 if (audioPlayerRef.current) {
@@ -1104,6 +1180,77 @@ export default function StudentEssaysScreen() {
                               Duration: {audioFeedback.duration}s
                             </Text>
                           )}
+                          {/* Playback speed control */}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                            <Text style={{ color: '#fff', marginRight: 8 }}>Speed:</Text>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: audioPlaybackRate === 0.75 ? '#10B981' : '#23262F',
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 6,
+                                marginRight: 4
+                              }}
+                              onPress={async () => {
+                                setAudioPlaybackRate(0.75);
+                                if (audioPlayerRef.current) {
+                                  await audioPlayerRef.current.setRateAsync(0.75, true);
+                                }
+                              }}
+                            >
+                              <Text style={{ color: '#fff' }}>0.75x</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: audioPlaybackRate === 1.0 ? '#10B981' : '#23262F',
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 6,
+                                marginRight: 4
+                              }}
+                              onPress={async () => {
+                                setAudioPlaybackRate(1.0);
+                                if (audioPlayerRef.current) {
+                                  await audioPlayerRef.current.setRateAsync(1.0, true);
+                                }
+                              }}
+                            >
+                              <Text style={{ color: '#fff' }}>1x</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: audioPlaybackRate === 1.25 ? '#10B981' : '#23262F',
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 6,
+                                marginRight: 4
+                              }}
+                              onPress={async () => {
+                                setAudioPlaybackRate(1.25);
+                                if (audioPlayerRef.current) {
+                                  await audioPlayerRef.current.setRateAsync(1.25, true);
+                                }
+                              }}
+                            >
+                              <Text style={{ color: '#fff' }}>1.25x</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: audioPlaybackRate === 1.5 ? '#10B981' : '#23262F',
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 6
+                              }}
+                              onPress={async () => {
+                                setAudioPlaybackRate(1.5);
+                                if (audioPlayerRef.current) {
+                                  await audioPlayerRef.current.setRateAsync(1.5, true);
+                                }
+                              }}
+                            >
+                              <Text style={{ color: '#fff' }}>1.5x</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       </View>
                     )}
