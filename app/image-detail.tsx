@@ -37,7 +37,10 @@ import {
   TextFeedbackResponse,
 } from "@/app/api/textFeedback";
 
-import { generateSimpleReport, SimpleReportData } from "@/app/utils/simplePdfGenerator";
+import {
+  generateSimpleReport,
+  SimpleReportData,
+} from "@/app/utils/simplePdfGenerator";
 import AICorrectionPanel from "@/components/AICorrectionPanel";
 import { MindmapView } from "@/components/MindmapView";
 import { Audio } from "expo-av";
@@ -109,6 +112,7 @@ export default function ImageDetailScreen() {
     null,
   );
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioPlaybackRate, setAudioPlaybackRate] = useState(1.0);
   const audioPlayerRef = useRef<Audio.Sound | null>(null);
 
   // const [isSaving, setIsSaving] = useState(false); // not used currently
@@ -127,7 +131,7 @@ export default function ImageDetailScreen() {
 
   // Monitor scoreData changes
   useEffect(() => {
-    console.log('📊 scoreData updated:', {
+    console.log("📊 scoreData updated:", {
       exists: !!scoreData,
       score: scoreData?.score,
       timestamp: new Date().toISOString(),
@@ -461,8 +465,8 @@ export default function ImageDetailScreen() {
   };
 
   const handleDownloadPDF = async () => {
-    console.log('🔴 Download button clicked!');
-    console.log('📊 imageData from Firebase:', {
+    console.log("🔴 Download button clicked!");
+    console.log("📊 imageData from Firebase:", {
       studentId: imageData?.studentId,
       score: imageData?.score,
       hasRubric: !!imageData?.rubric,
@@ -470,66 +474,95 @@ export default function ImageDetailScreen() {
       hasWritingPatterns: !!imageData?.writing_patterns,
       hasTextFeedback: !!imageData?.text_feedback,
     });
-    console.log('📊 Current textFeedback state:', JSON.stringify(textFeedback, null, 2));
-    console.log('📊 imageData text_feedback:', JSON.stringify(imageData?.text_feedback, null, 2));
-    
+    console.log(
+      "📊 Current textFeedback state:",
+      JSON.stringify(textFeedback, null, 2),
+    );
+    console.log(
+      "📊 imageData text_feedback:",
+      JSON.stringify(imageData?.text_feedback, null, 2),
+    );
+
     try {
-      console.log('📊 Creating report with Firebase data...');
-      
+      console.log("📊 Creating report with Firebase data...");
+
       // Always refresh data from Firebase to ensure we have latest text_feedback
       let freshData = imageData;
       if (imageData?.id) {
-        console.log('🔄 Refreshing from Firebase to fetch text_feedback...');
+        console.log("🔄 Refreshing from Firebase to fetch text_feedback...");
         const refreshed = await UserImageService.getUserImage(imageData.id);
         freshData = refreshed;
-        console.log('✅ Fresh data from Firebase:', JSON.stringify({
-          studentId: refreshed.studentId,
-          hasScore: !!refreshed.score,
-          hasRubric: !!refreshed.rubric,
-          hasWritingPatterns: !!refreshed.writing_patterns,
-          hasTextFeedback: !!refreshed.text_feedback,
-          textFeedbackContent: refreshed.text_feedback,
-        }, null, 2));
-        
+        console.log(
+          "✅ Fresh data from Firebase:",
+          JSON.stringify(
+            {
+              studentId: refreshed.studentId,
+              hasScore: !!refreshed.score,
+              hasRubric: !!refreshed.rubric,
+              hasWritingPatterns: !!refreshed.writing_patterns,
+              hasTextFeedback: !!refreshed.text_feedback,
+              textFeedbackContent: refreshed.text_feedback,
+            },
+            null,
+            2,
+          ),
+        );
+
         if (refreshed.text_feedback) {
           setTextFeedback(refreshed.text_feedback);
-          console.log('✅ Text feedback fetched from Firebase:', JSON.stringify(refreshed.text_feedback, null, 2));
+          console.log(
+            "✅ Text feedback fetched from Firebase:",
+            JSON.stringify(refreshed.text_feedback, null, 2),
+          );
         } else {
-          console.log('❌ No text_feedback in refreshed data');
+          console.log("❌ No text_feedback in refreshed data");
         }
       }
-      
+
       const reportData: SimpleReportData = {
         studentId: freshData?.studentId,
         studentGrade: selectedGrade,
-        essayTopic: freshData?.essay_topic || essayTopic || 'Not specified',
+        essayTopic: freshData?.essay_topic || essayTopic || "Not specified",
         essayImageUri: imageUrlResolved || undefined,
         score: freshData?.score,
         scoreDetails: freshData?.scoreDetails || freshData?.details,
-        rubric: freshData?.rubric ? {
-          richness_5: freshData.rubric.richness_5 ?? undefined,
-          organization_6: freshData.rubric.organization_6 ?? undefined,
-          technical_3: freshData.rubric.technical_3 ?? undefined,
-          total_14: freshData.rubric.total_14 ?? undefined,
-        } : undefined,
+        rubric: freshData?.rubric
+          ? {
+              richness_5: freshData.rubric.richness_5 ?? undefined,
+              organization_6: freshData.rubric.organization_6 ?? undefined,
+              technical_3: freshData.rubric.technical_3 ?? undefined,
+              total_14: freshData.rubric.total_14 ?? undefined,
+            }
+          : undefined,
         fairnessReport: freshData?.fairness_report,
         patternData: freshData?.writing_patterns || patternData,
         textFeedback: freshData?.text_feedback || textFeedback || undefined,
         timestamp: new Date().toLocaleString(),
       };
 
-      console.log('📋 Complete report data from Firebase:', JSON.stringify(reportData, null, 2));
-      console.log('📋 textFeedback in report:', JSON.stringify(reportData.textFeedback, null, 2));
-      console.log('📋 textFeedback.feedback content:', reportData.textFeedback?.feedback);
+      console.log(
+        "📋 Complete report data from Firebase:",
+        JSON.stringify(reportData, null, 2),
+      );
+      console.log(
+        "📋 textFeedback in report:",
+        JSON.stringify(reportData.textFeedback, null, 2),
+      );
+      console.log(
+        "📋 textFeedback.feedback content:",
+        reportData.textFeedback?.feedback,
+      );
       setIsDownloadingPDF(true);
-      
+
       await generateSimpleReport(reportData);
-      
-      console.log('✅ Report generated successfully');
-      showToast('Report downloaded! Check your files.', { type: 'success' });
+
+      console.log("✅ Report generated successfully");
+      showToast("Report downloaded! Check your files.", { type: "success" });
     } catch (error: any) {
-      console.error('❌ Download failed:', error?.message);
-      showToast(`Error: ${error?.message || 'Failed to generate report'}`, { type: 'error' });
+      console.error("❌ Download failed:", error?.message);
+      showToast(`Error: ${error?.message || "Failed to generate report"}`, {
+        type: "error",
+      });
     } finally {
       setIsDownloadingPDF(false);
     }
@@ -538,44 +571,48 @@ export default function ImageDetailScreen() {
   const handleShare = async () => {
     try {
       setIsSharing(true);
-      console.log('🔗 Share button clicked!');
-      
+      console.log("🔗 Share button clicked!");
+
       if (!imageData?.id) {
-        showToast('Essay ID not found', { type: 'error' });
+        showToast("Essay ID not found", { type: "error" });
         return;
       }
 
       // Generate a unique share link
-      console.log('📤 Generating share link for essay:', imageData.id);
+      console.log("📤 Generating share link for essay:", imageData.id);
       const shareId = await generateShareLink(imageData.id);
-      console.log('✅ Share ID generated:', shareId);
+      console.log("✅ Share ID generated:", shareId);
 
       // Create the shareable URL
       // For web, use current origin; for native, use your app's domain
-      let shareUrl = '';
-      if (Platform.OS === 'web') {
-        shareUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://your-app-domain.com'}/shared/${shareId}`;
+      let shareUrl = "";
+      if (Platform.OS === "web") {
+        shareUrl = `${typeof window !== "undefined" ? window.location.origin : "https://your-app-domain.com"}/shared/${shareId}`;
       } else {
         shareUrl = `https://your-app-domain.com/shared/${shareId}`;
       }
-      
-      console.log('🔗 Share URL:', shareUrl);
+
+      console.log("🔗 Share URL:", shareUrl);
 
       // Copy to clipboard
       await Clipboard.setStringAsync(shareUrl);
-      console.log('📋 Link copied to clipboard');
+      console.log("📋 Link copied to clipboard");
 
       // Show native share dialog if available (especially for mobile)
-      if (Platform.OS !== 'web') {
+      if (Platform.OS !== "web") {
         // On native, open mail with the share URL
-        const subject = encodeURIComponent(t('essay.shareSubject') || 'Essay Feedback');
-        const body = encodeURIComponent(`Check out this essay feedback:\n\n${shareUrl}`);
+        const subject = encodeURIComponent(
+          t("essay.shareSubject") || "Essay Feedback",
+        );
+        const body = encodeURIComponent(
+          `Check out this essay feedback:\n\n${shareUrl}`,
+        );
         const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
-        
+
         try {
           await Linking.openURL(mailtoLink);
         } catch (err) {
-          console.log('Mail app not available, link is in clipboard');
+          console.log("Mail app not available, link is in clipboard");
         }
       } else {
         // On web, try to use native share or show copy confirmation
@@ -583,21 +620,25 @@ export default function ImageDetailScreen() {
           const navigator = (global as any).navigator;
           if (navigator && navigator.share) {
             await navigator.share({
-              title: t('essay.shareTitle') || 'Essay Feedback',
-              text: t('essay.shareMessage') || 'Check out this essay feedback',
+              title: t("essay.shareTitle") || "Essay Feedback",
+              text: t("essay.shareMessage") || "Check out this essay feedback",
               url: shareUrl,
             });
           }
         } catch (err: any) {
           // User cancelled or share not available
-          console.log('Native share not available, using clipboard instead');
+          console.log("Native share not available, using clipboard instead");
         }
       }
 
-      showToast('Share link created! Link copied to clipboard.', { type: 'success' });
+      showToast("Share link created! Link copied to clipboard.", {
+        type: "success",
+      });
     } catch (error: any) {
-      console.error('❌ Share failed:', error?.message);
-      showToast(`Error: ${error?.message || 'Failed to create share link'}`, { type: 'error' });
+      console.error("❌ Share failed:", error?.message);
+      showToast(`Error: ${error?.message || "Failed to create share link"}`, {
+        type: "error",
+      });
     } finally {
       setIsSharing(false);
     }
@@ -1936,11 +1977,17 @@ export default function ImageDetailScreen() {
                                 : { uri: audioFeedback.audio_base64 };
 
                               await sound.loadAsync(source);
+                              await sound.setRateAsync(audioPlaybackRate, true);
                               audioPlayerRef.current = sound;
                               console.log(
                                 audioFeedback.audio_url
                                   ? "ðŸŽµ Playing audio from URL"
                                   : "ðŸŽµ Playing audio from base64",
+                              );
+                            } else {
+                              await audioPlayerRef.current.setRateAsync(
+                                audioPlaybackRate,
+                                true,
                               );
                             }
 
@@ -2007,6 +2054,109 @@ export default function ImageDetailScreen() {
                             </Text>
                           </View>
                         )}
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginTop: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <Text style={{ color: "#fff", marginRight: 8 }}>
+                          Speed:
+                        </Text>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor:
+                              audioPlaybackRate === 0.75
+                                ? "#10B981"
+                                : "#23262F",
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                            marginRight: 4,
+                            marginBottom: 4,
+                          }}
+                          onPress={async () => {
+                            setAudioPlaybackRate(0.75);
+                            if (audioPlayerRef.current) {
+                              await audioPlayerRef.current.setRateAsync(
+                                0.75,
+                                true,
+                              );
+                            }
+                          }}
+                        >
+                          <Text style={{ color: "#fff" }}>0.75x</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor:
+                              audioPlaybackRate === 1.0 ? "#10B981" : "#23262F",
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                            marginRight: 4,
+                            marginBottom: 4,
+                          }}
+                          onPress={async () => {
+                            setAudioPlaybackRate(1.0);
+                            if (audioPlayerRef.current) {
+                              await audioPlayerRef.current.setRateAsync(
+                                1.0,
+                                true,
+                              );
+                            }
+                          }}
+                        >
+                          <Text style={{ color: "#fff" }}>1x</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor:
+                              audioPlaybackRate === 1.25
+                                ? "#10B981"
+                                : "#23262F",
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                            marginRight: 4,
+                            marginBottom: 4,
+                          }}
+                          onPress={async () => {
+                            setAudioPlaybackRate(1.25);
+                            if (audioPlayerRef.current) {
+                              await audioPlayerRef.current.setRateAsync(
+                                1.25,
+                                true,
+                              );
+                            }
+                          }}
+                        >
+                          <Text style={{ color: "#fff" }}>1.25x</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor:
+                              audioPlaybackRate === 1.5 ? "#10B981" : "#23262F",
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 6,
+                            marginBottom: 4,
+                          }}
+                          onPress={async () => {
+                            setAudioPlaybackRate(1.5);
+                            if (audioPlayerRef.current) {
+                              await audioPlayerRef.current.setRateAsync(
+                                1.5,
+                                true,
+                              );
+                            }
+                          }}
+                        >
+                          <Text style={{ color: "#fff" }}>1.5x</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
                   </View>
@@ -2172,10 +2322,13 @@ export default function ImageDetailScreen() {
 
         {/* Proper Nice Button Arrangement */}
         <View style={styles.actionContainer}>
-          <TouchableOpacity 
-            style={[styles.primaryActionButton, isDownloadingPDF && { opacity: 0.6 }]}
+          <TouchableOpacity
+            style={[
+              styles.primaryActionButton,
+              isDownloadingPDF && { opacity: 0.6 },
+            ]}
             onPress={() => {
-              console.log('🔴 Download button touched!');
+              console.log("🔴 Download button touched!");
               handleDownloadPDF();
             }}
             disabled={isDownloadingPDF}
@@ -2193,7 +2346,7 @@ export default function ImageDetailScreen() {
           </TouchableOpacity>
 
           <View style={styles.actionGrid}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.secondaryActionButton}
               onPress={handleShare}
               disabled={isSharing}
@@ -2203,7 +2356,9 @@ export default function ImageDetailScreen() {
               ) : (
                 <>
                   <MaterialIcons name="share" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>{t("essay.share")}</Text>
+                  <Text style={styles.actionButtonText}>
+                    {t("essay.share")}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -3601,4 +3756,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-
