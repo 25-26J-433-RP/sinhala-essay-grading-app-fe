@@ -3,22 +3,21 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Tabs, useRouter, useSegments } from "expo-router";
 import React from "react";
 import {
-  Alert,
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-  Image,
+    Alert,
+    Image,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 import { HapticTab } from "@/components/HapticTab";
-import { IconSymbol } from "@/components/ui/IconSymbol";
 import TabBarBackground from "@/components/ui/TabBarBackground";
-import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useRole } from "@/hooks/useRole";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 export default function TabLayout() {
@@ -27,6 +26,7 @@ export default function TabLayout() {
   const { width: screenWidth } = useWindowDimensions();
   const router = useRouter();
   const segments = useSegments();
+  const { isStudent } = useRole();
   // Treat as desktop only when running on web with a wide viewport.
   const isDesktop = Platform.OS === "web" ? screenWidth >= 768 : false;
   const hideOnMobile = !isDesktop;
@@ -77,7 +77,7 @@ export default function TabLayout() {
     { name: "index", label: t("tabs.home"), icon: "house.fill" },
     { name: "scan", label: t("tabs.scan"), icon: "camera" },
     { name: "uploaded-images", label: t("tabs.collection"), icon: "photo" },
-    { name: "add-student", label: t("tabs.addStudent"), icon: "person" },
+    { name: "add-student", label: isStudent() ? t("tabs.addMyDetails") : t("tabs.addStudent"), icon: "person" },
     { name: "profile", label: t("profile.title"), icon: "account" },
   ];
 
