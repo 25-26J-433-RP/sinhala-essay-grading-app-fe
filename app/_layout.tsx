@@ -77,6 +77,12 @@ function RootLayoutContent() {
         name="mindmap-demo"
         options={{ title: t("screenTitles.mindmapDemo") }}
       />
+      <Stack.Screen
+        name="shared/[shareId]"
+        options={{ 
+          headerShown: false,
+        }}
+      />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
