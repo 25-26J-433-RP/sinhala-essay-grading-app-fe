@@ -210,7 +210,8 @@
     "sinhalaScore": "Sinhala Score",
     "aiCorrection": "AI Correction",
     "collection": "Collection",
-    "addStudent": "Add Student"
+    "addStudent": "Add Student",
+    "addMyDetails": "Add My Details"
   },
   "aiCorrection": {
     "title": "AI Correction",
@@ -278,7 +279,18 @@
   },
   "addStudent": {
     "title": "Add New Student",
+    "titleStudent": "Complete Your Profile",
     "subtitle": "Enter student information below",
+    "subtitleStudent": "Please fill in your details to get started",
+    "profileComplete": "Your profile is complete",
+    "editProfile": "Edit Your Profile",
+    "cannotEditId": "Student ID cannot be changed",
+    "cannotChangeProfile": "You can only have one profile. To change your information, please contact your instructor.",
+    "goHome": "Go to Home",
+    "editButton": "Edit Profile",
+    "saveButton": "Save Changes",
+    "cancelButton": "Cancel",
+    "profileUpdated": "Profile updated successfully!",
     "studentId": "Student ID",
     "studentAge": "Student Age",
     "studentGrade": "Student Grade",

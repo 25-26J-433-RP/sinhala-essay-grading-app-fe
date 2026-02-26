@@ -10,22 +10,21 @@ import { UserImageService } from "@/services/userImageService";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Button,
-  Easing,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Button,
+    Easing,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View
 } from "react-native";
 import ReactWebcam from "react-webcam";
 
@@ -43,7 +42,7 @@ export default function ScanScreen() {
   const [loadingStudents, setLoadingStudents] = useState<boolean>(false);
 
   const { user } = useAuth();
-  const { profileLoading } = useRole();
+  const { profileLoading, isStudent } = useRole();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView | null>(null);
   const webcamRef = useRef<ReactWebcam | null>(null);
@@ -104,6 +103,13 @@ export default function ScanScreen() {
       fetchStudents();
     }, [fetchStudents])
   );
+
+  // Auto-select student in student role
+  useEffect(() => {
+    if (isStudent() && students.length > 0 && !selectedStudent) {
+      setSelectedStudent(students[0]);
+    }
+  }, [isStudent, students, selectedStudent]);
 
   if (!user) return null;
 
@@ -327,11 +333,13 @@ export default function ScanScreen() {
               ) : (
                 <View style={styles.studentForm}>
                   <Pressable
+                    disabled={isStudent()}
                     onPress={() => setShowStudentDropdown(!showStudentDropdown)}
                     style={({ hovered, pressed }) => [
                       styles.dropdownButton,
-                      hovered && styles.dropdownHover,
-                      pressed && styles.dropdownPressed
+                      hovered && !isStudent() && styles.dropdownHover,
+                      pressed && !isStudent() && styles.dropdownPressed,
+                      isStudent() && styles.dropdownDisabled
                     ]}
                   >
                     <Text
@@ -350,7 +358,7 @@ export default function ScanScreen() {
                       color="#fff"
                     />
                   </Pressable>
-                  {showStudentDropdown && (
+                  {showStudentDropdown && !isStudent() && (
                     <View style={styles.dropdownList}>
                       {students.map((student) => (
                         <Pressable
@@ -532,6 +540,7 @@ const styles = StyleSheet.create({
   },
   dropdownHover: { borderColor: "#3B82F6" },
   dropdownPressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
+  dropdownDisabled: { opacity: 0.6 },
   dropdownButtonText: {
     color: "#FFFFFF",
     flex: 1,

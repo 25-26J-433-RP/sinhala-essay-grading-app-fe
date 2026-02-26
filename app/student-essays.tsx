@@ -4,6 +4,7 @@ import { useToast } from "@/components/Toast";
 import { storage } from "@/config/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useRole } from "@/hooks/useRole";
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -180,6 +181,7 @@ export default function StudentEssaysScreen() {
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { t } = useLanguage();
+  const { isStudent } = useRole();
   const DEBUG = __DEV__ === true;
   const PAGE_SIZE = 3;
   const analyticsValueStyle = {
@@ -694,7 +696,17 @@ export default function StudentEssaysScreen() {
   return (
     <View style={styles.fullBg}>
       <ScrollView style={styles.container}>
-        <AppHeader showBackButton title={t("screenTitles.studentEssays")} />
+        <AppHeader 
+          showBackButton 
+          title={t("screenTitles.studentEssays")}
+          onBackPress={() => {
+            if (isStudent()) {
+              router.replace("/(tabs)");
+            } else {
+              router.back();
+            }
+          }}
+        />
 
         <View style={responsiveContentStyle}>
           {/* Student Info Card */}

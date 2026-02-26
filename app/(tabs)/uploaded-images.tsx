@@ -3,15 +3,45 @@ import StudentListView from "@/components/StudentListView";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRole } from "@/hooks/useRole";
+import { UserImageService } from "@/services/userImageService";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
-import React from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useEffect } from "react";
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function UploadedImagesScreen() {
   const { user } = useAuth();
   const { isStudent, isTeacher, isParent, userProfile, profileLoading } = useRole();
   const { t } = useLanguage();
+  const [isRedirecting, setIsRedirecting] = React.useState(false);
+
+  // For students, redirect to their own essay list directly
+  useEffect(() => {
+    const redirectStudentToEssays = async () => {
+      if (!user || profileLoading) return;
+      
+      if (isStudent()) {
+        setIsRedirecting(true);
+        try {
+          const students = await UserImageService.getStudents(user.uid);
+          if (students && students.length > 0) {
+            // Redirect to their own essays page
+            router.replace({
+              pathname: "/student-essays",
+              params: {
+                studentId: students[0].studentId,
+              },
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching student info:", error);
+          setIsRedirecting(false);
+        }
+      }
+    };
+
+    redirectStudentToEssays();
+  }, [user, profileLoading, isStudent]);
 
   const roleLabel = userProfile?.role
     ? userProfile.role === "teacher"
@@ -33,12 +63,13 @@ export default function UploadedImagesScreen() {
   });
 
   // Show loading state while profile is being loaded
-  if (profileLoading) {
+  if (profileLoading || isRedirecting) {
     return (
       <View style={styles.fullBg}>
         <View style={styles.container}>
           <AppHeader />
           <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
             <Text style={styles.loadingText}>
               {t("uploadedImages.settingUpProfile")}
             </Text>
@@ -48,8 +79,22 @@ export default function UploadedImagesScreen() {
     );
   }
 
-  // Show StudentListView for both students and teachers (teachers manage student essays)
-  if (user && (isStudent() || isTeacher() || isParent() || !userProfile)) {
+  // If student, don't show this page (they should be redirected)
+  if (isStudent()) {
+    return (
+      <View style={styles.fullBg}>
+        <View style={styles.container}>
+          <AppHeader />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Show StudentListView for teachers and parents (only)
+  if (user && (isTeacher() || isParent() || !userProfile)) {
     console.log("📚 Showing StudentListView for user");
 
     const Content = (
@@ -64,6 +109,7 @@ export default function UploadedImagesScreen() {
           });
         }}
         scrollEnabled={Platform.OS !== "web"}
+        hideStudentCount={false}
       />
     );
 
