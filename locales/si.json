@@ -210,7 +210,8 @@
     "sinhalaScore": "සිංහල ලකුණු",
     "aiCorrection": "AI නිවැරදි කිරීම",
     "collection": "රචනා එකතුව",
-    "addStudent": "ශිෂ්‍යයා එක් කරන්න"
+    "addStudent": "ශිෂ්‍යයා එක් කරන්න",
+    "addMyDetails": "මගේ විස්තර එක් කරන්න"
   },
   "aiCorrection": {
     "title": "AI නිවැරදි කිරීම",
@@ -278,7 +279,18 @@
   },
   "addStudent": {
     "title": "නව ශිෂ්‍යයා එක් කරන්න",
+    "titleStudent": "ඔබේ පැතිකඩ සම්පූර්ණ කරන්න",
     "subtitle": "පහත ශිෂ්‍ය තොරතුරු ඇතුළත් කරන්න",
+    "subtitleStudent": "ආරම්භ කිරීමට කරුණාකර ඔබේ විස්තර පුරවන්න",
+    "profileComplete": "ඔබේ පැතිකඩ සම්පූර්ණයි",
+    "editProfile": "ඔබේ පැතිකඩ සංස්කරණය කරන්න",
+    "cannotEditId": "ශිෂ්‍ය අංකය වෙනස් කළ නොහැක",
+    "cannotChangeProfile": "ඔබට එක් පැතිකඩ පමණක් තිබිය හැක. ඔබේ තොරතුරු වෙනස් කිරීමට කරුණාකර ඔබේ උපදේශකවරයා හමුවන්න.",
+    "goHome": "මුල් පිටුවට යන්න",
+    "editButton": "සංස්කරණය කරන්න",
+    "saveButton": "වෙනස්කම් සුරකින්න",
+    "cancelButton": "අවලංගු කරන්න",
+    "profileUpdated": "පැතිකඩ සාර්ථකව යාවත්කාලීන කරන ලදී!",
     "studentId": "ශිෂ්‍ය අංකය",
     "studentAge": "ශිෂ්‍ය වයස",
     "studentGrade": "ශිෂ්‍ය ශ්‍රේණිය",
