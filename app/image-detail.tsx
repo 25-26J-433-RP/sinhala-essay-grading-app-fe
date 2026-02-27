@@ -681,6 +681,96 @@ export default function ImageDetailScreen() {
     );
   }
 
+  const getBarWidth = (value: number | undefined, max: number) =>
+    `${Math.max(0, Math.min(100, ((Number(value) || 0) / max) * 100))}%`;
+
+  const renderFairnessComparisonRow = ({
+    keyId,
+    label,
+    original,
+    adjusted,
+    max
+  }: {
+    keyId: string;
+    label: string;
+    original: number | undefined;
+    adjusted: number | undefined;
+    max: number;
+  }) => {
+    const delta = (Number(adjusted) || 0) - (Number(original) || 0);
+
+    return (
+      <React.Fragment key={keyId}>
+        <View
+          style={[styles.tableRow, Platform.OS !== "web" && styles.tableRowMobile]}
+        >
+          <Text
+            style={[
+              styles.tableLabel,
+              { flex: 2 },
+              Platform.OS !== "web" && styles.tableLabelMobile
+            ]}
+          >
+            {label}
+          </Text>
+          <Text style={[styles.tableValue, { flex: 1.2 }]}>
+            {Platform.OS !== "web" ? "Before: " : ""}
+            {original?.toFixed(2)}
+          </Text>
+          <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
+            {Platform.OS !== "web" ? "After: " : ""}
+            {adjusted?.toFixed(2)}
+          </Text>
+          <Text style={[styles.tableDelta, { flex: 1 }]}>+{delta.toFixed(2)}</Text>
+        </View>
+        <View style={styles.rowBarWrap}>
+          <View
+            style={[styles.rowBarBefore, { width: getBarWidth(original, max) }]}
+          />
+          <View
+            style={[styles.rowBarAfter, { width: getBarWidth(adjusted, max) }]}
+          />
+        </View>
+      </React.Fragment>
+    );
+  };
+
+  const renderPenaltyCheckBlock = (
+    label: string,
+    issues: string[] | undefined,
+    keyPrefix: string
+  ) => {
+    const safeIssues = Array.isArray(issues) ? issues : [];
+    const hasIssues = safeIssues.length > 0;
+
+    return (
+      <View style={styles.penaltyCheckBlock} key={keyPrefix}>
+        <Text style={styles.penaltyCheckLabel}>{label}</Text>
+        {hasIssues ? (
+          <View style={styles.issueBox}>
+            <View style={styles.issueStatusBadge}>
+              <MaterialIcons name="error-outline" size={14} color="#F59E0B" />
+              <Text style={styles.issueStatusText}>Needs attention</Text>
+            </View>
+            <View style={styles.issueListContainer}>
+              {safeIssues.map((item, idx) => (
+                <View key={`${keyPrefix}-${idx}`} style={styles.issueItemRow}>
+                  <View style={styles.issueBullet} />
+                  <Text style={styles.issueListText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <View style={styles.goodStatusBadge}>
+            <MaterialIcons name="check-circle" size={14} color="#10B981" />
+            <Text style={styles.goodStatusText}>No issues found</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   return (
     <ScrollView style={styles.container} ref={scrollViewRef}>
       <View>
@@ -1348,239 +1438,31 @@ export default function ImageDetailScreen() {
                           </Text>
                         </View>
 
-                        <View
-                          style={[
-                            styles.tableRow,
-                            Platform.OS !== "web" && styles.tableRowMobile
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.tableLabel,
-                              { flex: 2 },
-                              Platform.OS !== "web" && styles.tableLabelMobile
-                            ]}
-                          >
-                            {t("essay.richness")}
-                          </Text>
-                          <Text style={[styles.tableValue, { flex: 1.2 }]}>
-                            {Platform.OS !== "web" ? "Before: " : ""}
-                            {scoreData.fairness_report.original_richness_5?.toFixed(2)}
-                          </Text>
-                          <Text
-                            style={[styles.tableValueAdjusted, { flex: 1.2 }]}
-                          >
-                            {Platform.OS !== "web" ? "After: " : ""}
-                            {scoreData.fairness_report.adjusted_richness_5?.toFixed(2)}
-                          </Text>
-                          <Text style={[styles.tableDelta, { flex: 1 }]}>
-                            +
-                            {(
-                              (Number(
-                                scoreData.fairness_report.adjusted_richness_5
-                              ) || 0) -
-                              (Number(
-                                scoreData.fairness_report.original_richness_5
-                              ) || 0)
-                            ).toFixed(2)}
-                          </Text>
-                        </View>
-                        <View style={styles.rowBarWrap}>
-                          <View
-                            style={[
-                              styles.rowBarBefore,
-                              {
-                                width: `${Math.max(
-                                  0,
-                                  Math.min(
-                                    100,
-                                    ((Number(
-                                      scoreData.fairness_report
-                                        .original_richness_5
-                                    ) || 0) /
-                                      5) *
-                                      100
-                                  )
-                                )}%`
-                              }
-                            ]}
-                          />
-                          <View
-                            style={[
-                              styles.rowBarAfter,
-                              {
-                                width: `${Math.max(
-                                  0,
-                                  Math.min(
-                                    100,
-                                    ((Number(
-                                      scoreData.fairness_report
-                                        .adjusted_richness_5
-                                    ) || 0) /
-                                      5) *
-                                      100
-                                  )
-                                )}%`
-                              }
-                            ]}
-                          />
-                        </View>
-
-                        <View
-                          style={[
-                            styles.tableRow,
-                            Platform.OS !== "web" && styles.tableRowMobile
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.tableLabel,
-                              { flex: 2 },
-                              Platform.OS !== "web" && styles.tableLabelMobile
-                            ]}
-                          >
-                            {t("essay.organization")}
-                          </Text>
-                          <Text style={[styles.tableValue, { flex: 1.2 }]}>
-                            {Platform.OS !== "web" ? "Before: " : ""}
-                            {scoreData.fairness_report.original_organization_6?.toFixed(2)}
-                          </Text>
-                          <Text
-                            style={[styles.tableValueAdjusted, { flex: 1.2 }]}
-                          >
-                            {Platform.OS !== "web" ? "After: " : ""}
-                            {scoreData.fairness_report.adjusted_organization_6?.toFixed(2)}
-                          </Text>
-                          <Text style={[styles.tableDelta, { flex: 1 }]}>
-                            +
-                            {(
-                              (Number(
-                                scoreData.fairness_report.adjusted_organization_6
-                              ) || 0) -
-                              (Number(
-                                scoreData.fairness_report.original_organization_6
-                              ) || 0)
-                            ).toFixed(2)}
-                          </Text>
-                        </View>
-                        <View style={styles.rowBarWrap}>
-                          <View
-                            style={[
-                              styles.rowBarBefore,
-                              {
-                                width: `${Math.max(
-                                  0,
-                                  Math.min(
-                                    100,
-                                    ((Number(
-                                      scoreData.fairness_report
-                                        .original_organization_6
-                                    ) || 0) /
-                                      6) *
-                                      100
-                                  )
-                                )}%`
-                              }
-                            ]}
-                          />
-                          <View
-                            style={[
-                              styles.rowBarAfter,
-                              {
-                                width: `${Math.max(
-                                  0,
-                                  Math.min(
-                                    100,
-                                    ((Number(
-                                      scoreData.fairness_report
-                                        .adjusted_organization_6
-                                    ) || 0) /
-                                      6) *
-                                      100
-                                  )
-                                )}%`
-                              }
-                            ]}
-                          />
-                        </View>
-
-                        <View
-                          style={[
-                            styles.tableRow,
-                            Platform.OS !== "web" && styles.tableRowMobile
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.tableLabel,
-                              { flex: 2 },
-                              Platform.OS !== "web" && styles.tableLabelMobile
-                            ]}
-                          >
-                            {t("essay.technicalSkills")}
-                          </Text>
-                          <Text style={[styles.tableValue, { flex: 1.2 }]}>
-                            {Platform.OS !== "web" ? "Before: " : ""}
-                            {scoreData.fairness_report.original_technical_3?.toFixed(2)}
-                          </Text>
-                          <Text
-                            style={[styles.tableValueAdjusted, { flex: 1.2 }]}
-                          >
-                            {Platform.OS !== "web" ? "After: " : ""}
-                            {scoreData.fairness_report.adjusted_technical_3?.toFixed(2)}
-                          </Text>
-                          <Text style={[styles.tableDelta, { flex: 1 }]}>
-                            +
-                            {(
-                              (Number(
-                                scoreData.fairness_report.adjusted_technical_3
-                              ) || 0) -
-                              (Number(
-                                scoreData.fairness_report.original_technical_3
-                              ) || 0)
-                            ).toFixed(2)}
-                          </Text>
-                        </View>
-                        <View style={styles.rowBarWrap}>
-                          <View
-                            style={[
-                              styles.rowBarBefore,
-                              {
-                                width: `${Math.max(
-                                  0,
-                                  Math.min(
-                                    100,
-                                    ((Number(
-                                      scoreData.fairness_report
-                                        .original_technical_3
-                                    ) || 0) /
-                                      3) *
-                                      100
-                                  )
-                                )}%`
-                              }
-                            ]}
-                          />
-                          <View
-                            style={[
-                              styles.rowBarAfter,
-                              {
-                                width: `${Math.max(
-                                  0,
-                                  Math.min(
-                                    100,
-                                    ((Number(
-                                      scoreData.fairness_report
-                                        .adjusted_technical_3
-                                    ) || 0) /
-                                      3) *
-                                      100
-                                  )
-                                )}%`
-                              }
-                            ]}
-                          />
-                        </View>
+                        {[
+                          {
+                            keyId: "richness",
+                            label: t("essay.richness"),
+                            original: scoreData.fairness_report.original_richness_5,
+                            adjusted: scoreData.fairness_report.adjusted_richness_5,
+                            max: 5
+                          },
+                          {
+                            keyId: "organization",
+                            label: t("essay.organization"),
+                            original:
+                              scoreData.fairness_report.original_organization_6,
+                            adjusted:
+                              scoreData.fairness_report.adjusted_organization_6,
+                            max: 6
+                          },
+                          {
+                            keyId: "technical",
+                            label: t("essay.technicalSkills"),
+                            original: scoreData.fairness_report.original_technical_3,
+                            adjusted: scoreData.fairness_report.adjusted_technical_3,
+                            max: 3
+                          }
+                        ].map(renderFairnessComparisonRow)}
                       </View>
                     </>
                   )}
@@ -1667,87 +1549,17 @@ export default function ImageDetailScreen() {
                         )}
                       </Text>
                       <View style={styles.penaltyChecksGroup}>
-                        <View style={styles.penaltyCheckBlock}>
-                          <Text style={styles.penaltyCheckLabel}>Punctuation Checks</Text>
-                          {scoreData.fairness_report.rubric_notes
-                            ?.technical_violations?.length > 0 ? (
-                            <View style={styles.issueBox}>
-                              <View style={styles.issueStatusBadge}>
-                                <MaterialIcons
-                                  name="error-outline"
-                                  size={14}
-                                  color="#F59E0B"
-                                />
-                                <Text style={styles.issueStatusText}>
-                                  Needs attention
-                                </Text>
-                              </View>
-                              <View style={styles.issueListContainer}>
-                                {scoreData.fairness_report.rubric_notes.technical_violations.map(
-                                  (item, idx) => (
-                                    <View
-                                      key={`technical-issue-${idx}`}
-                                      style={styles.issueItemRow}
-                                    >
-                                      <View style={styles.issueBullet} />
-                                      <Text style={styles.issueListText}>{item}</Text>
-                                    </View>
-                                  )
-                                )}
-                              </View>
-                            </View>
-                          ) : (
-                            <View style={styles.goodStatusBadge}>
-                              <MaterialIcons
-                                name="check-circle"
-                                size={14}
-                                color="#10B981"
-                              />
-                              <Text style={styles.goodStatusText}>No issues found</Text>
-                            </View>
-                          )}
-                        </View>
-
-                        <View style={styles.penaltyCheckBlock}>
-                          <Text style={styles.penaltyCheckLabel}>Grammar Check</Text>
-                          {scoreData.fairness_report.rubric_notes?.grammar_issues
-                            ?.length > 0 ? (
-                            <View style={styles.issueBox}>
-                              <View style={styles.issueStatusBadge}>
-                                <MaterialIcons
-                                  name="error-outline"
-                                  size={14}
-                                  color="#F59E0B"
-                                />
-                                <Text style={styles.issueStatusText}>
-                                  Needs attention
-                                </Text>
-                              </View>
-                              <View style={styles.issueListContainer}>
-                                {scoreData.fairness_report.rubric_notes.grammar_issues.map(
-                                  (item, idx) => (
-                                    <View
-                                      key={`grammar-issue-${idx}`}
-                                      style={styles.issueItemRow}
-                                    >
-                                      <View style={styles.issueBullet} />
-                                      <Text style={styles.issueListText}>{item}</Text>
-                                    </View>
-                                  )
-                                )}
-                              </View>
-                            </View>
-                          ) : (
-                            <View style={styles.goodStatusBadge}>
-                              <MaterialIcons
-                                name="check-circle"
-                                size={14}
-                                color="#10B981"
-                              />
-                              <Text style={styles.goodStatusText}>No issues found</Text>
-                            </View>
-                          )}
-                        </View>
+                        {renderPenaltyCheckBlock(
+                          "Punctuation Checks",
+                          scoreData.fairness_report.rubric_notes
+                            ?.technical_violations,
+                          "technical-violations"
+                        )}
+                        {renderPenaltyCheckBlock(
+                          "Grammar Check",
+                          scoreData.fairness_report.rubric_notes?.grammar_issues,
+                          "grammar-issues"
+                        )}
                       </View>
                     </View>
                   </View>
