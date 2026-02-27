@@ -399,7 +399,7 @@ export default function AICorrectionPanel({
         onPress={() => setIsCollapsed(!isCollapsed)}
       >
         <View style={styles.headerLeft}>
-          <MaterialIcons name="psychology" size={24} color="#8B5CF6" />
+          <MaterialIcons name="psychology" size={24} color="#22D3EE" />
           <Text style={styles.headerTitle}>{t("aiCorrection.title")}</Text>
           {analysisResult && errors.length > 0 && (
             <View style={styles.headerErrorCount}>
@@ -409,7 +409,7 @@ export default function AICorrectionPanel({
         </View>
         <View style={styles.headerRight}>
           {isHealthy === null ? (
-            <ActivityIndicator size="small" color="#8B5CF6" />
+            <ActivityIndicator size="small" color="#22D3EE" />
           ) : isHealthy ? (
             <View style={[styles.statusBadge, styles.statusOnline]}>
               <Text style={styles.statusText}>Online</Text>
@@ -440,17 +440,26 @@ export default function AICorrectionPanel({
                   : styles.bannerNormal,
               ]}
             >
-              <MaterialIcons
-                name={
+              <View
+                style={[
+                  styles.bannerIconWrap,
                   dyslexiaLabel === "DYSLEXIC ESSAY"
-                    ? "warning"
-                    : "check-circle"
-                }
-                size={20}
-                color={
-                  dyslexiaLabel === "DYSLEXIC ESSAY" ? "#F59E0B" : "#10B981"
-                }
-              />
+                    ? styles.bannerIconDyslexic
+                    : styles.bannerIconNormal,
+                ]}
+              >
+                <MaterialIcons
+                  name={
+                    dyslexiaLabel === "DYSLEXIC ESSAY"
+                      ? "tips-and-updates"
+                      : "verified"
+                  }
+                  size={18}
+                  color={
+                    dyslexiaLabel === "DYSLEXIC ESSAY" ? "#F59E0B" : "#10B981"
+                  }
+                />
+              </View>
               <View style={styles.bannerTextWrap}>
                 <Text style={styles.bannerTitle}>
                   {dyslexiaLabel === "DYSLEXIC ESSAY"
@@ -475,7 +484,7 @@ export default function AICorrectionPanel({
               <MaterialIcons
                 name="history"
                 size={20}
-                color={showHistory ? "#FFFFFF" : "#8B5CF6"}
+                color={showHistory ? "#FFFFFF" : "#22D3EE"}
               />
               <Text
                 style={[
@@ -504,7 +513,7 @@ export default function AICorrectionPanel({
             <MaterialIcons
               name={showManualInput ? "keyboard-hide" : "keyboard"}
               size={20}
-              color="#8B5CF6"
+              color="#22D3EE"
             />
             <Text style={styles.manualInputToggleText}>
               {showManualInput ? "Hide Input" : "Manual Text Input"}
@@ -597,7 +606,7 @@ export default function AICorrectionPanel({
                   <MaterialIcons
                     name="arrow-downward"
                     size={18}
-                    color="#8B5CF6"
+                    color="#22D3EE"
                   />
                 </View>
 
@@ -641,7 +650,7 @@ export default function AICorrectionPanel({
                   <MaterialIcons
                     name={showFinalEditor ? "visibility-off" : "edit-note"}
                     size={20}
-                    color="#F59E0B"
+                    color="#22D3EE"
                   />
                   <Text style={styles.teacherEditToggleText}>
                     {showFinalEditor ? "Hide Editor" : "Teacher Edit"}
@@ -674,7 +683,7 @@ export default function AICorrectionPanel({
                         <MaterialIcons
                           name="refresh"
                           size={16}
-                          color="#8B5CF6"
+                          color="#22D3EE"
                         />
                         <Text style={styles.refreshPreviewText}>
                           Reload Preview
@@ -765,11 +774,11 @@ export default function AICorrectionPanel({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#1F2937",
+    backgroundColor: "#131A2B",
     borderRadius: 12,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: "#374151",
+    borderColor: "#22324D",
     overflow: "hidden",
   },
 
@@ -779,7 +788,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#111827",
+    backgroundColor: "#0F1B33",
+    borderBottomWidth: 1,
+    borderBottomColor: "#22324D",
   },
   headerLeft: {
     flexDirection: "row",
@@ -788,7 +799,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#F3F4F6",
   },
   headerErrorCount: {
@@ -814,42 +825,55 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
-  statusOnline: { backgroundColor: "#064E3B" },
+  statusOnline: { backgroundColor: "#0D4B50" },
   statusOffline: { backgroundColor: "#7F1D1D" },
-  statusText: { fontSize: 12, color: "#10B981", fontWeight: "500" },
+  statusText: { fontSize: 12, color: "#5EEAD4", fontWeight: "700" },
   statusTextOffline: { fontSize: 12, color: "#FCA5A5", fontWeight: "500" },
 
   // ─── Content ───
-  content: { padding: 16 },
+  content: { padding: 16, backgroundColor: "#1B273B" },
 
   // ─── Dyslexia Banner ───
   dyslexiaBanner: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 10,
-    padding: 12,
-    borderRadius: 10,
+    padding: 14,
+    borderRadius: 12,
     marginBottom: 14,
     borderWidth: 1,
   },
   bannerDyslexic: {
-    backgroundColor: "#78350F30",
-    borderColor: "#F59E0B40",
+    backgroundColor: "rgba(245, 158, 11, 0.14)",
+    borderColor: "rgba(245, 158, 11, 0.50)",
   },
   bannerNormal: {
-    backgroundColor: "#064E3B30",
-    borderColor: "#10B98140",
+    backgroundColor: "rgba(16, 185, 129, 0.14)",
+    borderColor: "rgba(16, 185, 129, 0.45)",
+  },
+  bannerIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bannerIconDyslexic: {
+    backgroundColor: "rgba(245, 158, 11, 0.12)",
+  },
+  bannerIconNormal: {
+    backgroundColor: "rgba(16, 185, 129, 0.14)",
   },
   bannerTextWrap: { flex: 1 },
   bannerTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#F3F4F6",
+    color: "#EAF2FF",
     marginBottom: 2,
   },
   bannerSubtitle: {
     fontSize: 12,
-    color: "#9CA3AF",
+    color: "#D0DEF4",
   },
 
   // ─── History Toggle ───
@@ -858,7 +882,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginBottom: 12,
-    backgroundColor: "#1F2937",
+    backgroundColor: "#102238",
+    borderWidth: 1,
+    borderColor: "#1E3B5E",
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 8,
@@ -866,7 +892,7 @@ const styles = StyleSheet.create({
   },
   historyToggleText: {
     fontSize: 14,
-    color: "#8B5CF6",
+    color: "#67D7F8",
     fontWeight: "600",
   },
 
@@ -879,13 +905,13 @@ const styles = StyleSheet.create({
   },
   manualInputToggleText: {
     fontSize: 14,
-    color: "#8B5CF6",
-    fontWeight: "500",
+    color: "#67D7F8",
+    fontWeight: "600",
   },
   manualInput: {
-    backgroundColor: "#111827",
+    backgroundColor: "#0C172A",
     borderWidth: 1,
-    borderColor: "#374151",
+    borderColor: "#2A3A54",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
@@ -900,9 +926,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#2D5BDE",
+    borderWidth: 1,
+    borderColor: "#5B8BFF",
     padding: 14,
     borderRadius: 8,
+    shadowColor: "#2D5BDE",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 5,
   },
   analyzeButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   buttonDisabled: { opacity: 0.5 },
@@ -949,7 +982,7 @@ const styles = StyleSheet.create({
   },
   paneHint: {
     fontSize: 11,
-    color: "#6B7280",
+    color: "#8CA3C7",
     fontStyle: "italic",
   },
   separator: {
@@ -979,7 +1012,7 @@ const styles = StyleSheet.create({
   teacherEditToggleText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#F59E0B",
+    color: "#22D3EE",
   },
   teacherEditHint: {
     fontSize: 12,
@@ -987,10 +1020,10 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   finalEditorContainer: {
-    backgroundColor: "#111827",
+    backgroundColor: "#0E1A2E",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#F59E0B",
+    borderColor: "#22D3EE",
     padding: 12,
     marginBottom: 12,
   },
@@ -1022,7 +1055,7 @@ const styles = StyleSheet.create({
     gap: 4,
     padding: 6,
   },
-  refreshPreviewText: { fontSize: 12, color: "#8B5CF6", fontWeight: "500" },
+  refreshPreviewText: { fontSize: 12, color: "#22D3EE", fontWeight: "600" },
   charCount: { fontSize: 12, color: "#6B7280" },
 
   // ─── Apply Button ───
