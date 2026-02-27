@@ -1035,6 +1035,10 @@ export default function ImageDetailScreen() {
                 // ✅ REFRESH DATA FROM FIRESTORE - This ensures everything is in sync
                 await refreshImageData();
 
+                // End "Score Essay" loading as soon as scoring + save are complete.
+                // Mindmap/text feedback are optional follow-up tasks and should not block this button.
+                setIsScoring(false);
+
                 // ✅ GENERATE MINDMAP
                 try {
                   console.log("🧠 Generating mindmap for essay:", imageData.id);

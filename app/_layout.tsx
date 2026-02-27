@@ -78,6 +78,12 @@ function RootLayoutContent() {
         options={{ title: t("screenTitles.mindmapDemo") }}
       />
       <Stack.Screen
+        name="internal/fairness"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="shared/[shareId]"
         options={{ 
           headerShown: false,

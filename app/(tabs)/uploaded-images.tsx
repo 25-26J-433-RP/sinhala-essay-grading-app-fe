@@ -7,7 +7,7 @@ import { UserImageService } from "@/services/userImageService";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import React, { useEffect } from "react";
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
 
 export default function UploadedImagesScreen() {
   const { user } = useAuth();
@@ -108,27 +108,10 @@ export default function UploadedImagesScreen() {
             },
           });
         }}
-        scrollEnabled={Platform.OS !== "web"}
+        scrollEnabled={true}
         hideStudentCount={false}
       />
     );
-
-    if (Platform.OS === "web") {
-      return (
-        <View style={styles.fullBg}>
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={true}
-          >
-            <View style={styles.container}>
-              <AppHeader />
-              {Content}
-            </View>
-          </ScrollView>
-        </View>
-      );
-    }
 
     return (
       <View style={styles.fullBg}>
@@ -188,10 +171,6 @@ const styles = StyleSheet.create({
     maxWidth: 1200,
     marginHorizontal: "auto",
     width: "100%",
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,

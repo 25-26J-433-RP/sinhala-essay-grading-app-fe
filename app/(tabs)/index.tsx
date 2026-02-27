@@ -19,7 +19,11 @@ export default function HomeScreen() {
   const { userProfile, profileLoading, isStudent, isTeacher, role } = useRole();
   const { t, language } = useLanguage();
 
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<{
+    totalImages: number;
+    avgScore: number;
+    totalStudents: number;
+  } | null>(null);
   const [recentImages, setRecentImages] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -27,11 +31,26 @@ export default function HomeScreen() {
     async function loadDashboardData() {
       if (user?.uid) {
         try {
-          const [uStats, uImages] = await Promise.all([
+          const [uStats, uImages, students] = await Promise.all([
             UserImageService.getUserUploadStats(user.uid),
-            UserImageService.getUserImages(user.uid)
+            UserImageService.getUserImages(user.uid),
+            UserImageService.getStudents(user.uid),
           ]);
-          setStats(uStats);
+          const scoredImages = uImages.filter(
+            (img) => typeof img.score === "number" && Number.isFinite(img.score)
+          );
+          const avgScore = scoredImages.length
+            ? Math.round(
+                scoredImages.reduce((sum, img) => sum + (img.score as number), 0) /
+                  scoredImages.length
+              )
+            : 0;
+
+          setStats({
+            totalImages: uStats.totalImages,
+            avgScore,
+            totalStudents: students.length,
+          });
           setRecentImages(uImages.slice(0, 10));
         } catch (error) {
           console.error("Dashboard load error:", error);
@@ -176,11 +195,11 @@ export default function HomeScreen() {
               <Text style={styles.statLbl}>{language === "si" ? "නිබන්ධන" : "Essays"}</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statVal}>84%</Text>
+              <Text style={styles.statVal}>{stats?.avgScore ?? 0}%</Text>
               <Text style={styles.statLbl}>{language === "si" ? "සාමාන්‍යය" : "Avg. Score"}</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statVal}>12</Text>
+              <Text style={styles.statVal}>{stats?.totalStudents ?? 0}</Text>
               <Text style={styles.statLbl}>{language === "si" ? "සිසුන්" : "Students"}</Text>
             </View>
           </View>
