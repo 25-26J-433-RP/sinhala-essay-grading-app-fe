@@ -910,24 +910,37 @@ export default function ImageDetailScreen() {
               try {
                 const trimmedEssay = inputText.trim();
                 const trimmedTopic = essayTopic.trim();
-                // STEP 1: Run BINARY detection only
-                setIsDetecting(true);
 
-                const binaryResult = await predictBinary(trimmedEssay);
+                // ─── DYSLEXIC STATUS PRESERVATION ───
+                // If the student was ALREADY detected as dyslexic from the original
+                // (uncorrected) text, we KEEP that flag. The dyslexic status is a
+                // STUDENT attribute — correcting their essay text does not change
+                // whether they are dyslexic. Re-running detection on corrected text
+                // would falsely flip the flag to false.
+                let detectedDyslexic = isDyslexic;
+                let currentLabel = dyslexiaLabel;
 
-                setIsDetecting(false);
+                if (!isDyslexic) {
+                  // Only run binary detection if NOT already flagged as dyslexic
+                  // (e.g., fresh essay with no prior detection)
+                  setIsDetecting(true);
+                  const binaryResult = await predictBinary(trimmedEssay);
+                  setIsDetecting(false);
 
-                const detectedDyslexic =
-                  binaryResult.essay_label === "DYSLEXIC ESSAY";
+                  detectedDyslexic = binaryResult.essay_label === "DYSLEXIC ESSAY";
+                  currentLabel = binaryResult.essay_label;
 
-                setIsDyslexic(detectedDyslexic);
-                setDyslexiaLabel(binaryResult.essay_label);
+                  setIsDyslexic(detectedDyslexic);
+                  setDyslexiaLabel(currentLabel);
 
-                // Save binary result
-                await UserImageService.updateImageDyslexiaResult(imageData.id, {
-                  ...binaryResult,
-                  model_version: "v2"
-                });
+                  // Save binary result
+                  await UserImageService.updateImageDyslexiaResult(imageData.id, {
+                    ...binaryResult,
+                    model_version: "v2"
+                  });
+                } else {
+                  console.log("🛡️ Dyslexic status preserved from initial detection — skipping re-analysis on corrected text");
+                }
 
                 // STEP 2: ONLY if dyslexic → run patterns
                 if (detectedDyslexic) {
