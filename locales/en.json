@@ -472,5 +472,17 @@
     "learnMore": "Learn More",
     "footerText": "© {{year}} Akura Essay Grading System. All rights reserved.",
     "footerDescription": "Empowering students and teachers with AI-powered essay evaluation for the Sinhala education system."
+  },
+  "tooltips": {
+    "composite_score": "Combined confidence score (0–1). Weighted mean (60%) + peak sentence probability (40%). Above 0.75 with high ratio = DYSLEXIC.",
+    "weighted_mean_prob": "Average probability across all sentences, weighted by word count. Longer sentences carry more influence.",
+    "peak_sentence_prob": "The most dyslexic single sentence found in the essay. Shows the strongest signal detected.",
+    "dyslexic_ratio": "Fraction of sentences flagged as dyslexic. Needs to be ≥ 0.40 combined with a high score to confirm DYSLEXIC.",
+    "risk_score": "0–100 score combining pattern dominance (60%) and sentence density (40%). Higher = stronger, more consistent dyslexic patterns.",
+    "Phonetic": "Child writes words based on how they sound, not standard spelling. E.g. 'ලනගට' instead of 'ලැඟගට'.",
+    "Grammar": "Wrong verb forms, tense errors, or structural mistakes in sentence construction.",
+    "Spelling": "Incorrect letters, missing characters, or wrong orthographic forms.",
+    "Visual": "Letter reversals, visual scrambling, or misordering of characters.",
+    "Normal": "Probability that the sentence looks like normal writing. Low Normal % = high confidence something is wrong."
   }
 }
