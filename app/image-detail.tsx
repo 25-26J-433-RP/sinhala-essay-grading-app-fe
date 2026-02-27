@@ -68,6 +68,14 @@ function cleanFirestore(obj: any) {
   );
 }
 
+function isSafeUrl(url: string, allowMailto = false) {
+  if (!url) return false;
+  const normalized = url.trim();
+  if (/^https?:\/\//i.test(normalized)) return true;
+  if (allowMailto && /^mailto:/i.test(normalized)) return true;
+  return false;
+}
+
 export default function ImageDetailScreen() {
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -617,7 +625,11 @@ export default function ImageDetailScreen() {
         const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
 
         try {
-          await Linking.openURL(mailtoLink);
+          if (isSafeUrl(mailtoLink, true)) {
+            await Linking.openURL(mailtoLink);
+          } else {
+            throw new Error("Blocked unsafe URL scheme");
+          }
         } catch (err) {
           console.log("Mail app not available, link is in clipboard");
         }
@@ -790,7 +802,7 @@ export default function ImageDetailScreen() {
           ) : imageUrlResolved ? (
             Platform.OS === "web" ? (
               <img
-                src={imageUrlResolved}
+                src={isSafeUrl(imageUrlResolved) ? imageUrlResolved : ""}
                 style={{
                   width: "100%",
                   height: 300,
