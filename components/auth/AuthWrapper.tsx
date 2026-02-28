@@ -13,8 +13,12 @@ export default function AuthWrapper({
   const router = useRouter();
   const segments = useSegments();
   const [checkingStudentProfile, setCheckingStudentProfile] = useState(false);
+  const isInternalRoute = segments[0] === "internal";
 
   useEffect(() => {
+    // Keep internal dashboards reachable even if profile bootstrap is incomplete.
+    if (isInternalRoute) return;
+
     if (loading || profileLoading) return;
 
     const inAuthGroup =
@@ -42,7 +46,7 @@ export default function AuthWrapper({
         }
       }
     }
-  }, [user, loading, userProfile, profileLoading, segments, router]);
+  }, [user, loading, userProfile, profileLoading, segments, router, isInternalRoute]);
 
   const checkStudentProfile = async () => {
     if (!user) return;
@@ -66,7 +70,7 @@ export default function AuthWrapper({
     }
   };
 
-  if (loading || profileLoading || checkingStudentProfile) {
+  if (!isInternalRoute && (loading || profileLoading || checkingStudentProfile)) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />

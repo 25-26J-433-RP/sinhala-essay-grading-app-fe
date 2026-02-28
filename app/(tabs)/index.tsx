@@ -19,7 +19,11 @@ export default function HomeScreen() {
   const { userProfile, profileLoading, isStudent, isTeacher, role } = useRole();
   const { t, language } = useLanguage();
 
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<{
+    totalImages: number;
+    avgScore: number;
+    totalStudents: number;
+  } | null>(null);
   const [recentImages, setRecentImages] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -27,11 +31,26 @@ export default function HomeScreen() {
     async function loadDashboardData() {
       if (user?.uid) {
         try {
-          const [uStats, uImages] = await Promise.all([
+          const [uStats, uImages, students] = await Promise.all([
             UserImageService.getUserUploadStats(user.uid),
-            UserImageService.getUserImages(user.uid)
+            UserImageService.getUserImages(user.uid),
+            UserImageService.getStudents(user.uid),
           ]);
-          setStats(uStats);
+          const scoredImages = uImages.filter(
+            (img) => typeof img.score === "number" && Number.isFinite(img.score)
+          );
+          const avgScore = scoredImages.length
+            ? Math.round(
+                scoredImages.reduce((sum, img) => sum + (img.score as number), 0) /
+                  scoredImages.length
+              )
+            : 0;
+
+          setStats({
+            totalImages: uStats.totalImages,
+            avgScore,
+            totalStudents: students.length,
+          });
           setRecentImages(uImages.slice(0, 10));
         } catch (error) {
           console.error("Dashboard load error:", error);
@@ -137,7 +156,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Immersive Header Card */}
-        <View style={styles.heroCard}>
+        <View style={[styles.heroCard, isDesktop && styles.heroCardDesktop]}>
           <View style={styles.heroContent}>
             <Text style={styles.heroOverline}>
               {language === "si" ? "ඔබේ සහායකයා" : "YOUR AI ASSISTANT"}
@@ -145,7 +164,7 @@ export default function HomeScreen() {
             <Text style={styles.heroTitle}>
               {language === "si" ? "නිවැරදිව පරීක්ෂා කර ලකුණු දෙන්න" : "Precision Grading \nMade Simple"}
             </Text>
-            <Text style={styles.heroDesc}>
+            <Text style={[styles.heroDesc, isDesktop && styles.heroDescDesktop]}>
               {language === "si" ? "සිංහල නිබන්ධන සඳහා කෘතිම බුද්ධියෙන් බලවත් වූ ඇගයීම් ලබා ගන්න." : "Get AI-powered insights and fair scoring for every Sinhala essay."}
             </Text>
 
@@ -171,16 +190,16 @@ export default function HomeScreen() {
           </Text>
 
           <View style={styles.statsRow}>
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, isDesktop && styles.statCardDesktop]}>
               <Text style={styles.statVal}>{stats?.totalImages || 0}</Text>
               <Text style={styles.statLbl}>{language === "si" ? "නිබන්ධන" : "Essays"}</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statVal}>84%</Text>
+            <View style={[styles.statCard, isDesktop && styles.statCardDesktop]}>
+              <Text style={styles.statVal}>{stats?.avgScore ?? 0}%</Text>
               <Text style={styles.statLbl}>{language === "si" ? "සාමාන්‍යය" : "Avg. Score"}</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statVal}>12</Text>
+            <View style={[styles.statCard, isDesktop && styles.statCardDesktop]}>
+              <Text style={styles.statVal}>{stats?.totalStudents ?? 0}</Text>
               <Text style={styles.statLbl}>{language === "si" ? "සිසුන්" : "Students"}</Text>
             </View>
           </View>
@@ -312,8 +331,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     position: "relative",
     padding: 24,
-    minHeight: 320,
+    minHeight: 280,
     justifyContent: "center",
+  },
+  heroCardDesktop: {
+    minHeight: 250,
+    paddingVertical: 20,
   },
   heroContent: {
     zIndex: 2,
@@ -336,8 +359,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#9CA3AF",
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: 24,
     maxWidth: "80%",
+  },
+  heroDescDesktop: {
+    maxWidth: "62%",
   },
   primaryBtn: {
     backgroundColor: "#FFFFFF",
@@ -371,13 +397,13 @@ const styles = StyleSheet.create({
   },
   dashboardSection: {
     paddingHorizontal: 24,
-    marginTop: 10,
+    marginTop: 4,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "800",
     color: "#FFFFFF",
-    marginBottom: 16,
+    marginBottom: 12,
     letterSpacing: 0.5,
   },
   statsRow: {
@@ -387,14 +413,18 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: "#1C1E26",
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#2D313E",
     alignItems: "center",
   },
+  statCardDesktop: {
+    paddingVertical: 12,
+  },
   statVal: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "800",
     color: "#FFFFFF",
   },
@@ -405,7 +435,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   activitySection: {
-    marginTop: 32,
+    marginTop: 20,
     paddingLeft: 24,
   },
   sectionHeader: {

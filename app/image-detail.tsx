@@ -21,6 +21,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View
 } from "react-native";
 
@@ -68,7 +69,18 @@ function cleanFirestore(obj: any) {
   );
 }
 
+function isSafeUrl(url: string, allowMailto = false) {
+  if (!url) return false;
+  const normalized = url.trim();
+  if (/^https?:\/\//i.test(normalized)) return true;
+  if (allowMailto && /^mailto:/i.test(normalized)) return true;
+  return false;
+}
+
 export default function ImageDetailScreen() {
+  const { width: viewportWidth } = useWindowDimensions();
+  const isCompactLayout = viewportWidth <= 480;
+
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageUrlResolved, setImageUrlResolved] = useState<string | null>(null);
@@ -133,6 +145,7 @@ export default function ImageDetailScreen() {
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { t } = useLanguage();
+  const topicLabel = t("essay.topic").replace(/\s*\(.*?\)\s*/g, "").trim();
   // const DEBUG = __DEV__ === true; // not used currently
 
   // Monitor scoreData changes
@@ -616,7 +629,11 @@ export default function ImageDetailScreen() {
         const mailtoLink = `mailto:?subject=${subject}&body=${body}`;
 
         try {
-          await Linking.openURL(mailtoLink);
+          if (isSafeUrl(mailtoLink, true)) {
+            await Linking.openURL(mailtoLink);
+          } else {
+            throw new Error("Blocked unsafe URL scheme");
+          }
         } catch (err) {
           console.log("Mail app not available, link is in clipboard");
         }
@@ -680,6 +697,154 @@ export default function ImageDetailScreen() {
     );
   }
 
+  const getBarWidth = (value: number | undefined, max: number) =>
+    `${Math.max(0, Math.min(100, ((Number(value) || 0) / max) * 100))}%`;
+
+  const renderFairnessComparisonRow = ({
+    keyId,
+    label,
+    original,
+    adjusted,
+    max
+  }: {
+    keyId: string;
+    label: string;
+    original: number | undefined;
+    adjusted: number | undefined;
+    max: number;
+  }) => {
+    const delta = (Number(adjusted) || 0) - (Number(original) || 0);
+
+    return (
+      <React.Fragment key={keyId}>
+        <View
+          style={[styles.tableRow, isCompactLayout && styles.tableRowMobile]}
+        >
+          <Text
+            style={[
+              styles.tableLabel,
+              { flex: 2 },
+              isCompactLayout && styles.tableLabelMobile
+            ]}
+          >
+            {label}
+          </Text>
+          <Text style={[styles.tableValue, { flex: 1.2 }]}>
+            {isCompactLayout ? "Before: " : ""}
+            {original?.toFixed(2)}
+          </Text>
+          <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
+            {isCompactLayout ? "After: " : ""}
+            {adjusted?.toFixed(2)}
+          </Text>
+          <Text style={[styles.tableDelta, { flex: 1 }]}>+{delta.toFixed(2)}</Text>
+        </View>
+        <View style={styles.rowBarWrap}>
+          <View
+            style={[styles.rowBarBefore, { width: getBarWidth(original, max) }]}
+          />
+          <View
+            style={[styles.rowBarAfter, { width: getBarWidth(adjusted, max) }]}
+          />
+        </View>
+      </React.Fragment>
+    );
+  };
+
+  const renderFairnessSummaryCard = ({
+    keyId,
+    label,
+    value,
+    boost = false
+  }: {
+    keyId: string;
+    label: string;
+    value: string;
+    boost?: boolean;
+  }) => (
+    <View
+      key={keyId}
+      style={[
+        styles.fairnessSummaryCard,
+        isCompactLayout && styles.fairnessSummaryCardCompact
+      ]}
+    >
+      <Text style={styles.fairnessSummaryLabel}>{label}</Text>
+      <Text style={boost ? styles.fairnessSummaryValueBoost : styles.fairnessSummaryValue}>
+        {value}
+      </Text>
+    </View>
+  );
+
+  const renderRubricNoteCard = ({
+    keyId,
+    label,
+    typeLabel,
+    itemStyle,
+    pillStyle,
+    value,
+    valueStyle
+  }: {
+    keyId: string;
+    label: string;
+    typeLabel: string;
+    itemStyle: any;
+    pillStyle: any;
+    value: string | number | undefined;
+    valueStyle?: any;
+  }) => (
+    <View
+      key={keyId}
+      style={[
+        styles.noteGridItem,
+        itemStyle,
+        isCompactLayout && styles.noteGridItemCompact
+      ]}
+    >
+      <View style={styles.noteGridHeaderRow}>
+        <Text style={styles.noteGridLabel}>{label}</Text>
+        <Text style={[styles.noteTypePill, pillStyle]}>{typeLabel}</Text>
+      </View>
+      <Text style={[styles.noteGridValue, valueStyle]}>{value}</Text>
+    </View>
+  );
+
+  const renderPenaltyCheckBlock = (
+    label: string,
+    issues: string[] | undefined,
+    keyPrefix: string
+  ) => {
+    const safeIssues = Array.isArray(issues) ? issues : [];
+    const hasIssues = safeIssues.length > 0;
+
+    return (
+      <View style={styles.penaltyCheckBlock} key={keyPrefix}>
+        <Text style={styles.penaltyCheckLabel}>{label}</Text>
+        {hasIssues ? (
+          <View style={styles.issueBox}>
+            <View style={styles.issueStatusBadge}>
+              <MaterialIcons name="error-outline" size={14} color="#F59E0B" />
+              <Text style={styles.issueStatusText}>Needs attention</Text>
+            </View>
+            <View style={styles.issueListContainer}>
+              {safeIssues.map((item, idx) => (
+                <View key={`${keyPrefix}-${idx}`} style={styles.issueItemRow}>
+                  <View style={styles.issueBullet} />
+                  <Text style={styles.issueListText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <View style={styles.goodStatusBadge}>
+            <MaterialIcons name="check-circle" size={14} color="#10B981" />
+            <Text style={styles.goodStatusText}>No issues found</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   return (
     <ScrollView style={styles.container} ref={scrollViewRef}>
       <View>
@@ -699,7 +864,7 @@ export default function ImageDetailScreen() {
           ) : imageUrlResolved ? (
             Platform.OS === "web" ? (
               <img
-                src={imageUrlResolved}
+                src={isSafeUrl(imageUrlResolved) ? imageUrlResolved : ""}
                 style={{
                   width: "100%",
                   height: 300,
@@ -841,14 +1006,14 @@ export default function ImageDetailScreen() {
               {selectedGrade && (
                 <View style={styles.gradeBadge}>
                   <MaterialIcons name="school" size={14} color="#3B82F6" />
-                  <Text style={styles.gradeBadgeText}>
-                    {t("student.grade")} {selectedGrade}
-                  </Text>
+                  <Text style={styles.badgeLabel}>{t("student.grade")}</Text>
+                  <Text style={styles.gradeBadgeText}>{selectedGrade}</Text>
                 </View>
               )}
               {imageData?.studentId && (
                 <View style={styles.idBadge}>
                   <MaterialIcons name="person" size={14} color="#10B981" />
+                  <Text style={styles.badgeLabel}>Student</Text>
                   <Text style={styles.idBadgeText}>{imageData.studentId}</Text>
                 </View>
               )}
@@ -856,7 +1021,7 @@ export default function ImageDetailScreen() {
           </View>
 
           {/* Topic */}
-          <Text style={styles.detailLabel}>{t("essay.topic")}</Text>
+          <Text style={styles.detailLabel}>{topicLabel}</Text>
           <TextInput
             value={essayTopic}
             onChangeText={setEssayTopic}
@@ -899,6 +1064,7 @@ export default function ImageDetailScreen() {
           <TouchableOpacity
             style={[styles.scoreButton, isScoring && { opacity: 0.6 }]}
             disabled={isScoring}
+            activeOpacity={0.92}
             onPress={async () => {
               if (!inputText.trim()) {
                 Alert.alert(t("essay.validation"), t("essay.pleaseEnterEssay"));
@@ -1035,6 +1201,10 @@ export default function ImageDetailScreen() {
                 // ✅ REFRESH DATA FROM FIRESTORE - This ensures everything is in sync
                 await refreshImageData();
 
+                // End "Score Essay" loading as soon as scoring + save are complete.
+                // Mindmap/text feedback are optional follow-up tasks and should not block this button.
+                setIsScoring(false);
+
                 // ✅ GENERATE MINDMAP
                 try {
                   console.log("🧠 Generating mindmap for essay:", imageData.id);
@@ -1104,23 +1274,24 @@ export default function ImageDetailScreen() {
               }
             }}
           >
-            <LinearGradient
-              colors={["#007AFF", "#2563EB"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.scoreButtonGradient}
-            >
+            <View style={styles.scoreButtonGradient}>
               {isScoring ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <MaterialIcons name="analytics" size={20} color="#fff" />
+                  <View style={styles.scoreButtonIconWrap}>
+                    <MaterialIcons
+                      name="analytics"
+                      size={16}
+                      color="#DBEAFE"
+                    />
+                  </View>
                   <Text style={styles.scoreButtonText}>
                     {t("essay.scoreEssay")}
                   </Text>
                 </>
               )}
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -1141,12 +1312,14 @@ export default function ImageDetailScreen() {
                 Model: {scoreData.details.model}
               </Text> */}
 
-              <Text style={styles.scoreDetail}>
-                {t("fairness.dyslexic")}:{" "}
-                {scoreData.details.dyslexic_flag
-                  ? t("common.yes")
-                  : t("common.no")}
-              </Text>
+              <View style={styles.scoreMetaRow}>
+                {scoreData.details.dyslexic_flag && (
+                  <View style={styles.scoreMetaChip}>
+                    <MaterialIcons name="verified" size={13} color="#22D3EE" />
+                    <Text style={styles.scoreMetaText}>Fairness On</Text>
+                  </View>
+                )}
+              </View>
 
               {/* <Text style={styles.scoreDetail}>
                 Topic: {scoreData.details.topic || "â€”"}
@@ -1170,6 +1343,23 @@ export default function ImageDetailScreen() {
                 </Text>
               </View>
 
+              <View style={styles.rubricBarTrack}>
+                <View
+                  style={[
+                    styles.rubricBarFill,
+                    {
+                      width: `${Math.max(
+                        0,
+                        Math.min(
+                          100,
+                          ((Number(scoreData.rubric?.richness_5) || 0) / 5) * 100
+                        )
+                      )}%`,
+                    },
+                  ]}
+                />
+              </View>
+
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>
                   {t("essay.organization")} (6)
@@ -1179,6 +1369,23 @@ export default function ImageDetailScreen() {
                 </Text>
               </View>
 
+              <View style={styles.rubricBarTrack}>
+                <View
+                  style={[
+                    styles.rubricBarFill,
+                    {
+                      width: `${Math.max(
+                        0,
+                        Math.min(
+                          100,
+                          ((Number(scoreData.rubric?.organization_6) || 0) / 6) * 100
+                        )
+                      )}%`,
+                    },
+                  ]}
+                />
+              </View>
+
               <View style={styles.rubricRow}>
                 <Text style={styles.rubricLabel}>
                   {t("essay.technicalSkills")} (3)
@@ -1186,6 +1393,23 @@ export default function ImageDetailScreen() {
                 <Text style={styles.rubricValue}>
                   {scoreData.rubric?.technical_3 ?? "—"}
                 </Text>
+              </View>
+
+              <View style={styles.rubricBarTrack}>
+                <View
+                  style={[
+                    styles.rubricBarFill,
+                    {
+                      width: `${Math.max(
+                        0,
+                        Math.min(
+                          100,
+                          ((Number(scoreData.rubric?.technical_3) || 0) / 3) * 100
+                        )
+                      )}%`,
+                    },
+                  ]}
+                />
               </View>
 
               <View style={styles.rubricTotalRow}>
@@ -1226,87 +1450,88 @@ export default function ImageDetailScreen() {
                 <View style={styles.fairnessContent}>
                   {scoreData.details.dyslexic_flag && (
                     <>
+                      <View
+                        style={[
+                          styles.fairnessSummaryGrid,
+                          isCompactLayout && styles.fairnessSummaryGridCompact
+                        ]}
+                      >
+                        {[
+                          {
+                            keyId: "before",
+                            label: "Before",
+                            value: (
+                              (Number(scoreData.fairness_report.original_richness_5) || 0) +
+                              (Number(scoreData.fairness_report.original_organization_6) || 0) +
+                              (Number(scoreData.fairness_report.original_technical_3) || 0)
+                            ).toFixed(2)
+                          },
+                          {
+                            keyId: "after",
+                            label: "After",
+                            value: (
+                              (Number(scoreData.fairness_report.adjusted_richness_5) || 0) +
+                              (Number(scoreData.fairness_report.adjusted_organization_6) || 0) +
+                              (Number(scoreData.fairness_report.adjusted_technical_3) || 0)
+                            ).toFixed(2)
+                          },
+                          {
+                            keyId: "added",
+                            label: "Added",
+                            value: `+${Number(scoreData.fairness_report.total_boost || 0).toFixed(2)}`,
+                            boost: true
+                          }
+                        ].map(renderFairnessSummaryCard)}
+                      </View>
+
                       <Text style={styles.fairnessSectionTitle}>
                         {t("fairness.comparisonTitle")}
                       </Text>
 
                       {/* Comparison Table */}
                       <View style={styles.comparisonTable}>
-                        <View style={styles.tableHeader}>
-                          <Text style={[styles.tableHeaderText, { flex: 2 }]}>
-                            {t("fairness.component")}
-                          </Text>
-                          <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
-                            {t("fairness.original")}
-                          </Text>
-                          <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
-                            {t("fairness.adjusted")}
-                          </Text>
-                        </View>
+                        {!isCompactLayout && (
+                          <View style={styles.tableHeader}>
+                            <Text style={[styles.tableHeaderText, { flex: 2 }]}>
+                              {t("fairness.component")}
+                            </Text>
+                            <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
+                              Before
+                            </Text>
+                            <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
+                              After
+                            </Text>
+                            <Text style={[styles.tableHeaderText, { flex: 1 }]}>
+                              Added
+                            </Text>
+                          </View>
+                        )}
 
-                        <View style={styles.tableRow}>
-                          <Text style={[styles.tableLabel, { flex: 2 }]}>
-                            {t("essay.richness")}
-                          </Text>
-                          <Text style={[styles.tableValue, { flex: 1.2 }]}>
-                            {scoreData.fairness_report.original_richness_5?.toFixed(
-                              2
-                            )}
-                          </Text>
-                          <Text
-                            style={[styles.tableValueAdjusted, { flex: 1.2 }]}
-                          >
-                            {scoreData.fairness_report.adjusted_richness_5?.toFixed(
-                              2
-                            )}
-                          </Text>
-                        </View>
-
-                        <View style={styles.tableRow}>
-                          <Text style={[styles.tableLabel, { flex: 2 }]}>
-                            {t("essay.organization")}
-                          </Text>
-                          <Text style={[styles.tableValue, { flex: 1.2 }]}>
-                            {scoreData.fairness_report.original_organization_6?.toFixed(
-                              2
-                            )}
-                          </Text>
-                          <Text
-                            style={[styles.tableValueAdjusted, { flex: 1.2 }]}
-                          >
-                            {scoreData.fairness_report.adjusted_organization_6?.toFixed(
-                              2
-                            )}
-                          </Text>
-                        </View>
-
-                        <View style={styles.tableRow}>
-                          <Text style={[styles.tableLabel, { flex: 2 }]}>
-                            {t("essay.technicalSkills")}
-                          </Text>
-                          <Text style={[styles.tableValue, { flex: 1.2 }]}>
-                            {scoreData.fairness_report.original_technical_3?.toFixed(
-                              2
-                            )}
-                          </Text>
-                          <Text
-                            style={[styles.tableValueAdjusted, { flex: 1.2 }]}
-                          >
-                            {scoreData.fairness_report.adjusted_technical_3?.toFixed(
-                              2
-                            )}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.boostInfoRow}>
-                        <View style={styles.boostDot} />
-                        <Text style={styles.boostText}>
-                          {t("fairness.boostText", {
-                            boost:
-                              scoreData.fairness_report.total_boost?.toFixed(2)
-                          })}
-                        </Text>
+                        {[
+                          {
+                            keyId: "richness",
+                            label: t("essay.richness"),
+                            original: scoreData.fairness_report.original_richness_5,
+                            adjusted: scoreData.fairness_report.adjusted_richness_5,
+                            max: 5
+                          },
+                          {
+                            keyId: "organization",
+                            label: t("essay.organization"),
+                            original:
+                              scoreData.fairness_report.original_organization_6,
+                            adjusted:
+                              scoreData.fairness_report.adjusted_organization_6,
+                            max: 6
+                          },
+                          {
+                            keyId: "technical",
+                            label: t("essay.technicalSkills"),
+                            original: scoreData.fairness_report.original_technical_3,
+                            adjusted: scoreData.fairness_report.adjusted_technical_3,
+                            max: 3
+                          }
+                        ].map(renderFairnessComparisonRow)}
                       </View>
                     </>
                   )}
@@ -1314,88 +1539,80 @@ export default function ImageDetailScreen() {
                   {/* Rubric Notes Sub-section */}
                   <View style={styles.rubricNotesContainerSection}>
                     <Text style={styles.rubricNotesTitle}>
-                      {t("fairness.rubricNotes")}
+                      Rubric Notes & Penalties
                     </Text>
 
-                    <View style={styles.notesGrid}>
-                      <View style={styles.noteGridItem}>
-                        <Text style={styles.noteGridLabel}>
-                          {t("fairness.themeRelevance")}
-                        </Text>
-                        <Text style={styles.noteGridValue}>
-                          {scoreData.fairness_report.rubric_notes?.theme_relevance?.toFixed(
-                            2
-                          )}
-                        </Text>
-                      </View>
-                      <View style={styles.noteGridItem}>
-                        <Text style={styles.noteGridLabel}>
-                          {t("fairness.themePenalty")}
-                        </Text>
-                        <Text style={styles.noteGridValue}>
-                          {scoreData.fairness_report.rubric_notes?.theme_penalty?.toFixed(
-                            2
-                          )}
-                        </Text>
-                      </View>
-                      <View style={styles.noteGridItem}>
-                        <Text style={styles.noteGridLabel}>
-                          {t("fairness.wordCount")}
-                        </Text>
-                        <Text style={styles.noteGridValue}>
-                          {scoreData.fairness_report.rubric_notes?.word_count}
-                        </Text>
-                      </View>
-                      <View style={styles.noteGridItem}>
-                        <Text style={styles.noteGridLabel}>
-                          {t("fairness.wordCountPenalty")}
-                        </Text>
-                        <Text style={styles.noteGridValue}>
-                          {scoreData.fairness_report.rubric_notes?.word_count_penalty?.toFixed(
-                            2
-                          )}
-                        </Text>
-                      </View>
+                    <View
+                      style={[
+                        styles.notesGrid,
+                        isCompactLayout && styles.notesGridCompact
+                      ]}
+                    >
+                      {[
+                        {
+                          keyId: "theme-relevance",
+                          label: t("fairness.themeRelevance"),
+                          typeLabel: "Score",
+                          itemStyle: styles.noteGridItemScore,
+                          pillStyle: styles.noteTypePillScore,
+                          value: scoreData.fairness_report.rubric_notes?.theme_relevance?.toFixed(2)
+                        },
+                        {
+                          keyId: "theme-penalty",
+                          label: t("fairness.themePenalty"),
+                          typeLabel: "Penalty",
+                          itemStyle: styles.noteGridItemPenalty,
+                          pillStyle: styles.noteTypePillPenalty,
+                          value: scoreData.fairness_report.rubric_notes?.theme_penalty?.toFixed(2),
+                          valueStyle: styles.noteGridValuePenalty
+                        },
+                        {
+                          keyId: "word-count",
+                          label: t("fairness.wordCount"),
+                          typeLabel: "Count",
+                          itemStyle: styles.noteGridItemInfo,
+                          pillStyle: styles.noteTypePillInfo,
+                          value: scoreData.fairness_report.rubric_notes?.word_count
+                        },
+                        {
+                          keyId: "word-count-penalty",
+                          label: t("fairness.wordCountPenalty"),
+                          typeLabel: "Penalty",
+                          itemStyle: styles.noteGridItemPenalty,
+                          pillStyle: styles.noteTypePillPenalty,
+                          value: scoreData.fairness_report.rubric_notes?.word_count_penalty?.toFixed(2),
+                          valueStyle: styles.noteGridValuePenalty
+                        }
+                      ].map(renderRubricNoteCard)}
                     </View>
 
-                    <View style={styles.longNoteItem}>
-                      <Text style={styles.noteGridLabel}>
-                        {t("fairness.technicalPenalty")}
-                      </Text>
-                      <Text style={styles.noteGridValue}>
+                    <View style={[styles.longNoteItem, styles.noteGridItemPenalty]}>
+                      <View style={styles.noteGridHeaderRow}>
+                        <Text style={styles.noteGridLabel}>
+                          Technical Penalty
+                        </Text>
+                        <Text style={[styles.noteTypePill, styles.noteTypePillPenalty]}>
+                          Penalty
+                        </Text>
+                      </View>
+                      <Text style={[styles.noteGridValue, styles.noteGridValuePenalty]}>
                         {scoreData.fairness_report.rubric_notes?.technical_penalty?.toFixed(
                           2
                         )}
                       </Text>
-                    </View>
-
-                    {/* Violations and Issues */}
-                    <View style={styles.textListSection}>
-                      <Text style={styles.textListLabel}>
-                        {t("fairness.technicalViolations")}
-                      </Text>
-                      <Text style={styles.textListContent}>
-                        {scoreData.fairness_report.rubric_notes
-                          ?.technical_violations?.length > 0
-                          ? scoreData.fairness_report.rubric_notes.technical_violations.join(
-                              ", "
-                            )
-                          : t("fairness.none")}
-                      </Text>
-                    </View>
-
-                    <View style={styles.textListSection}>
-                      <Text style={styles.textListLabel}>
-                        {t("fairness.grammarIssues")}
-                      </Text>
-                      <Text style={styles.textListContent}>
-                        {scoreData.fairness_report.rubric_notes?.grammar_issues
-                          ?.length > 0
-                          ? scoreData.fairness_report.rubric_notes.grammar_issues.join(
-                              ", "
-                            )
-                          : t("fairness.none")}
-                      </Text>
+                      <View style={styles.penaltyChecksGroup}>
+                        {renderPenaltyCheckBlock(
+                          "Punctuation Checks",
+                          scoreData.fairness_report.rubric_notes
+                            ?.technical_violations,
+                          "technical-violations"
+                        )}
+                        {renderPenaltyCheckBlock(
+                          "Grammar Check",
+                          scoreData.fairness_report.rubric_notes?.grammar_issues,
+                          "grammar-issues"
+                        )}
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -2425,7 +2642,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 24
   },
-  content: { padding: 16 },
+  content: {
+    padding: Platform.OS === "web" ? 24 : 16,
+    width: "100%",
+    maxWidth: Platform.OS === "web" ? 1320 : 9999,
+    alignSelf: "center"
+  },
 
   imageContainer: {
     backgroundColor: "#1C1E26",
@@ -2477,66 +2699,73 @@ const styles = StyleSheet.create({
   headerBadges: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8
+    gap: 10
   },
   gradeBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(59, 130, 246, 0.15)",
-    paddingHorizontal: 10,
+    backgroundColor: "rgba(59, 130, 246, 0.10)",
+    paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(59, 130, 246, 0.4)",
-    gap: 5
+    borderColor: "rgba(59, 130, 246, 0.28)",
+    gap: 6
+  },
+  badgeLabel: {
+    color: "#91A9CF",
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5
   },
   gradeBadgeText: {
-    color: "#60A5FA",
+    color: "#7DB8FF",
     fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.5
+    fontWeight: "900",
+    letterSpacing: 0.3
   },
   idBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
-    paddingHorizontal: 10,
+    backgroundColor: "rgba(16, 185, 129, 0.10)",
+    paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.4)",
-    gap: 5
+    borderColor: "rgba(16, 185, 129, 0.28)",
+    gap: 6
   },
   idBadgeText: {
-    color: "#34D399",
+    color: "#4ADEB1",
     fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.5
+    fontWeight: "900",
+    letterSpacing: 0.3
   },
 
   inputCard: {
-    backgroundColor: "#1C1E26",
+    backgroundColor: "#1A2233",
     padding: 24,
     borderRadius: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: "#2D313E"
+    borderColor: "#2A3750"
   },
 
   textInput: {
-    backgroundColor: "#0F1117",
+    backgroundColor: "#0B1220",
     color: "#FFFFFF",
     padding: 16,
     borderRadius: 12,
-    marginBottom: 16,
-    borderColor: "#2D313E",
+    marginBottom: 18,
+    borderColor: "#24344D",
     borderWidth: 1,
     fontSize: 16,
     lineHeight: 24 // Better for Sinhala
   },
 
   detailLabel: {
-    color: "#9CA3AF",
+    color: "#B2C1DA",
     marginBottom: 8,
     fontSize: 14,
     fontWeight: "600",
@@ -2545,24 +2774,42 @@ const styles = StyleSheet.create({
 
   scoreButton: {
     padding: 0, // Handled by gradient
-    borderRadius: 12,
-    marginTop: 12,
+    borderRadius: 14,
+    marginTop: 18,
+    borderWidth: 1,
+    borderColor: "rgba(91, 139, 255, 0.45)",
+    shadowColor: "#2E5BDE",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 8,
     overflow: "hidden"
   },
 
   scoreButtonGradient: {
-    padding: 18,
+    backgroundColor: "#2E5BDE",
+    padding: 20,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 10
+    gap: 12
+  },
+  scoreButtonIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(219, 234, 254, 0.30)"
   },
 
   scoreButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-    fontSize: 17,
-    letterSpacing: 0.5
+    color: "#F8FAFF",
+    fontWeight: "800",
+    fontSize: 18,
+    letterSpacing: 0.4
   },
 
   detailsCard: {
@@ -2607,6 +2854,30 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontSize: 15,
     fontWeight: "500"
+  },
+  scoreMetaRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    flexWrap: "wrap"
+  },
+  scoreMetaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#2A3A54",
+    backgroundColor: "#111B2D"
+  },
+  scoreMetaText: {
+    color: "#B8C9E6",
+    fontSize: 12,
+    fontWeight: "700"
   },
 
   detailRow: {
@@ -2781,8 +3052,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center", // Fix alignment for Sinhala
-    marginBottom: 12,
+    marginBottom: 8,
     paddingVertical: 2
+  },
+  rubricBarTrack: {
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: "#222F46",
+    marginBottom: 14,
+    overflow: "hidden"
+  },
+  rubricBarFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#3B82F6"
   },
 
   rubricLabel: {
@@ -2847,6 +3130,53 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginBottom: 20
   },
+  fairnessSummaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 12
+  },
+  fairnessSummaryGridCompact: {
+    flexDirection: "row",
+    flexWrap: "nowrap"
+  },
+  fairnessSummaryCardCompact: {
+    flex: 1,
+    width: "auto",
+    minWidth: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 10
+  },
+  fairnessSummaryCard: {
+    flex: 1,
+    backgroundColor: "#0F1117",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#2D313E",
+    paddingVertical: 10,
+    paddingHorizontal: 12
+  },
+  fairnessSummaryLabel: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 4
+  },
+  fairnessSummaryValue: {
+    color: "#E5E7EB",
+    fontSize: 18,
+    fontWeight: "800"
+  },
+  fairnessSummaryValueBoost: {
+    color: "#10B981",
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  fairnessSimpleHint: {
+    color: "#9CA3AF",
+    fontSize: 13,
+    marginBottom: 14
+  },
   comparisonTable: {
     backgroundColor: "#0F1117",
     borderRadius: 12,
@@ -2876,10 +3206,26 @@ const styles = StyleSheet.create({
     borderBottomColor: "#2D313E",
     alignItems: "center"
   },
+  tableRowMobile: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 6,
+    borderBottomWidth: 0,
+    marginHorizontal: 10,
+    marginTop: 10,
+    marginBottom: 0,
+    borderRadius: 10,
+    backgroundColor: "#141A26",
+    borderWidth: 1,
+    borderColor: "#2D313E"
+  },
   tableLabel: {
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "700"
+  },
+  tableLabelMobile: {
+    marginBottom: 2
   },
   tableValue: {
     color: "#9CA3AF",
@@ -2891,22 +3237,26 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "900"
   },
-  boostInfoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 24,
-    gap: 10
+  tableDelta: {
+    color: "#10B981",
+    fontSize: 16,
+    fontWeight: "900"
   },
-  boostDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#10B981"
+  rowBarWrap: {
+    marginTop: 6,
+    marginBottom: 10,
+    marginHorizontal: 16
   },
-  boostText: {
-    color: "#9CA3AF",
-    fontSize: 14,
-    flex: 1
+  rowBarBefore: {
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: "#64748B",
+    marginBottom: 4
+  },
+  rowBarAfter: {
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: "#00BAFF"
   },
   rubricNotesContainerSection: {
     backgroundColor: "#0F1117",
@@ -2916,11 +3266,16 @@ const styles = StyleSheet.create({
     borderColor: "#2D313E"
   },
   rubricNotesTitle: {
-    color: "#10B981",
+    color: "#67E8F9",
     fontSize: 14,
     fontWeight: "800",
-    letterSpacing: 1,
+    letterSpacing: 0.2,
     marginBottom: 16
+  },
+  rubricNotesHint: {
+    color: "#9CA3AF",
+    fontSize: 13,
+    marginBottom: 10
   },
   notesGrid: {
     flexDirection: "row",
@@ -2928,14 +3283,66 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 8
   },
+  notesGridCompact: {
+    gap: 10
+  },
   noteGridItem: {
     flex: 1,
     minWidth: "48%",
-    backgroundColor: "#1C1E26",
+    backgroundColor: "#1A2130",
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#2D313E"
+    borderColor: "#2D3950"
+  },
+  noteGridItemCompact: {
+    minWidth: "100%"
+  },
+  noteGridItemScore: {
+    borderColor: "#234A84",
+    backgroundColor: "#16243B"
+  },
+  noteGridItemPenalty: {
+    borderColor: "#35506F",
+    backgroundColor: "#172437"
+  },
+  noteGridItemInfo: {
+    borderColor: "#35506F",
+    backgroundColor: "#182534"
+  },
+  noteGridHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 4
+  },
+  noteTypePill: {
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1
+  },
+  noteTypePillScore: {
+    color: "#93C5FD",
+    borderColor: "rgba(59, 130, 246, 0.35)",
+    backgroundColor: "rgba(59, 130, 246, 0.14)"
+  },
+  noteTypePillPenalty: {
+    color: "#FCD34D",
+    borderColor: "rgba(245, 158, 11, 0.45)",
+    backgroundColor: "rgba(245, 158, 11, 0.16)"
+  },
+  noteTypePillInfo: {
+    color: "#7DD3FC",
+    borderColor: "rgba(14, 165, 233, 0.35)",
+    backgroundColor: "rgba(14, 165, 233, 0.14)"
   },
   longNoteItem: {
     width: "100%",
@@ -2947,15 +3354,35 @@ const styles = StyleSheet.create({
     marginBottom: 12
   },
   noteGridLabel: {
-    color: "#6B7280",
-    fontSize: 11,
-    fontWeight: "600",
-    marginBottom: 4
+    color: "#9FB3C8",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 4,
+    flexShrink: 1,
+    paddingRight: 8
   },
   noteGridValue: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "800"
+  },
+  noteGridValuePenalty: {
+    color: "#FDE68A"
+  },
+  penaltyChecksGroup: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(96, 165, 250, 0.28)",
+    gap: 12
+  },
+  penaltyCheckBlock: {
+    gap: 8
+  },
+  penaltyCheckLabel: {
+    color: "#B7D6FF",
+    fontSize: 12,
+    fontWeight: "700"
   },
   textListSection: {
     marginTop: 12,
@@ -2974,6 +3401,64 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: "700"
+  },
+  issueBox: {
+    gap: 10
+  },
+  issueStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    backgroundColor: "rgba(245, 158, 11, 0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.35)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  issueStatusText: {
+    color: "#FBBF24",
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  issueListText: {
+    color: "#E5E7EB",
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600"
+  },
+  issueListContainer: {
+    gap: 8
+  },
+  issueItemRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8
+  },
+  issueBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: "#F59E0B",
+    marginTop: 7
+  },
+  goodStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.35)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  goodStatusText: {
+    color: "#34D399",
+    fontSize: 12,
+    fontWeight: "800"
   },
 
   fairnessNote: {
@@ -3788,3 +4273,4 @@ const styles = StyleSheet.create({
     flex: 1
   }
 });
+
