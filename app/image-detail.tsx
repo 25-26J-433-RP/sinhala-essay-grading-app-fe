@@ -751,6 +751,64 @@ export default function ImageDetailScreen() {
     );
   };
 
+  const renderFairnessSummaryCard = ({
+    keyId,
+    label,
+    value,
+    boost = false
+  }: {
+    keyId: string;
+    label: string;
+    value: string;
+    boost?: boolean;
+  }) => (
+    <View
+      key={keyId}
+      style={[
+        styles.fairnessSummaryCard,
+        isCompactLayout && styles.fairnessSummaryCardCompact
+      ]}
+    >
+      <Text style={styles.fairnessSummaryLabel}>{label}</Text>
+      <Text style={boost ? styles.fairnessSummaryValueBoost : styles.fairnessSummaryValue}>
+        {value}
+      </Text>
+    </View>
+  );
+
+  const renderRubricNoteCard = ({
+    keyId,
+    label,
+    typeLabel,
+    itemStyle,
+    pillStyle,
+    value,
+    valueStyle
+  }: {
+    keyId: string;
+    label: string;
+    typeLabel: string;
+    itemStyle: any;
+    pillStyle: any;
+    value: string | number | undefined;
+    valueStyle?: any;
+  }) => (
+    <View
+      key={keyId}
+      style={[
+        styles.noteGridItem,
+        itemStyle,
+        isCompactLayout && styles.noteGridItemCompact
+      ]}
+    >
+      <View style={styles.noteGridHeaderRow}>
+        <Text style={styles.noteGridLabel}>{label}</Text>
+        <Text style={[styles.noteTypePill, pillStyle]}>{typeLabel}</Text>
+      </View>
+      <Text style={[styles.noteGridValue, valueStyle]}>{value}</Text>
+    </View>
+  );
+
   const renderPenaltyCheckBlock = (
     label: string,
     issues: string[] | undefined,
@@ -1392,65 +1450,38 @@ export default function ImageDetailScreen() {
                 <View style={styles.fairnessContent}>
                   {scoreData.details.dyslexic_flag && (
                     <>
-                        <View
-                          style={[
-                            styles.fairnessSummaryGrid,
-                            isCompactLayout && styles.fairnessSummaryGridCompact
-                          ]}
-                        >
-                        <View
-                          style={[
-                            styles.fairnessSummaryCard,
-                            isCompactLayout && styles.fairnessSummaryCardCompact
-                          ]}
-                        >
-                          <Text style={styles.fairnessSummaryLabel}>Before</Text>
-                          <Text style={styles.fairnessSummaryValue}>
-                            {(
-                              (Number(
-                                scoreData.fairness_report.original_richness_5
-                              ) || 0) +
-                              (Number(
-                                scoreData.fairness_report.original_organization_6
-                              ) || 0) +
-                              (Number(
-                                scoreData.fairness_report.original_technical_3
-                              ) || 0)
-                            ).toFixed(2)}
-                          </Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.fairnessSummaryCard,
-                            isCompactLayout && styles.fairnessSummaryCardCompact
-                          ]}
-                        >
-                          <Text style={styles.fairnessSummaryLabel}>After</Text>
-                          <Text style={styles.fairnessSummaryValue}>
-                            {(
-                              (Number(
-                                scoreData.fairness_report.adjusted_richness_5
-                              ) || 0) +
-                              (Number(
-                                scoreData.fairness_report.adjusted_organization_6
-                              ) || 0) +
-                              (Number(
-                                scoreData.fairness_report.adjusted_technical_3
-                              ) || 0)
-                            ).toFixed(2)}
-                          </Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.fairnessSummaryCard,
-                            isCompactLayout && styles.fairnessSummaryCardCompact
-                          ]}
-                        >
-                          <Text style={styles.fairnessSummaryLabel}>Added</Text>
-                          <Text style={styles.fairnessSummaryValueBoost}>
-                            +{Number(scoreData.fairness_report.total_boost || 0).toFixed(2)}
-                          </Text>
-                        </View>
+                      <View
+                        style={[
+                          styles.fairnessSummaryGrid,
+                          isCompactLayout && styles.fairnessSummaryGridCompact
+                        ]}
+                      >
+                        {[
+                          {
+                            keyId: "before",
+                            label: "Before",
+                            value: (
+                              (Number(scoreData.fairness_report.original_richness_5) || 0) +
+                              (Number(scoreData.fairness_report.original_organization_6) || 0) +
+                              (Number(scoreData.fairness_report.original_technical_3) || 0)
+                            ).toFixed(2)
+                          },
+                          {
+                            keyId: "after",
+                            label: "After",
+                            value: (
+                              (Number(scoreData.fairness_report.adjusted_richness_5) || 0) +
+                              (Number(scoreData.fairness_report.adjusted_organization_6) || 0) +
+                              (Number(scoreData.fairness_report.adjusted_technical_3) || 0)
+                            ).toFixed(2)
+                          },
+                          {
+                            keyId: "added",
+                            label: "Added",
+                            value: `+${Number(scoreData.fairness_report.total_boost || 0).toFixed(2)}`,
+                            boost: true
+                          }
+                        ].map(renderFairnessSummaryCard)}
                       </View>
 
                       <Text style={styles.fairnessSectionTitle}>
@@ -1517,88 +1548,42 @@ export default function ImageDetailScreen() {
                         isCompactLayout && styles.notesGridCompact
                       ]}
                     >
-                      <View
-                        style={[
-                          styles.noteGridItem,
-                          styles.noteGridItemScore,
-                          isCompactLayout && styles.noteGridItemCompact
-                        ]}
-                      >
-                        <View style={styles.noteGridHeaderRow}>
-                          <Text style={styles.noteGridLabel}>
-                            {t("fairness.themeRelevance")}
-                          </Text>
-                          <Text style={[styles.noteTypePill, styles.noteTypePillScore]}>
-                            Score
-                          </Text>
-                        </View>
-                        <Text style={styles.noteGridValue}>
-                          {scoreData.fairness_report.rubric_notes?.theme_relevance?.toFixed(
-                            2
-                          )}
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.noteGridItem,
-                          styles.noteGridItemPenalty,
-                          isCompactLayout && styles.noteGridItemCompact
-                        ]}
-                      >
-                        <View style={styles.noteGridHeaderRow}>
-                          <Text style={styles.noteGridLabel}>
-                            {t("fairness.themePenalty")}
-                          </Text>
-                          <Text style={[styles.noteTypePill, styles.noteTypePillPenalty]}>
-                            Penalty
-                          </Text>
-                        </View>
-                        <Text style={[styles.noteGridValue, styles.noteGridValuePenalty]}>
-                          {scoreData.fairness_report.rubric_notes?.theme_penalty?.toFixed(
-                            2
-                          )}
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.noteGridItem,
-                          styles.noteGridItemInfo,
-                          isCompactLayout && styles.noteGridItemCompact
-                        ]}
-                      >
-                        <View style={styles.noteGridHeaderRow}>
-                          <Text style={styles.noteGridLabel}>
-                            {t("fairness.wordCount")}
-                          </Text>
-                          <Text style={[styles.noteTypePill, styles.noteTypePillInfo]}>
-                            Count
-                          </Text>
-                        </View>
-                        <Text style={styles.noteGridValue}>
-                          {scoreData.fairness_report.rubric_notes?.word_count}
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.noteGridItem,
-                          styles.noteGridItemPenalty,
-                          isCompactLayout && styles.noteGridItemCompact
-                        ]}
-                      >
-                        <View style={styles.noteGridHeaderRow}>
-                          <Text style={styles.noteGridLabel}>
-                            {t("fairness.wordCountPenalty")}
-                          </Text>
-                          <Text style={[styles.noteTypePill, styles.noteTypePillPenalty]}>
-                            Penalty
-                          </Text>
-                        </View>
-                        <Text style={[styles.noteGridValue, styles.noteGridValuePenalty]}>
-                          {scoreData.fairness_report.rubric_notes?.word_count_penalty?.toFixed(
-                            2
-                          )}
-                        </Text>
-                      </View>
+                      {[
+                        {
+                          keyId: "theme-relevance",
+                          label: t("fairness.themeRelevance"),
+                          typeLabel: "Score",
+                          itemStyle: styles.noteGridItemScore,
+                          pillStyle: styles.noteTypePillScore,
+                          value: scoreData.fairness_report.rubric_notes?.theme_relevance?.toFixed(2)
+                        },
+                        {
+                          keyId: "theme-penalty",
+                          label: t("fairness.themePenalty"),
+                          typeLabel: "Penalty",
+                          itemStyle: styles.noteGridItemPenalty,
+                          pillStyle: styles.noteTypePillPenalty,
+                          value: scoreData.fairness_report.rubric_notes?.theme_penalty?.toFixed(2),
+                          valueStyle: styles.noteGridValuePenalty
+                        },
+                        {
+                          keyId: "word-count",
+                          label: t("fairness.wordCount"),
+                          typeLabel: "Count",
+                          itemStyle: styles.noteGridItemInfo,
+                          pillStyle: styles.noteTypePillInfo,
+                          value: scoreData.fairness_report.rubric_notes?.word_count
+                        },
+                        {
+                          keyId: "word-count-penalty",
+                          label: t("fairness.wordCountPenalty"),
+                          typeLabel: "Penalty",
+                          itemStyle: styles.noteGridItemPenalty,
+                          pillStyle: styles.noteTypePillPenalty,
+                          value: scoreData.fairness_report.rubric_notes?.word_count_penalty?.toFixed(2),
+                          valueStyle: styles.noteGridValuePenalty
+                        }
+                      ].map(renderRubricNoteCard)}
                     </View>
 
                     <View style={[styles.longNoteItem, styles.noteGridItemPenalty]}>
