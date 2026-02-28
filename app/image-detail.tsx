@@ -812,7 +812,8 @@ export default function ImageDetailScreen() {
   const renderPenaltyCheckBlock = (
     label: string,
     issues: string[] | undefined,
-    keyPrefix: string
+    keyPrefix: string,
+    emptyStateText: string = "No issues found"
   ) => {
     const safeIssues = Array.isArray(issues) ? issues : [];
     const hasIssues = safeIssues.length > 0;
@@ -838,7 +839,7 @@ export default function ImageDetailScreen() {
         ) : (
           <View style={styles.goodStatusBadge}>
             <MaterialIcons name="check-circle" size={14} color="#10B981" />
-            <Text style={styles.goodStatusText}>No issues found</Text>
+            <Text style={styles.goodStatusText}>{emptyStateText}</Text>
           </View>
         )}
       </View>
@@ -1608,9 +1609,16 @@ export default function ImageDetailScreen() {
                           "technical-violations"
                         )}
                         {renderPenaltyCheckBlock(
-                          "Grammar Check",
+                          scoreData.fairness_report.rubric_notes
+                            ?.grammar_checks_evaluated === false
+                            ? "Grammar Guidance"
+                            : "Grammar Check",
                           scoreData.fairness_report.rubric_notes?.grammar_issues,
-                          "grammar-issues"
+                          "grammar-issues",
+                          scoreData.fairness_report.rubric_notes
+                            ?.grammar_checks_evaluated === false
+                            ? "Not evaluated for this grade"
+                            : "No issues found"
                         )}
                       </View>
                     </View>
@@ -3314,7 +3322,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: 8,
     marginBottom: 4
   },
@@ -3357,7 +3365,8 @@ const styles = StyleSheet.create({
     color: "#9FB3C8",
     fontSize: 12,
     fontWeight: "700",
-    marginBottom: 4,
+    marginBottom: 0,
+    maxWidth: "72%",
     flexShrink: 1,
     paddingRight: 8
   },
