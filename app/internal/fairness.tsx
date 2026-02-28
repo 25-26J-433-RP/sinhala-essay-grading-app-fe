@@ -43,8 +43,9 @@ function getBiasStatus(
       };
     }
 
-    // High Priority: DIR threshold violated OR large effect size
-    if (dir > 1.25 || (cohensD > 0.8 && pValue < 0.01)) {
+    // High Priority: dyslexic group under-selected by DIR (AIF360 direction)
+    // DIR = dyslexic_rate / non_dyslexic_rate
+    if (dir < 0.8 || (cohensD > 0.8 && pValue < 0.01)) {
       return {
         label: "Bias Against Dyslexic",
         color: "#e74c3c",
@@ -52,7 +53,7 @@ function getBiasStatus(
       };
     }
 
-    if (dir < 0.8) {
+    if (dir > 1.25) {
       return {
         label: "Bias In Favor of Dyslexic",
         color: "#f59e0b",
@@ -87,14 +88,14 @@ function getBiasStatus(
   }
 
   // Fallback: Traditional DIR-only classification
-  if (dir < 0.8) {
+  if (dir > 1.25) {
     return {
       label: "Bias In Favor of Dyslexic",
       color: "#f59e0b",
       detail: "DIR only",
     };
   }
-  if (dir > 1.25) {
+  if (dir < 0.8) {
     return {
       label: "Bias Against Dyslexic",
       color: "#e74c3c",

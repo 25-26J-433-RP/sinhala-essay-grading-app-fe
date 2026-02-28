@@ -66,6 +66,7 @@ export interface SinhalaScoreResponse {
       word_count_penalty: number;
       technical_violations: string[];
       grammar_issues: string[];
+      grammar_checks_evaluated?: boolean;
       technical_penalty: number;
       grade_adjustment_factor: number;
     };
