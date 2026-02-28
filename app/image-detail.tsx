@@ -21,6 +21,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View
 } from "react-native";
 
@@ -77,6 +78,9 @@ function isSafeUrl(url: string, allowMailto = false) {
 }
 
 export default function ImageDetailScreen() {
+  const { width: viewportWidth } = useWindowDimensions();
+  const isCompactLayout = viewportWidth <= 480;
+
   const [imageData, setImageData] = useState<UserImageUpload | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageUrlResolved, setImageUrlResolved] = useState<string | null>(null);
@@ -714,23 +718,23 @@ export default function ImageDetailScreen() {
     return (
       <React.Fragment key={keyId}>
         <View
-          style={[styles.tableRow, Platform.OS !== "web" && styles.tableRowMobile]}
+          style={[styles.tableRow, isCompactLayout && styles.tableRowMobile]}
         >
           <Text
             style={[
               styles.tableLabel,
               { flex: 2 },
-              Platform.OS !== "web" && styles.tableLabelMobile
+              isCompactLayout && styles.tableLabelMobile
             ]}
           >
             {label}
           </Text>
           <Text style={[styles.tableValue, { flex: 1.2 }]}>
-            {Platform.OS !== "web" ? "Before: " : ""}
+            {isCompactLayout ? "Before: " : ""}
             {original?.toFixed(2)}
           </Text>
           <Text style={[styles.tableValueAdjusted, { flex: 1.2 }]}>
-            {Platform.OS !== "web" ? "After: " : ""}
+            {isCompactLayout ? "After: " : ""}
             {adjusted?.toFixed(2)}
           </Text>
           <Text style={[styles.tableDelta, { flex: 1 }]}>+{delta.toFixed(2)}</Text>
@@ -1388,8 +1392,18 @@ export default function ImageDetailScreen() {
                 <View style={styles.fairnessContent}>
                   {scoreData.details.dyslexic_flag && (
                     <>
-                      <View style={styles.fairnessSummaryGrid}>
-                        <View style={styles.fairnessSummaryCard}>
+                        <View
+                          style={[
+                            styles.fairnessSummaryGrid,
+                            isCompactLayout && styles.fairnessSummaryGridCompact
+                          ]}
+                        >
+                        <View
+                          style={[
+                            styles.fairnessSummaryCard,
+                            isCompactLayout && styles.fairnessSummaryCardCompact
+                          ]}
+                        >
                           <Text style={styles.fairnessSummaryLabel}>Before</Text>
                           <Text style={styles.fairnessSummaryValue}>
                             {(
@@ -1405,7 +1419,12 @@ export default function ImageDetailScreen() {
                             ).toFixed(2)}
                           </Text>
                         </View>
-                        <View style={styles.fairnessSummaryCard}>
+                        <View
+                          style={[
+                            styles.fairnessSummaryCard,
+                            isCompactLayout && styles.fairnessSummaryCardCompact
+                          ]}
+                        >
                           <Text style={styles.fairnessSummaryLabel}>After</Text>
                           <Text style={styles.fairnessSummaryValue}>
                             {(
@@ -1421,7 +1440,12 @@ export default function ImageDetailScreen() {
                             ).toFixed(2)}
                           </Text>
                         </View>
-                        <View style={styles.fairnessSummaryCard}>
+                        <View
+                          style={[
+                            styles.fairnessSummaryCard,
+                            isCompactLayout && styles.fairnessSummaryCardCompact
+                          ]}
+                        >
                           <Text style={styles.fairnessSummaryLabel}>Added</Text>
                           <Text style={styles.fairnessSummaryValueBoost}>
                             +{Number(scoreData.fairness_report.total_boost || 0).toFixed(2)}
@@ -1435,20 +1459,22 @@ export default function ImageDetailScreen() {
 
                       {/* Comparison Table */}
                       <View style={styles.comparisonTable}>
-                        <View style={styles.tableHeader}>
-                          <Text style={[styles.tableHeaderText, { flex: 2 }]}>
-                            {t("fairness.component")}
-                          </Text>
-                          <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
-                            Before
-                          </Text>
-                          <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
-                            After
-                          </Text>
-                          <Text style={[styles.tableHeaderText, { flex: 1 }]}>
-                            Added
-                          </Text>
-                        </View>
+                        {!isCompactLayout && (
+                          <View style={styles.tableHeader}>
+                            <Text style={[styles.tableHeaderText, { flex: 2 }]}>
+                              {t("fairness.component")}
+                            </Text>
+                            <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
+                              Before
+                            </Text>
+                            <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>
+                              After
+                            </Text>
+                            <Text style={[styles.tableHeaderText, { flex: 1 }]}>
+                              Added
+                            </Text>
+                          </View>
+                        )}
 
                         {[
                           {
@@ -1485,8 +1511,19 @@ export default function ImageDetailScreen() {
                       Rubric Notes & Penalties
                     </Text>
 
-                    <View style={styles.notesGrid}>
-                      <View style={[styles.noteGridItem, styles.noteGridItemScore]}>
+                    <View
+                      style={[
+                        styles.notesGrid,
+                        isCompactLayout && styles.notesGridCompact
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.noteGridItem,
+                          styles.noteGridItemScore,
+                          isCompactLayout && styles.noteGridItemCompact
+                        ]}
+                      >
                         <View style={styles.noteGridHeaderRow}>
                           <Text style={styles.noteGridLabel}>
                             {t("fairness.themeRelevance")}
@@ -1501,7 +1538,13 @@ export default function ImageDetailScreen() {
                           )}
                         </Text>
                       </View>
-                      <View style={[styles.noteGridItem, styles.noteGridItemPenalty]}>
+                      <View
+                        style={[
+                          styles.noteGridItem,
+                          styles.noteGridItemPenalty,
+                          isCompactLayout && styles.noteGridItemCompact
+                        ]}
+                      >
                         <View style={styles.noteGridHeaderRow}>
                           <Text style={styles.noteGridLabel}>
                             {t("fairness.themePenalty")}
@@ -1516,7 +1559,13 @@ export default function ImageDetailScreen() {
                           )}
                         </Text>
                       </View>
-                      <View style={[styles.noteGridItem, styles.noteGridItemInfo]}>
+                      <View
+                        style={[
+                          styles.noteGridItem,
+                          styles.noteGridItemInfo,
+                          isCompactLayout && styles.noteGridItemCompact
+                        ]}
+                      >
                         <View style={styles.noteGridHeaderRow}>
                           <Text style={styles.noteGridLabel}>
                             {t("fairness.wordCount")}
@@ -1529,7 +1578,13 @@ export default function ImageDetailScreen() {
                           {scoreData.fairness_report.rubric_notes?.word_count}
                         </Text>
                       </View>
-                      <View style={[styles.noteGridItem, styles.noteGridItemPenalty]}>
+                      <View
+                        style={[
+                          styles.noteGridItem,
+                          styles.noteGridItemPenalty,
+                          isCompactLayout && styles.noteGridItemCompact
+                        ]}
+                      >
                         <View style={styles.noteGridHeaderRow}>
                           <Text style={styles.noteGridLabel}>
                             {t("fairness.wordCountPenalty")}
@@ -3092,8 +3147,20 @@ const styles = StyleSheet.create({
   },
   fairnessSummaryGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
     marginBottom: 12
+  },
+  fairnessSummaryGridCompact: {
+    flexDirection: "row",
+    flexWrap: "nowrap"
+  },
+  fairnessSummaryCardCompact: {
+    flex: 1,
+    width: "auto",
+    minWidth: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 10
   },
   fairnessSummaryCard: {
     flex: 1,
@@ -3231,6 +3298,9 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 8
   },
+  notesGridCompact: {
+    gap: 10
+  },
   noteGridItem: {
     flex: 1,
     minWidth: "48%",
@@ -3239,6 +3309,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#2D3950"
+  },
+  noteGridItemCompact: {
+    minWidth: "100%"
   },
   noteGridItemScore: {
     borderColor: "#234A84",
@@ -3254,8 +3327,9 @@ const styles = StyleSheet.create({
   },
   noteGridHeaderRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    flexWrap: "wrap",
     gap: 8,
     marginBottom: 4
   },
@@ -3264,6 +3338,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    alignSelf: "flex-start",
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -3297,7 +3372,9 @@ const styles = StyleSheet.create({
     color: "#9FB3C8",
     fontSize: 12,
     fontWeight: "700",
-    marginBottom: 4
+    marginBottom: 4,
+    flexShrink: 1,
+    paddingRight: 8
   },
   noteGridValue: {
     color: "#FFFFFF",
