@@ -1958,11 +1958,9 @@ export default function StudentEssaysScreen() {
                     </View>
                     <View style={styles.latestEssayInfo}>
                       <Text style={styles.latestEssayScore}>
-                        Score:{" "}
-                        {typeof latestEssay.score === "number"
+                        Score: {typeof latestEssay.score === "number"
                           ? latestEssay.score.toFixed(2)
-                          : "-"}
-                        /14
+                          : "-"} / 100
                       </Text>
                       {latestEssay.details?.topic && (
                         <Text style={styles.latestEssayTopic}>
