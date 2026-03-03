@@ -24,6 +24,7 @@ export const PATTERN_COLORS: Record<string, string> = {
   visual_reversal: "#EC4899",
   grammar_issue: "#3B82F6",
   grammar: "#3B82F6",
+  "grammar_&_spelling_suggestion": "#3B82F6",
   unknown: "#6B7280",
 };
 
@@ -34,6 +35,7 @@ export const PATTERN_ICONS: Record<string, string> = {
   visual_reversal: "flip",
   grammar_issue: "spellcheck",
   grammar: "spellcheck",
+  "grammar_&_spelling_suggestion": "spellcheck",
   unknown: "help-outline",
 };
 

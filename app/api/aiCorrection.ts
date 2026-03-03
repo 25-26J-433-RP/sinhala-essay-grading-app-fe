@@ -92,7 +92,7 @@ export interface PatternsResponse {
 // For production: GCP Cloud Run
 const AI_CORRECTION_DIRECT_URL =
   process.env.EXPO_PUBLIC_AI_CORRECTION_URL ||
-  "https://akura-ai-1008980279040.us-central1.run.app/api/v1";
+  "https://ai-recorrection-workbench-1008980279040.us-central1.run.app/api/v1";
 const AI_CORRECTION_GATEWAY_PATH = "/ai-recorrection-workbench/api/v1";
 
 const TIMEOUT_MS = 0; // No timeout - CPU inference on Azure VM can take 30-80s
@@ -246,14 +246,21 @@ export async function analyzeText(
 
     // Map backend response to frontend format
     // Map backend response to frontend format - KEEP ALL TOKENS
-    const tokens: CorrectionItem[] = (backendData.data || []).map((item) => ({
-      word: item.word,
-      type: item.type, // 'error' or 'correct'
-      suggestion: item.suggestion || item.word,
-      pattern: item.dyslexiaPattern || item.dyslexia_pattern || "Unknown",
-      confidence: item.confidence ?? 0.8,
-      explanation: item.explanation,
-    }));
+    const tokens: CorrectionItem[] = (backendData.data || []).map((item) => {
+      let activePattern = item.dyslexiaPattern || item.dyslexia_pattern || "Unknown";
+      if (activePattern === "error") {
+        activePattern = "Grammar & Spelling Suggestion";
+      }
+      
+      return {
+        word: item.word,
+        type: item.type, // 'error' or 'correct'
+        suggestion: item.suggestion || item.word,
+        pattern: activePattern,
+        confidence: item.confidence ?? 0.8,
+        explanation: item.explanation,
+      };
+    });
 
     const result: AnalyzeResponse = {
       success: backendData.success,
