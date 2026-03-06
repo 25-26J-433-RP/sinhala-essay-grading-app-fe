@@ -647,7 +647,8 @@ const s = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
+    flexWrap: "wrap",
     gap: 12
   },
   metaChip: {
@@ -659,9 +660,11 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#2D313E"
+    borderColor: "#2D313E",
+    flexShrink: 1,
+    maxWidth: "100%"
   },
-  metaChipText: { color: "#9CA3AF", fontSize: 12, fontWeight: "600" },
+  metaChipText: { color: "#9CA3AF", fontSize: 12, fontWeight: "600", flexShrink: 1 },
   severityBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -669,10 +672,12 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 10,
-    borderWidth: 1
+    borderWidth: 1,
+    flexShrink: 1,
+    maxWidth: "100%"
   },
   severityDot: { width: 7, height: 7, borderRadius: 3.5 },
-  severityText: { fontSize: 12, fontWeight: "700" },
+  severityText: { fontSize: 12, fontWeight: "700", flexShrink: 1 },
   riskBlock: {
     backgroundColor: "#0F1117",
     borderRadius: 16,
@@ -686,9 +691,15 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between"
   },
-  riskLabelLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
-  riskLabel: { color: "#E5E7EB", fontSize: 14, fontWeight: "700" },
-  riskValue: { fontSize: 26, fontWeight: "900" },
+  riskLabelLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+    minWidth: 0
+  },
+  riskLabel: { color: "#E5E7EB", fontSize: 14, fontWeight: "700", flexShrink: 1 },
+  riskValue: { fontSize: 26, fontWeight: "900", textAlign: "right", marginLeft: 12 },
   riskUnit: { fontSize: 13, color: "#6B7280", fontWeight: "500" },
   riskLevelText: {
     color: "#6B7280",
@@ -734,8 +745,8 @@ const s = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.8
   },
-  chartRow: { flexDirection: "row", alignItems: "center", gap: 20 },
-  legendCol: { flex: 1, gap: 10 },
+  chartRow: { flexDirection: "row", alignItems: "center", gap: 0 },
+  legendCol: { flex: 1, gap: 10, paddingRight: 12, flexShrink: 1 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 10 },
   legendDot: { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   legendTextCol: {
