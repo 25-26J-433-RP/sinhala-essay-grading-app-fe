@@ -1962,7 +1962,7 @@ export default function StudentEssaysScreen() {
                         {typeof latestEssay.score === "number"
                           ? latestEssay.score.toFixed(2)
                           : "-"}
-                        /14
+                        /100
                       </Text>
                       {latestEssay.details?.topic && (
                         <Text style={styles.latestEssayTopic}>
