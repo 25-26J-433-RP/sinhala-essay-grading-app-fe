@@ -26,21 +26,21 @@ function RootLayoutContent() {
         name="login"
         options={{
           headerShown: false,
-          animation: "slide_from_right",
+          animationEnabled: true,
         }}
       />
       <Stack.Screen
         name="register"
         options={{
           headerShown: false,
-          animation: "slide_from_right",
+          animationEnabled: true,
         }}
       />
       <Stack.Screen
         name="guest"
         options={{
           headerShown: false,
-          animation: "slide_from_right",
+          animationEnabled: true,
         }}
       />
       <Stack.Screen
@@ -59,15 +59,15 @@ function RootLayoutContent() {
       />
       <Stack.Screen
         name="add-student"
-        options={{ headerShown: false, title: t("screenTitles.addStudent") }}
+        options={{ title: t("screenTitles.addStudent") }}
       />
       <Stack.Screen
         name="student-essays"
-        options={{ headerShown: false, title: t("screenTitles.studentEssays") }}
+        options={{ title: t("screenTitles.studentEssays") }}
       />
       <Stack.Screen
         name="image-detail"
-        options={{ headerShown: false, title: t("screenTitles.imageDetail") }}
+        options={{ title: t("screenTitles.imageDetail") }}
       />
       <Stack.Screen
         name="essay-mindmap"
