@@ -91,7 +91,8 @@ export default function AICorrectionPanel({
   // ─── State ───
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
+  // Default to true. We removed the aggressive polling to save Cloud Run costs.
+  const [isHealthy, setIsHealthy] = useState<boolean | null>(true);
   const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(
     null,
   );
@@ -112,9 +113,8 @@ export default function AICorrectionPanel({
   const [isSavingHistory, setIsSavingHistory] = useState(false);
 
   // ─── Health check on mount ───
-  useEffect(() => {
-    checkHealth();
-  }, []);
+  // REMOVED: checkHealth() polling has been removed to prevent expensive 
+  // Cloud Run cold-starts when the user hasn't explicitly clicked "Analyze".
 
   // ─── Auto-analyze (only once) ───
   useEffect(() => {
