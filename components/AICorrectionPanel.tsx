@@ -1,776 +1,96 @@
-// components/AICorrectionPanel.tsx
-/**
- * AI Correction Panel — Interactive Dashboard
- *
- * Shows AI-powered dyslexia correction suggestions in an interactive
- * dual-pane layout: the original text with tappable highlighted error
- * words on top, and a live corrected preview below.
- *
- * Behaviour is gated by an optional dyslexiaLabel prop:
- *   • "DYSLEXIC ESSAY"  → panel is expanded, banner suggests correction
- *   • "NORMAL ESSAY"    → panel collapsed, user can manually open it
- *   • undefined         → panel shown normally (backward-compat)
- *
- * Dark theme.  Uses sub-components from components/correction/.
- */
+import React, { useMemo, useState } from "react";
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
-import React, { useState, useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  TextInput,
-  Alert,
-} from "react-native";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useLanguage } from "@/contexts/LanguageContext";
-import aiCorrectionService, {
-  type AnalyzeResponse,
-} from "@/app/api/aiCorrection";
-
-import {
-  StatsBar,
-  CorrectionPopover,
-  TokenizedText,
-  CorrectionHistory,
-  type CorrectionWithStatus,
-} from "@/components/correction";
-import {
-  saveCorrectionHistory,
-  type CorrectionRecord,
-} from "@/services/correctionHistoryService";
-
-// ===========================
-// Props Interface
-// ===========================
-
-interface AICorrectionPanelProps {
-  /** The original text from OCR or manual input */
-  originalText: string;
-  /** Callback when user applies corrected text */
-  onCorrectedText: (text: string) => void;
-  /** Callback when analysis is complete */
-  onAnalysisComplete?: (result: AnalyzeResponse) => void;
-  /** Whether to auto-analyze when text changes */
-  autoAnalyze?: boolean;
-  /** Initial collapsed state */
-  initialCollapsed?: boolean;
-  /**
-   * Dyslexia detection label from the detection microservice.
-   * "DYSLEXIC ESSAY" | "NORMAL ESSAY" | undefined
-   */
-  dyslexiaLabel?: string;
-  /** Student ID — required for saving correction history */
-  studentId?: string;
-  /** Image / essay document ID */
-  imageId?: string;
-  /** Teacher / user ID */
-  teacherId?: string;
+export interface AnalyzeResponse {
+  corrections: Array<{
+    word: string;
+    suggestion: string;
+    type?: string;
+  }>;
+  corrected_text?: string;
+  model_used?: string;
+  processing_time_ms?: number;
 }
 
-// ===========================
-// Component
-// ===========================
+interface AICorrectionPanelProps {
+  originalText: string;
+  onCorrectedText: (text: string) => void;
+  onAnalysisComplete?: (result: AnalyzeResponse) => void;
+  autoAnalyze?: boolean;
+  initialCollapsed?: boolean;
+  dyslexiaLabel?: string;
+  studentId?: string;
+  imageId?: string;
+  teacherId?: string;
+}
 
 export default function AICorrectionPanel({
   originalText,
   onCorrectedText,
   onAnalysisComplete,
-  autoAnalyze = false,
   initialCollapsed = false,
-  dyslexiaLabel,
-  studentId,
-  imageId,
-  teacherId,
+  dyslexiaLabel
 }: AICorrectionPanelProps) {
-  const { t } = useLanguage();
-  const hasAutoAnalyzed = useRef(false);
-
-  // ─── State ───
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  // Default to true. We removed the aggressive polling to save Cloud Run costs.
-  const [isHealthy, setIsHealthy] = useState<boolean | null>(true);
-  const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(
-    null,
-  );
-  const [tokens, setTokens] = useState<CorrectionWithStatus[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [showManualInput, setShowManualInput] = useState(false);
   const [manualText, setManualText] = useState("");
 
-  // Popover state
-  const [popoverTokenId, setPopoverTokenId] = useState<string | null>(null);
-
-  // Teacher editing
-  const [showFinalEditor, setShowFinalEditor] = useState(false);
-  const [finalText, setFinalText] = useState("");
-
-  // Correction history
-  const [showHistory, setShowHistory] = useState(false);
-  const [isSavingHistory, setIsSavingHistory] = useState(false);
-
-  // ─── Health check on mount ───
-  // REMOVED: checkHealth() polling has been removed to prevent expensive 
-  // Cloud Run cold-starts when the user hasn't explicitly clicked "Analyze".
-
-  // ─── Auto-analyze (only once) ───
-  useEffect(() => {
-    if (
-      autoAnalyze &&
-      originalText &&
-      originalText.trim().length > 0 &&
-      isHealthy &&
-      !hasAutoAnalyzed.current &&
-      !analysisResult
-    ) {
-      hasAutoAnalyzed.current = true;
-      handleAnalyze();
-    }
-  }, [originalText, isHealthy, autoAnalyze]);
-
-  // ─── Collapse when dyslexiaLabel says normal ───
-  useEffect(() => {
-    if (dyslexiaLabel === "NORMAL ESSAY") {
-      setIsCollapsed(true);
-    } else if (dyslexiaLabel === "DYSLEXIC ESSAY") {
-      setIsCollapsed(false);
-    }
-  }, [dyslexiaLabel]);
-
-  // ===========================
-  // Handlers
-  // ===========================
-
-  const checkHealth = async () => {
-    try {
-      const health = await aiCorrectionService.checkHealth();
-      const isOnline =
-        health.status === "healthy" ||
-        health.status === "ok" ||
-        health.ollamaConnected === true ||
-        health.ollama_connected === true;
-      setIsHealthy(isOnline);
-    } catch {
-      setIsHealthy(false);
-    }
-  };
-
-  const handleAnalyze = async () => {
-    // Normalize to single paragraph before analysis
-    const textToAnalyze = (manualText.trim() || originalText.trim())
+  const normalizedText = useMemo(
+    () => (manualText.trim() || originalText)
       .replace(/\r\n/g, " ")
       .replace(/\n/g, " ")
       .replace(/\s{2,}/g, " ")
-      .trim();
-    if (!textToAnalyze) {
-      Alert.alert(t("common.error"), t("aiCorrection.noResults"));
-      return;
-    }
+      .trim(),
+    [manualText, originalText]
+  );
 
-    setIsAnalyzing(true);
-    setError(null);
-    setTokens([]);
-    setPopoverTokenId(null);
-
-    try {
-      const result = await aiCorrectionService.analyzeText(textToAnalyze);
-      setAnalysisResult(result);
-
-      const tokensWithStatus: CorrectionWithStatus[] = result.corrections.map(
-        (c, idx) => ({
-          ...c,
-          id: `token-${idx}`,
-          status: "pending" as const,
-        }),
-      );
-      setTokens(tokensWithStatus);
-      onAnalysisComplete?.(result);
-    } catch (err: any) {
-      setError(err.message || t("aiCorrection.noResults"));
-    } finally {
-      setIsAnalyzing(false);
-    }
+  const applyText = () => {
+    onCorrectedText(normalizedText);
+    onAnalysisComplete?.({
+      corrections: [],
+      corrected_text: normalizedText,
+      model_used: "disabled"
+    });
   };
-
-  // ─── Token actions ───
-
-  const handleAccept = (id: string) => {
-    setTokens((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: "accepted" } : c)),
-    );
-  };
-
-  const handleReject = (id: string) => {
-    setTokens((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: "rejected" } : c)),
-    );
-  };
-
-  const handleEdit = (id: string, newSuggestion: string) => {
-    setTokens((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? { ...c, editedSuggestion: newSuggestion, status: "accepted" }
-          : c,
-      ),
-    );
-  };
-
-  const handleAnnotate = (id: string, note: string) => {
-    setTokens((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, annotation: note } : c)),
-    );
-  };
-
-  const handleAcceptAll = () => {
-    setTokens((prev) =>
-      prev.map((c) => (c.type === "error" ? { ...c, status: "accepted" } : c)),
-    );
-  };
-
-  const handleRejectAll = () => {
-    setTokens((prev) =>
-      prev.map((c) => (c.type === "error" ? { ...c, status: "rejected" } : c)),
-    );
-  };
-
-  // ─── Preview text with accepted corrections + manual edits applied ───
-  const getPreviewText = (): string => {
-    let previewText = manualText.trim() || originalText;
-
-    // Apply accepted error corrections
-    const accepted = tokens
-      .filter((c) => c.type === "error" && c.status === "accepted")
-      .map((c) => ({
-        word: c.word,
-        suggestion: c.editedSuggestion || c.suggestion,
-      }));
-    for (const correction of accepted) {
-      previewText = previewText.replace(correction.word, correction.suggestion);
-    }
-
-    // Apply manual edits on normal (correct) words
-    const editedNormal = tokens.filter(
-      (c) => c.type !== "error" && c.editedSuggestion && c.status === "accepted",
-    );
-    for (const token of editedNormal) {
-      previewText = previewText.replace(token.word, token.editedSuggestion!);
-    }
-
-    return previewText;
-  };
-
-  // ─── Teacher editor ───
-  const toggleFinalEditor = () => {
-    if (!showFinalEditor) setFinalText(getPreviewText());
-    setShowFinalEditor(!showFinalEditor);
-  };
-
-  const handleApplyCorrections = async () => {
-    let textToApply = showFinalEditor ? finalText : getPreviewText();
-    // Normalize to single paragraph — collapse newlines & extra spaces
-    textToApply = textToApply
-      .replace(/\r\n/g, " ")
-      .replace(/\n/g, " ")
-      .replace(/\s{2,}/g, " ")
-      .trim();
-    onCorrectedText(textToApply);
-
-    // ─── Save correction history to Firestore ───
-    if (studentId && imageId) {
-      try {
-        setIsSavingHistory(true);
-        const errors = tokens.filter((t) => t.type === "error");
-        const correctionRecords: CorrectionRecord[] = errors.map((t) => ({
-          word: t.word,
-          type: t.type || "error",
-          suggestion: t.suggestion,
-          pattern: t.pattern,
-          confidence: t.confidence,
-          explanation: t.explanation,
-          status: t.status,
-          editedSuggestion: t.editedSuggestion,
-          annotation: t.annotation,
-        }));
-
-        // Also save annotations on normal words that were edited
-        const editedNormals: CorrectionRecord[] = tokens
-          .filter(
-            (t) =>
-              t.type !== "error" &&
-              (t.editedSuggestion || t.annotation),
-          )
-          .map((t) => ({
-            word: t.word,
-            type: "correct",
-            suggestion: t.word,
-            pattern: "none",
-            confidence: 1,
-            status: t.editedSuggestion ? "accepted" : "pending",
-            editedSuggestion: t.editedSuggestion,
-            annotation: t.annotation,
-          }));
-
-        const allRecords = [...correctionRecords, ...editedNormals];
-
-        const patternBreakdown: Record<string, number> = {};
-        errors.forEach((t) => {
-          const p = t.pattern || "Unknown";
-          patternBreakdown[p] = (patternBreakdown[p] || 0) + 1;
-        });
-
-        await saveCorrectionHistory({
-          studentId,
-          imageId,
-          teacherId,
-          originalText: manualText.trim() || originalText,
-          correctedText: textToApply,
-          corrections: allRecords,
-          summary: {
-            totalTokens: tokens.length,
-            totalErrors: errors.length,
-            accepted: errors.filter((c) => c.status === "accepted").length,
-            rejected: errors.filter((c) => c.status === "rejected").length,
-            edited: errors.filter((c) => c.editedSuggestion).length,
-            patternBreakdown,
-          },
-          dyslexiaLabel,
-          modelUsed: analysisResult?.model_used,
-          processingTimeMs: analysisResult?.processing_time_ms,
-        });
-        console.log("✅ Correction history saved");
-      } catch (err) {
-        console.warn("⚠️ Failed to save correction history:", err);
-      } finally {
-        setIsSavingHistory(false);
-      }
-    }
-
-    // Reset
-    setAnalysisResult(null);
-    setTokens([]);
-    setShowFinalEditor(false);
-    setFinalText("");
-    hasAutoAnalyzed.current = false;
-  };
-
-  // ─── Error pattern summary ───
-  const getErrorPatternSummary = (): [string, number][] => {
-    const patterns: Record<string, number> = {};
-    tokens
-      .filter((t) => t.type === "error")
-      .forEach((token) => {
-        const p = token.pattern || "Unknown";
-        patterns[p] = (patterns[p] || 0) + 1;
-      });
-    return Object.entries(patterns);
-  };
-
-  // ─── Popover helpers ───
-  const popoverToken = popoverTokenId
-    ? (tokens.find((t) => t.id === popoverTokenId) ?? null)
-    : null;
-
-  // ─── Derived counts ───
-  const errors = tokens.filter((t) => t.type === "error");
-  const pendingCount = errors.filter((c) => c.status === "pending").length;
-  const acceptedCount = errors.filter((c) => c.status === "accepted").length;
-  const rejectedCount = errors.filter((c) => c.status === "rejected").length;
-  const editedNormalCount = tokens.filter(
-    (t) => t.type !== "error" && t.editedSuggestion && t.status === "accepted",
-  ).length;
-  const hasAnyEdits = acceptedCount > 0 || editedNormalCount > 0;
-  const processingTimeSec = analysisResult?.processing_time_ms
-    ? (analysisResult.processing_time_ms / 1000).toFixed(1)
-    : null;
-
-  // ===========================
-  // Render
-  // ===========================
 
   return (
     <View style={styles.container}>
-      {/* ─── HEADER ─── */}
       <TouchableOpacity
         style={styles.header}
-        onPress={() => setIsCollapsed(!isCollapsed)}
+        onPress={() => setIsCollapsed((prev) => !prev)}
       >
-        <View style={styles.headerLeft}>
-          <MaterialIcons name="psychology" size={24} color="#22D3EE" />
-          <Text style={styles.headerTitle}>{t("aiCorrection.title")}</Text>
-          {analysisResult && errors.length > 0 && (
-            <View style={styles.headerErrorCount}>
-              <Text style={styles.headerErrorCountText}>{errors.length}</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.headerRight}>
-          {isHealthy === null ? (
-            <ActivityIndicator size="small" color="#22D3EE" />
-          ) : isHealthy ? (
-            <View style={[styles.statusBadge, styles.statusOnline]}>
-              <Text style={styles.statusText}>Online</Text>
-            </View>
-          ) : (
-            <View style={[styles.statusBadge, styles.statusOffline]}>
-              <Text style={styles.statusTextOffline}>Offline</Text>
-            </View>
-          )}
-          <MaterialIcons
-            name={isCollapsed ? "expand-more" : "expand-less"}
-            size={24}
-            color="#9CA3AF"
-          />
-        </View>
+        <Text style={styles.headerTitle}>AI Correction</Text>
+        <Text style={styles.headerHint}>{isCollapsed ? "Expand" : "Collapse"}</Text>
       </TouchableOpacity>
 
-      {/* ─── CONTENT ─── */}
       {!isCollapsed && (
         <View style={styles.content}>
-          {/* ─── Dyslexia Status Banner ─── */}
-          {dyslexiaLabel && (
-            <View
-              style={[
-                styles.dyslexiaBanner,
-                dyslexiaLabel === "DYSLEXIC ESSAY"
-                  ? styles.bannerDyslexic
-                  : styles.bannerNormal,
-              ]}
-            >
-              <View
-                style={[
-                  styles.bannerIconWrap,
-                  dyslexiaLabel === "DYSLEXIC ESSAY"
-                    ? styles.bannerIconDyslexic
-                    : styles.bannerIconNormal,
-                ]}
-              >
-                <MaterialIcons
-                  name={
-                    dyslexiaLabel === "DYSLEXIC ESSAY"
-                      ? "tips-and-updates"
-                      : "verified"
-                  }
-                  size={18}
-                  color={
-                    dyslexiaLabel === "DYSLEXIC ESSAY" ? "#F59E0B" : "#10B981"
-                  }
-                />
-              </View>
-              <View style={styles.bannerTextWrap}>
-                <Text style={styles.bannerTitle}>
-                  {dyslexiaLabel === "DYSLEXIC ESSAY"
-                    ? "Dyslexic patterns detected"
-                    : "No dyslexic patterns detected"}
-                </Text>
-                <Text style={styles.bannerSubtitle}>
-                  {dyslexiaLabel === "DYSLEXIC ESSAY"
-                    ? "AI correction is recommended for this essay."
-                    : "You can still run AI correction manually."}
-                </Text>
-              </View>
-            </View>
-          )}
+          <Text style={styles.notice}>
+            Advanced AI correction is temporarily disabled in this minimal patch.
+          </Text>
 
-          {/* ─── History Toggle ─── */}
-          {studentId && (
-            <TouchableOpacity
-              style={styles.historyToggle}
-              onPress={() => setShowHistory(!showHistory)}
-            >
-              <MaterialIcons
-                name="history"
-                size={20}
-                color={showHistory ? "#FFFFFF" : "#22D3EE"}
-              />
-              <Text
-                style={[
-                  styles.historyToggleText,
-                  showHistory && { color: "#FFFFFF" },
-                ]}
-              >
-                {showHistory ? "Hide History" : "Correction History"}
-              </Text>
-            </TouchableOpacity>
-          )}
+          {dyslexiaLabel ? (
+            <Text style={styles.meta}>Detection: {dyslexiaLabel}</Text>
+          ) : null}
 
-          {/* ─── Correction History Panel ─── */}
-          {showHistory && studentId && (
-            <CorrectionHistory
-              studentId={studentId}
-              onClose={() => setShowHistory(false)}
-            />
-          )}
+          <TextInput
+            style={styles.input}
+            value={manualText}
+            onChangeText={setManualText}
+            placeholder="Edit text manually before applying"
+            placeholderTextColor="#64748B"
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
 
-          {/* ─── Manual Input Toggle ─── */}
-          <TouchableOpacity
-            style={styles.manualInputToggle}
-            onPress={() => setShowManualInput(!showManualInput)}
-          >
-            <MaterialIcons
-              name={showManualInput ? "keyboard-hide" : "keyboard"}
-              size={20}
-              color="#22D3EE"
-            />
-            <Text style={styles.manualInputToggleText}>
-              {showManualInput ? "Hide Input" : "Manual Text Input"}
-            </Text>
+          <TouchableOpacity style={styles.applyButton} onPress={applyText}>
+            <Text style={styles.applyButtonText}>Apply Edited Text</Text>
           </TouchableOpacity>
-
-          {showManualInput && (
-            <TextInput
-              style={styles.manualInput}
-              value={manualText}
-              onChangeText={setManualText}
-              placeholder={t("aiCorrection.placeholder")}
-              placeholderTextColor="#6B7280"
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          )}
-
-          {/* ─── Analyze Button ─── */}
-          <TouchableOpacity
-            style={[
-              styles.analyzeButton,
-              (!isHealthy || isAnalyzing) && styles.buttonDisabled,
-            ]}
-            onPress={handleAnalyze}
-            disabled={!isHealthy || isAnalyzing}
-          >
-            {isAnalyzing ? (
-              <>
-                <ActivityIndicator color="#fff" size="small" />
-                <Text style={styles.analyzeButtonText}>
-                  {t("aiCorrection.analyzing")}
-                </Text>
-              </>
-            ) : (
-              <>
-                <MaterialIcons name="auto-fix-high" size={20} color="#fff" />
-                <Text style={styles.analyzeButtonText}>
-                  {t("aiCorrection.analyzeButton")}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          {/* ─── Error Message ─── */}
-          {error && (
-            <View style={styles.errorContainer}>
-              <MaterialIcons name="error-outline" size={20} color="#FCA5A5" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
-          {/* =============================== */}
-          {/* ANALYSIS RESULTS — DASHBOARD    */}
-          {/* =============================== */}
-          {analysisResult && errors.length > 0 && (
-            <View style={styles.resultsContainer}>
-              {/* ─── Stats Bar ─── */}
-              <StatsBar
-                totalErrors={errors.length}
-                accepted={acceptedCount}
-                rejected={rejectedCount}
-                pending={pendingCount}
-                patterns={getErrorPatternSummary()}
-                onAcceptAll={handleAcceptAll}
-                onRejectAll={handleRejectAll}
-              />
-
-              {/* ─── DUAL-PANE: Original (tappable tokens) + Corrected Preview ─── */}
-              <View style={styles.dualPane}>
-                {/* ── Top: Original Text with Error Highlights ── */}
-                <View style={styles.pane}>
-                  <View style={styles.paneLabelRow}>
-                    <View
-                      style={[styles.paneDot, { backgroundColor: "#EF4444" }]}
-                    />
-                    <Text style={styles.paneLabel}>Original Text</Text>
-                    <Text style={styles.paneHint}>(tap any word to edit)</Text>
-                  </View>
-                  <TokenizedText
-                    tokens={tokens}
-                    onTokenPress={(id) => setPopoverTokenId(id)}
-                    showCorrected={false}
-                  />
-                </View>
-
-                {/* ── Separator ── */}
-                <View style={styles.separator}>
-                  <MaterialIcons
-                    name="arrow-downward"
-                    size={18}
-                    color="#22D3EE"
-                  />
-                </View>
-
-                {/* ── Bottom: Live Corrected Preview ── */}
-                <View style={styles.pane}>
-                  <View style={styles.paneLabelRow}>
-                    <View
-                      style={[styles.paneDot, { backgroundColor: "#10B981" }]}
-                    />
-                    <Text style={[styles.paneLabel, { color: "#10B981" }]}>
-                      Corrected Preview
-                    </Text>
-                    {acceptedCount > 0 && (
-                      <Text style={styles.paneHint}>
-                        ({acceptedCount} accepted)
-                      </Text>
-                    )}
-                  </View>
-                  <TokenizedText
-                    tokens={tokens}
-                    onTokenPress={(id) => setPopoverTokenId(id)}
-                    showCorrected
-                  />
-                </View>
-
-                {/* Processing time */}
-                {processingTimeSec && (
-                  <Text style={styles.processingTime}>
-                    Processing: {processingTimeSec}s | Model:{" "}
-                    {analysisResult.model_used || "AI"}
-                  </Text>
-                )}
-              </View>
-
-              {/* ─── TEACHER FINAL EDITING ─── */}
-              <View style={styles.teacherEditSection}>
-                <TouchableOpacity
-                  style={styles.teacherEditToggle}
-                  onPress={toggleFinalEditor}
-                >
-                  <MaterialIcons
-                    name={showFinalEditor ? "visibility-off" : "edit-note"}
-                    size={20}
-                    color="#22D3EE"
-                  />
-                  <Text style={styles.teacherEditToggleText}>
-                    {showFinalEditor ? "Hide Editor" : "Teacher Edit"}
-                  </Text>
-                  <Text style={styles.teacherEditHint}>
-                    {showFinalEditor ? "" : "(Edit final text manually)"}
-                  </Text>
-                </TouchableOpacity>
-
-                {showFinalEditor && (
-                  <View style={styles.finalEditorContainer}>
-                    <Text style={styles.finalEditorLabel}>
-                      Corrected Text (editable):
-                    </Text>
-                    <TextInput
-                      style={styles.finalEditorInput}
-                      value={finalText}
-                      onChangeText={setFinalText}
-                      multiline
-                      numberOfLines={6}
-                      textAlignVertical="top"
-                      placeholder="Corrected text will appear here..."
-                      placeholderTextColor="#6B7280"
-                    />
-                    <View style={styles.finalEditorActions}>
-                      <TouchableOpacity
-                        style={styles.refreshPreviewButton}
-                        onPress={() => setFinalText(getPreviewText())}
-                      >
-                        <MaterialIcons
-                          name="refresh"
-                          size={16}
-                          color="#22D3EE"
-                        />
-                        <Text style={styles.refreshPreviewText}>
-                          Reload Preview
-                        </Text>
-                      </TouchableOpacity>
-                      <Text style={styles.charCount}>
-                        {finalText.length} chars
-                      </Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-
-              {/* ─── APPLY BUTTON ─── */}
-              <TouchableOpacity
-                style={[
-                  styles.applyButton,
-                  !hasAnyEdits &&
-                    !showFinalEditor &&
-                    styles.buttonDisabled,
-                ]}
-                onPress={handleApplyCorrections}
-                disabled={!hasAnyEdits && !showFinalEditor}
-              >
-                <MaterialIcons name="check-circle" size={20} color="#fff" />
-                <Text style={styles.applyButtonText}>
-                  {isSavingHistory
-                    ? "Saving…"
-                    : showFinalEditor
-                      ? "Apply Edited Text"
-                      : `Apply Corrections (${acceptedCount}${editedNormalCount > 0 ? ` + ${editedNormalCount} edits` : ""})`}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* ─── No Errors Message ─── */}
-          {analysisResult && errors.length === 0 && (
-            <View style={styles.noErrorsContainer}>
-              <MaterialIcons name="check-circle" size={48} color="#10B981" />
-              <Text style={styles.noErrorsText}>No errors found!</Text>
-              <Text style={styles.noErrorsSubtext}>
-                The text appears to be correct.
-              </Text>
-              {analysisResult.corrected_text && (
-                <View style={styles.noErrorsCorrectedBox}>
-                  <Text style={styles.noErrorsCorrectedLabel}>
-                    Corrected Text:
-                  </Text>
-                  <Text style={styles.noErrorsCorrectedText}>
-                    {analysisResult.corrected_text}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
         </View>
       )}
-
-      {/* ─── Correction Popover Modal ─── */}
-      <CorrectionPopover
-        visible={!!popoverTokenId}
-        token={popoverToken}
-        onAccept={() => {
-          if (popoverTokenId) handleAccept(popoverTokenId);
-          setPopoverTokenId(null);
-        }}
-        onReject={() => {
-          if (popoverTokenId) handleReject(popoverTokenId);
-          setPopoverTokenId(null);
-        }}
-        onEdit={(newText) => {
-          if (popoverTokenId) handleEdit(popoverTokenId, newText);
-          setPopoverTokenId(null);
-        }}
-        onAnnotate={(note) => {
-          if (popoverTokenId) handleAnnotate(popoverTokenId, note);
-        }}
-        onClose={() => setPopoverTokenId(null)}
-      />
     </View>
   );
 }
-
-// ===========================
-// Styles — Dark Theme
-// ===========================
 
 const styles = StyleSheet.create({
   container: {
@@ -779,329 +99,58 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     borderWidth: 1,
     borderColor: "#22324D",
-    overflow: "hidden",
+    overflow: "hidden"
   },
-
-  // ─── Header ───
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: "#0F1B33",
-    borderBottomWidth: 1,
-    borderBottomColor: "#22324D",
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    padding: 14,
+    backgroundColor: "#0F1B33"
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: "700",
     color: "#F3F4F6",
+    fontSize: 16,
+    fontWeight: "700"
   },
-  headerErrorCount: {
-    backgroundColor: "#EF4444",
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerErrorCountText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "bold",
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusOnline: { backgroundColor: "#0D4B50" },
-  statusOffline: { backgroundColor: "#7F1D1D" },
-  statusText: { fontSize: 12, color: "#5EEAD4", fontWeight: "700" },
-  statusTextOffline: { fontSize: 12, color: "#FCA5A5", fontWeight: "500" },
-
-  // ─── Content ───
-  content: { padding: 16, backgroundColor: "#1B273B" },
-
-  // ─── Dyslexia Banner ───
-  dyslexiaBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 14,
-    borderWidth: 1,
-  },
-  bannerDyslexic: {
-    backgroundColor: "rgba(245, 158, 11, 0.14)",
-    borderColor: "rgba(245, 158, 11, 0.50)",
-  },
-  bannerNormal: {
-    backgroundColor: "rgba(16, 185, 129, 0.14)",
-    borderColor: "rgba(16, 185, 129, 0.45)",
-  },
-  bannerIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bannerIconDyslexic: {
-    backgroundColor: "rgba(245, 158, 11, 0.12)",
-  },
-  bannerIconNormal: {
-    backgroundColor: "rgba(16, 185, 129, 0.14)",
-  },
-  bannerTextWrap: { flex: 1 },
-  bannerTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#EAF2FF",
-    marginBottom: 2,
-  },
-  bannerSubtitle: {
+  headerHint: {
+    color: "#9CA3AF",
     fontSize: 12,
-    color: "#D0DEF4",
+    fontWeight: "600"
   },
-
-  // ─── History Toggle ───
-  historyToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-    backgroundColor: "#102238",
-    borderWidth: 1,
-    borderColor: "#1E3B5E",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    alignSelf: "flex-start",
+  content: {
+    padding: 14,
+    backgroundColor: "#1B273B"
   },
-  historyToggleText: {
-    fontSize: 14,
-    color: "#67D7F8",
-    fontWeight: "600",
+  notice: {
+    color: "#FBBF24",
+    marginBottom: 10,
+    fontSize: 13
   },
-
-  // ─── Manual Input ───
-  manualInputToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
+  meta: {
+    color: "#CBD5E1",
+    marginBottom: 10,
+    fontSize: 12
   },
-  manualInputToggleText: {
-    fontSize: 14,
-    color: "#67D7F8",
-    fontWeight: "600",
-  },
-  manualInput: {
+  input: {
     backgroundColor: "#0C172A",
     borderWidth: 1,
     borderColor: "#2A3A54",
     borderRadius: 8,
     padding: 12,
-    fontSize: 16,
     color: "#F3F4F6",
     minHeight: 100,
-    marginBottom: 12,
+    marginBottom: 12
   },
-
-  // ─── Analyze Button ───
-  analyzeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#2D5BDE",
-    borderWidth: 1,
-    borderColor: "#5B8BFF",
-    padding: 14,
-    borderRadius: 8,
-    shadowColor: "#2D5BDE",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  analyzeButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-  buttonDisabled: { opacity: 0.5 },
-
-  // ─── Error ───
-  errorContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#7F1D1D",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
-  },
-  errorText: { color: "#FCA5A5", fontSize: 14, flex: 1 },
-
-  // ─── Results ───
-  resultsContainer: { marginTop: 16 },
-
-  // ─── Dual Pane ───
-  dualPane: {
-    marginBottom: 16,
-  },
-  pane: {
-    marginBottom: 4,
-  },
-  paneLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 6,
-  },
-  paneDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  paneLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#EF4444",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  paneHint: {
-    fontSize: 11,
-    color: "#8CA3C7",
-    fontStyle: "italic",
-  },
-  separator: {
-    alignItems: "center",
-    paddingVertical: 4,
-  },
-  processingTime: {
-    fontSize: 11,
-    color: "#6B7280",
-    textAlign: "right",
-    marginTop: 6,
-  },
-
-  // ─── Teacher Editing ───
-  teacherEditSection: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#374151",
-    paddingTop: 16,
-  },
-  teacherEditToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  teacherEditToggleText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#22D3EE",
-  },
-  teacherEditHint: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    fontStyle: "italic",
-  },
-  finalEditorContainer: {
-    backgroundColor: "#0E1A2E",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#22D3EE",
-    padding: 12,
-    marginBottom: 12,
-  },
-  finalEditorLabel: {
-    fontSize: 13,
-    color: "#D1D5DB",
-    marginBottom: 8,
-    fontWeight: "500",
-  },
-  finalEditorInput: {
-    backgroundColor: "#1F2937",
-    color: "#F3F4F6",
-    fontSize: 16,
-    padding: 12,
-    borderRadius: 6,
-    minHeight: 120,
-    textAlignVertical: "top",
-    lineHeight: 24,
-  },
-  finalEditorActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  refreshPreviewButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    padding: 6,
-  },
-  refreshPreviewText: { fontSize: 12, color: "#22D3EE", fontWeight: "600" },
-  charCount: { fontSize: 12, color: "#6B7280" },
-
-  // ─── Apply Button ───
   applyButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#10B981",
-    padding: 16,
-    borderRadius: 10,
-    marginTop: 12,
-  },
-  applyButtonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-
-  // ─── No Errors ───
-  noErrorsContainer: {
-    alignItems: "center",
-    padding: 24,
-    marginTop: 16,
-  },
-  noErrorsText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#10B981",
-    marginTop: 12,
-  },
-  noErrorsSubtext: { fontSize: 14, color: "#9CA3AF", marginTop: 4 },
-  noErrorsCorrectedBox: {
-    marginTop: 16,
-    backgroundColor: "#111827",
-    padding: 12,
+    alignSelf: "flex-start",
+    backgroundColor: "#0EA5E9",
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#10B98130",
-    width: "100%",
+    paddingHorizontal: 12,
+    paddingVertical: 10
   },
-  noErrorsCorrectedLabel: {
-    fontSize: 12,
-    color: "#10B981",
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  noErrorsCorrectedText: {
-    fontSize: 15,
-    color: "#A7F3D0",
-    lineHeight: 22,
-  },
+  applyButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700"
+  }
 });

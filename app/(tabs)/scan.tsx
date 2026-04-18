@@ -1,4 +1,4 @@
-import { runOcr } from "@/app/api/ocr";
+import { callOcrApi } from "@/app/api/ocrApi";
 
 import AppHeader from "@/components/AppHeader";
 import { useToast } from "@/components/Toast";
@@ -14,17 +14,17 @@ import { router, useFocusEffect } from "expo-router";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Button,
-    Easing,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Button,
+  Easing,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
 } from "react-native";
 import ReactWebcam from "react-webcam";
 
@@ -153,7 +153,7 @@ export default function ScanScreen() {
       });
 
       if (Platform.OS === "web" && asset.file) {
-        runOcr(asset.file, ocrImageId).catch((err) => {
+        callOcrApi(asset.file, filename, ocrImageId).catch((err) => {
           console.warn("OCR request failed", err);
         });
       }
