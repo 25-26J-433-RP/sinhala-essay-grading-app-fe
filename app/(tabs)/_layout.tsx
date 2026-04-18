@@ -4,6 +4,7 @@ import { Tabs, useRouter, useSegments } from "expo-router";
 import React from "react";
 import {
     Alert,
+    Image,
     Platform,
     ScrollView,
     Text,
@@ -13,11 +14,10 @@ import {
 } from "react-native";
 
 import { HapticTab } from "@/components/HapticTab";
-import { IconSymbol } from "@/components/ui/IconSymbol";
 import TabBarBackground from "@/components/ui/TabBarBackground";
-import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useRole } from "@/hooks/useRole";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 export default function TabLayout() {
@@ -26,6 +26,7 @@ export default function TabLayout() {
   const { width: screenWidth } = useWindowDimensions();
   const router = useRouter();
   const segments = useSegments();
+  const { isStudent } = useRole();
   // Treat as desktop only when running on web with a wide viewport.
   const isDesktop = Platform.OS === "web" ? screenWidth >= 768 : false;
   const hideOnMobile = !isDesktop;
@@ -76,140 +77,175 @@ export default function TabLayout() {
     { name: "index", label: t("tabs.home"), icon: "house.fill" },
     { name: "scan", label: t("tabs.scan"), icon: "camera" },
     { name: "uploaded-images", label: t("tabs.collection"), icon: "photo" },
-    { name: "add-student", label: t("tabs.addStudent"), icon: "person" },
+    { name: "add-student", label: isStudent() ? t("tabs.addMyDetails") : t("tabs.addStudent"), icon: "person" },
     { name: "profile", label: t("profile.title"), icon: "account" },
   ];
 
   const headerComponent = isDesktop ? (
     <View
       style={{
-        height: 64,
-        backgroundColor: Colors[colorScheme ?? "light"].background,
+        height: 72,
+        backgroundColor: "#0F1117",
         borderBottomWidth: 1,
-        borderBottomColor: Colors[colorScheme ?? "light"].tabIconDefault,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        borderBottomColor: "#2D313E",
+        paddingHorizontal: 24,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        zIndex: 10,
       }}
     >
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          gap: 8,
-          flexDirection: "row",
-          alignItems: "center",
-        }}
-      >
-        {navTabs.map((tab) => {
-          const isActive = currentRoute === tab.name;
-          return (
-            <TouchableOpacity
-              key={tab.name}
-              onPress={() => {
-                if (tab.name === "index") {
-                  router.push("/(tabs)");
-                } else {
-                  router.push(`/(tabs)/${tab.name}`);
-                }
-              }}
-              style={{
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 6,
-                backgroundColor: isActive
-                  ? Colors[colorScheme ?? "light"].tint
-                  : Colors[colorScheme ?? "light"].tint + "15",
-                borderBottomWidth: isActive ? 3 : 0,
-                borderBottomColor: Colors[colorScheme ?? "light"].tint,
-              }}
-            >
-              <Text
+      <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)")}
+          style={{
+            marginRight: 24,
+            width: 44,
+            height: 44,
+            backgroundColor: "#1C1E26",
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: "#2D313E",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+          }}
+        >
+          <Image
+            source={require("../../assets/images/akura-logo.png")}
+            style={{ width: 32, height: 32 }}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            gap: 12,
+            flexDirection: "row",
+            alignItems: "center",
+          }}
+        >
+          {navTabs.map((tab) => {
+            const isActive = currentRoute === tab.name;
+            return (
+              <TouchableOpacity
+                key={tab.name}
+                onPress={() => {
+                  if (tab.name === "index") {
+                    router.push("/(tabs)");
+                  } else {
+                    router.push(`/(tabs)/${tab.name}` as any);
+                  }
+                }}
                 style={{
-                  color: isActive
-                    ? Colors[colorScheme ?? "light"].background
-                    : Colors[colorScheme ?? "light"].text,
-                  fontSize: 14,
-                  fontWeight: isActive ? "600" : "500",
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  backgroundColor: isActive ? "#FFFFFF" : "transparent",
+                  borderWidth: 1,
+                  borderColor: isActive ? "#FFFFFF" : "transparent",
                 }}
               >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+                <Text
+                  style={{
+                    color: isActive ? "#0F1117" : "#FFFFFF",
+                    fontSize: 14,
+                    fontWeight: isActive ? "700" : "600",
+                  }}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       <View
         style={{
           flexDirection: "row",
           alignItems: "center",
-          gap: 12,
-          marginLeft: 12,
+          gap: 16,
+          marginLeft: 24,
         }}
       >
-        {/* Profile Button */}
-        <TouchableOpacity
-          onPress={() => router.push("/profile")}
-          style={{
-            padding: 8,
-            borderRadius: 6,
-            backgroundColor: Colors[colorScheme ?? "light"].tint + "15",
-          }}
-        >
-          <MaterialIcons
-            name="account-circle"
-            size={24}
-            color={Colors[colorScheme ?? "light"].tint}
-          />
-        </TouchableOpacity>
-
         {/* Language Switcher */}
         <TouchableOpacity
           onPress={toggleLanguage}
           style={{
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            borderRadius: 6,
-            backgroundColor: Colors[colorScheme ?? "light"].tint + "15",
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderRadius: 12,
+            backgroundColor: "#1C1E26",
             flexDirection: "row",
             alignItems: "center",
-            gap: 6,
+            gap: 8,
+            borderWidth: 1,
+            borderColor: "#2D313E",
           }}
         >
-          <MaterialIcons
-            name="language"
-            size={18}
-            color={Colors[colorScheme ?? "light"].tint}
-          />
+          <MaterialIcons name="language" size={18} color="#007AFF" />
           <Text
             style={{
-              color: Colors[colorScheme ?? "light"].tint,
-              fontSize: 13,
-              fontWeight: "500",
+              color: "#FFFFFF",
+              fontSize: 14,
+              fontWeight: "600",
             }}
           >
-            {language === "en" ? "සි" : "EN"}
+            {language === "en" ? "සිංහල" : "English"}
           </Text>
         </TouchableOpacity>
+
+        {/* Profile Button */}
+        <TouchableOpacity
+          onPress={() => router.push("/profile")}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: "#1C1E26",
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: 1,
+            borderColor: "#2D313E",
+          }}
+        >
+          <MaterialIcons name="account-circle" size={26} color="#9CA3AF" />
+        </TouchableOpacity>
+
+        {/* Divider */}
+        <View
+          style={{
+            width: 1,
+            height: 24,
+            backgroundColor: "#2D313E",
+            marginHorizontal: 4,
+          }}
+        />
 
         {/* Logout Button */}
         <TouchableOpacity
           onPress={handleLogout}
           style={{
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-            borderRadius: 6,
-            backgroundColor: "#EF4444",
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderRadius: 12,
+            backgroundColor: "#EF444420",
             flexDirection: "row",
             alignItems: "center",
-            gap: 6,
+            gap: 8,
+            borderWidth: 1,
+            borderColor: "#EF444440",
           }}
         >
-          <MaterialIcons name="logout" size={18} color="#fff" />
-          <Text style={{ color: "#fff", fontSize: 13, fontWeight: "500" }}>
+          <MaterialIcons name="logout" size={18} color="#EF4444" />
+          <Text style={{ color: "#EF4444", fontSize: 14, fontWeight: "700" }}>
             {t("auth.logout")}
           </Text>
         </TouchableOpacity>
@@ -222,24 +258,38 @@ export default function TabLayout() {
       {headerComponent}
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
+          tabBarActiveTintColor: "#FFFFFF",
+          tabBarInactiveTintColor: "#9CA3AF",
           headerShown: false,
           tabBarButton: HapticTab,
           tabBarBackground: TabBarBackground,
+          tabBarShowLabel: true,
           tabBarStyle: Platform.select({
             ios: {
-              // Use a transparent background on iOS to show the blur effect
               position: "absolute",
-              paddingTop: 8,
-              height: 74,
+              backgroundColor: "#0F1117",
+              borderTopWidth: 1,
+              borderTopColor: "#2D313E",
+              height: 90,
+              paddingBottom: 30,
+              paddingTop: 10,
               display: isDesktop ? "none" : "flex",
             },
             default: {
+              backgroundColor: "#0F1117",
+              borderTopWidth: 1,
+              borderTopColor: "#2D313E",
+              height: 76,
+              paddingBottom: 10,
               paddingTop: 8,
-              height: 64,
               display: isDesktop ? "none" : "flex",
             },
           }),
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: "600",
+            marginBottom: 4,
+          },
         }}
       >
         {
@@ -278,16 +328,20 @@ export default function TabLayout() {
               switch (name) {
                 case "index":
                   commonOptions.title = t("tabs.home");
-                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
-                    <IconSymbol size={28} name="house.fill" color={color} />
+                  commonOptions.tabBarIcon = ({ color, focused }: { color: string, focused: boolean }) => (
+                    <MaterialCommunityIcons
+                      name={focused ? "home-variant" : "home-variant-outline"}
+                      size={24}
+                      color={color}
+                    />
                   );
                   break;
                 case "scan":
                   commonOptions.title = t("tabs.scan");
-                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
+                  commonOptions.tabBarIcon = ({ color, focused }: { color: string, focused: boolean }) => (
                     <MaterialCommunityIcons
-                      name="camera-outline"
-                      size={26}
+                      name={focused ? "camera" : "camera-outline"}
+                      size={24}
                       color={color}
                     />
                   );
@@ -295,26 +349,30 @@ export default function TabLayout() {
 
                 case "uploaded-images":
                   commonOptions.title = t("tabs.collection");
-                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
-                    <MaterialIcons
-                      name="photo-library"
-                      size={26}
+                  commonOptions.tabBarIcon = ({ color, focused }: { color: string, focused: boolean }) => (
+                    <MaterialCommunityIcons
+                      name={focused ? "folder-multiple-image" : "folder-multiple-outline"}
+                      size={24}
                       color={color}
                     />
                   );
                   break;
                 case "add-student":
-                  commonOptions.title = "Add Student";
-                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
-                    <MaterialIcons name="person-add" size={26} color={color} />
+                  commonOptions.title = t("tabs.addStudent");
+                  commonOptions.tabBarIcon = ({ color, focused }: { color: string, focused: boolean }) => (
+                    <MaterialCommunityIcons
+                      name={focused ? "account-plus" : "account-plus-outline"}
+                      size={24}
+                      color={color}
+                    />
                   );
                   break;
                 case "profile":
                   commonOptions.title = t("profile.title");
-                  commonOptions.tabBarIcon = ({ color }: { color: string }) => (
-                    <MaterialIcons
-                      name="account-circle"
-                      size={26}
+                  commonOptions.tabBarIcon = ({ color, focused }: { color: string, focused: boolean }) => (
+                    <MaterialCommunityIcons
+                      name={focused ? "account-circle" : "account-circle-outline"}
+                      size={24}
                       color={color}
                     />
                   );

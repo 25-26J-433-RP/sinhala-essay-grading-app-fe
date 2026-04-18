@@ -7,12 +7,18 @@ const en = require('../locales/en.json');
 const si = require('../locales/si.json');
 
 const LANGUAGE_KEY = '@app_language';
+const isBrowser = typeof window !== 'undefined';
 
 // Language detector for AsyncStorage
 const languageDetector = {
   type: 'languageDetector' as const,
   async: true,
   detect: async (callback: (lang: string) => void) => {
+    if (!isBrowser) {
+      callback('en');
+      return;
+    }
+
     try {
       const savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
       callback(savedLanguage || 'en');
@@ -23,6 +29,8 @@ const languageDetector = {
   },
   init: () => {},
   cacheUserLanguage: async (language: string) => {
+    if (!isBrowser) return;
+
     try {
       await AsyncStorage.setItem(LANGUAGE_KEY, language);
     } catch (error) {

@@ -3,14 +3,15 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import {
-  Image, Linking,
+  Image,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   useWindowDimensions,
-  View
+  View,
 } from "react-native";
 
 export default function GuestScreen() {
@@ -57,7 +58,7 @@ export default function GuestScreen() {
         color: "#06B6D4",
       },
     ],
-    [t]
+    [t],
   );
 
   return (
@@ -272,7 +273,7 @@ export default function GuestScreen() {
           style={styles.demoButton}
           onPress={() => {
             Linking.openURL(
-              "https://github.com/25-26J-433-RP/sinhala-essay-grading-app-fe"
+              "https://github.com/25-26J-433-RP/sinhala-essay-grading-app-fe",
             );
           }}
         >
@@ -286,7 +287,7 @@ export default function GuestScreen() {
         <Text style={styles.footerText}>
           {t("guest.footerText").replace(
             "{{year}}",
-            new Date().getFullYear().toString()
+            new Date().getFullYear().toString(),
           )}
         </Text>
         <Text style={styles.footerSubtext}>{t("guest.footerDescription")}</Text>

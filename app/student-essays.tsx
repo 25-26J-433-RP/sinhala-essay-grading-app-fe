@@ -4,8 +4,10 @@ import { useToast } from "@/components/Toast";
 import { storage } from "@/config/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useRole } from "@/hooks/useRole";
 import { UserImageService, UserImageUpload } from "@/services/userImageService";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useFocusEffect } from "@react-navigation/native";
 import { Audio } from "expo-av";
 import { router, useLocalSearchParams } from "expo-router";
 import { getDownloadURL, ref as storageRef } from "firebase/storage";
@@ -22,6 +24,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Svg, { Path as SvgPath } from "react-native-svg";
 
 import { generateAudioFeedback } from "@/app/api/audioFeedback";
 import {
@@ -29,7 +32,8 @@ import {
   BatchFeedbackResponse,
   fetchBatchTextFeedback,
 } from "@/app/api/batchTextFeedback";
-
+import { LearningSupport } from "./LearningSupport";
+import { StudentWritingPatternProfile } from "./WritingPatternProfile";
 // Component to display essay thumbnail with fresh URL resolution (CORS bypass on web)
 interface EssayThumbnailProps {
   essay: UserImageUpload;
@@ -154,33 +158,44 @@ export default function StudentEssaysScreen() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [chartAreaWidth, setChartAreaWidth] = useState<number>(0);
 
   // Batch feedback state
   const [batchFeedback, setBatchFeedback] =
     useState<BatchFeedbackResponse | null>(null);
   const [batchFeedbackLoading, setBatchFeedbackLoading] = useState(false);
   const [batchFeedbackError, setBatchFeedbackError] = useState<string | null>(
-    null
+    null,
   );
 
   // Audio feedback state
   const [audioFeedback, setAudioFeedback] = useState<any>(null);
   const [audioFeedbackLoading, setAudioFeedbackLoading] = useState(false);
   const [audioFeedbackError, setAudioFeedbackError] = useState<string | null>(
-    null
+    null,
   );
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioPlaybackRate, setAudioPlaybackRate] = useState(1.0);
   const audioPlayerRef = useRef<Audio.Sound | null>(null);
 
   const { user } = useAuth();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const { t } = useLanguage();
+  const { isStudent } = useRole();
   const DEBUG = __DEV__ === true;
   const PAGE_SIZE = 3;
   const analyticsValueStyle = {
     fontSize: screenWidth < 360 ? 22 : screenWidth < 768 ? 26 : 30,
   };
+  const mindmapButtonFontSize =
+    screenWidth < 360
+      ? 11
+      : screenWidth < 480
+        ? 12
+        : screenWidth < 768
+          ? 13
+          : 14;
 
   // Responsive padding based on screen size
   const contentPadding = screenWidth < 480 ? 12 : screenWidth < 768 ? 16 : 24;
@@ -210,7 +225,7 @@ export default function StudentEssaysScreen() {
     const total = segments.reduce((s, v) => s + v.value, 0) || 1;
     if (!SvgLib) {
       return (
-        <View style={styles.pieFallback}>
+        <View style={styles.pieFallback as any}>
           <Text style={styles.pieFallbackText}>
             Install react-native-svg to enable the pie chart
           </Text>
@@ -228,7 +243,7 @@ export default function StudentEssaysScreen() {
       cx: number,
       cy: number,
       radius: number,
-      angleDeg: number
+      angleDeg: number,
     ) {
       const rad = ((angleDeg - 90) * Math.PI) / 180;
       return {
@@ -271,7 +286,7 @@ export default function StudentEssaysScreen() {
             }}
           >
             <Text style={styles.pieLabel}>{percentage}%</Text>
-          </View>
+          </View>,
         );
       }
       startAngle = endAngle;
@@ -304,7 +319,7 @@ export default function StudentEssaysScreen() {
       try {
         const userImages = await UserImageService.getUserImages(user.uid);
         const essays = userImages.filter(
-          (image) => image.studentId === studentId
+          (image) => image.studentId === studentId,
         );
         const latestEssay = essays[0];
         const lastUploadDate = latestEssay?.uploadedAt || new Date();
@@ -319,6 +334,16 @@ export default function StudentEssaysScreen() {
             essayCount: essays.length,
             lastUploadDate,
             essays,
+          });
+
+          console.log("📊 Study Student Essays - Loaded essays:", {
+            totalEssays: essays.length,
+            scoredEssays: essays.filter((e) => e.score).length,
+            essays: essays.slice(0, 3).map((e) => ({
+              id: e.id,
+              score: e.score,
+              uploadedAt: e.uploadedAt,
+            })),
           });
         }
       } catch (error) {
@@ -340,12 +365,66 @@ export default function StudentEssaysScreen() {
     };
   }, [studentId, user?.uid]);
 
+  // Reload data whenever this screen is focused (after scoring essays)
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("🔄 Student Essays screen focused - reloading data");
+      let isMounted = true;
+
+      const reloadStudentEssays = async () => {
+        if (!studentId || !user?.uid) {
+          return;
+        }
+
+        try {
+          const userImages = await UserImageService.getUserImages(user.uid);
+          const essays = userImages.filter(
+            (image) => image.studentId === studentId,
+          );
+          const latestEssay = essays[0];
+          const lastUploadDate = latestEssay?.uploadedAt || new Date();
+
+          if (isMounted) {
+            setStudentInfo({
+              id: studentId,
+              studentId,
+              studentAge: latestEssay?.studentAge,
+              studentGrade: latestEssay?.studentGrade,
+              studentGender: latestEssay?.studentGender,
+              essayCount: essays.length,
+              lastUploadDate,
+              essays,
+            });
+
+            console.log("✅ Student Essays refreshed on focus:", {
+              totalEssays: essays.length,
+              scoredEssays: essays.filter((e) => e.score).length,
+              essays: essays.slice(0, 3).map((e) => ({
+                id: e.id,
+                score: e.score,
+                uploadedAt: e.uploadedAt,
+              })),
+            });
+          }
+        } catch (error) {
+          console.error("Error reloading student essays:", error);
+        }
+      };
+
+      reloadStudentEssays();
+
+      return () => {
+        isMounted = false;
+      };
+    }, [studentId, user?.uid]),
+  );
+
   // Clamp current page when essays length changes (e.g., after deletion)
   useEffect(() => {
     if (!studentInfo?.essays) return;
     const totalPages = Math.max(
       1,
-      Math.ceil(studentInfo.essays.length / PAGE_SIZE)
+      Math.ceil(studentInfo.essays.length / PAGE_SIZE),
     );
     setCurrentPage((prev) => Math.min(prev, totalPages));
   }, [studentInfo]);
@@ -420,7 +499,7 @@ export default function StudentEssaysScreen() {
 
     try {
       console.log(
-        `🔄 Fetching batch feedback for ${studentInfo.essays.length} essays...`
+        `🔄 Fetching batch feedback for ${studentInfo.essays.length} essays...`,
       );
 
       // Construct the batch request with essay_id and text
@@ -474,7 +553,7 @@ export default function StudentEssaysScreen() {
 
       const response = await generateAudioFeedback(
         `batch-${studentInfo?.id || "student"}`,
-        feedbackText
+        feedbackText,
       );
 
       setAudioFeedback(response);
@@ -482,7 +561,7 @@ export default function StudentEssaysScreen() {
 
       await UserImageService.updateImageAudioFeedback(
         `batch-${studentInfo?.id || "student"}`,
-        response
+        response,
       );
 
       showToast(t("essay.audioGenerated"), { type: "success" });
@@ -543,77 +622,92 @@ export default function StudentEssaysScreen() {
 
   const renderEssayItem = ({ item }: { item: UserImageUpload }) => (
     <View style={styles.essayCardWrapper}>
-      <View style={styles.essayCardContainer}>
-        {/* Main Essay Card */}
-        <TouchableOpacity
-          style={styles.essayCard}
-          onPress={() => {
-            router.push({
-  pathname: "/image-detail",
-  params: {
-    imageId: item.id,
-  },
-});
+      <TouchableOpacity
+        style={styles.essayCard as any}
+        onPress={() => {
+          router.push({
+            pathname: "/image-detail",
+            params: {
+              imageId: item.id,
+            },
+          });
+        }}
+        activeOpacity={0.8}
+      >
+        <EssayThumbnail essay={item} style={styles.thumbnail} />
 
-          }}
-          activeOpacity={0.8}
-        >
-          <EssayThumbnail essay={item} />
-          <View style={styles.essayInfo}>
-            <Text style={styles.fileName} numberOfLines={1}>
-              {item.fileName}
+        <View style={styles.essayInfo}>
+          <Text style={styles.fileName} numberOfLines={1}>
+            {item.fileName}
+          </Text>
+          <Text style={styles.uploadDate}>{formatDate(item.uploadedAt)}</Text>
+
+          {item.description && (
+            <Text style={styles.description} numberOfLines={1}>
+              {item.description}
             </Text>
-            <Text style={styles.uploadDate}>{formatDate(item.uploadedAt)}</Text>
-            {item.description && (
-              <Text style={styles.description} numberOfLines={2}>
-                {item.description}
-              </Text>
-            )}
-            {/* Action Buttons Row */}
-            <View style={styles.actionButtonsRow}>
-              <TouchableOpacity
-                style={styles.mindmapButton}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  router.push({
-                    pathname: "/essay-mindmap",
-                    params: {
-                      essayId: item.id,
-                      essayTitle: encodeURIComponent(item.fileName),
-                    },
-                  });
-                }}
-              >
-                <MaterialIcons name="account-tree" size={16} color="#007AFF" />
-                <Text style={styles.mindmapButtonText}>
-                  {t("studentEssays.viewMindmap")}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          <MaterialIcons name="chevron-right" size={24} color="#B0B3C6" />
-        </TouchableOpacity>
-
-        {/* Delete Button on Right */}
-        <TouchableOpacity
-          style={styles.deleteIconButton}
-          onPress={() => handleDeleteEssay(item)}
-          disabled={deletingId === item.id}
-        >
-          {deletingId === item.id ? (
-            <ActivityIndicator size="small" color="#FF3B30" />
-          ) : (
-            <MaterialIcons name="delete-outline" size={22} color="#FF3B30" />
           )}
-        </TouchableOpacity>
-      </View>
+
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity
+              style={styles.mindmapButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                router.push({
+                  pathname: "/essay-mindmap",
+                  params: {
+                    essayId: item.id,
+                    essayTitle: encodeURIComponent(item.fileName),
+                  },
+                });
+              }}
+            >
+              <MaterialIcons name="account-tree" size={16} color="#10B981" />
+              <Text style={styles.mindmapButtonText}>
+                {t("studentEssays.viewMindmap")}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.inlineDeleteButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDeleteEssay(item);
+              }}
+              disabled={deletingId === item.id}
+            >
+              {deletingId === item.id ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <MaterialIcons
+                  name="delete-outline"
+                  size={20}
+                  color="#EF4444"
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <MaterialIcons name="chevron-right" size={24} color="#2D313E" />
+      </TouchableOpacity>
     </View>
   );
 
   return (
     <View style={styles.fullBg}>
       <ScrollView style={styles.container}>
-        <AppHeader hideRightSection />
+        <AppHeader
+          showBackButton
+          title={t("screenTitles.studentEssays")}
+          onBackPress={() => {
+            if (isStudent()) {
+              router.replace("/(tabs)");
+            } else {
+              router.back();
+            }
+          }}
+        />
 
         <View style={responsiveContentStyle}>
           {/* Student Info Card */}
@@ -644,7 +738,7 @@ export default function StudentEssaysScreen() {
                       <View key={index} style={styles.detailItem}>
                         <MaterialIcons
                           name={detail.icon as any}
-                          size={16}
+                          size={14}
                           color="#B0B3C6"
                         />
                         <Text style={styles.detailText}>{detail.text}</Text>
@@ -719,7 +813,11 @@ export default function StudentEssaysScreen() {
 
                 {totalPages > 1 && (
                   <Text style={styles.rangeInfo}>
-                    Showing {startIndex + 1}-{endIndex} of {totalEssays}
+                    {t("analytics.showingRange", {
+                      start: startIndex + 1,
+                      end: endIndex,
+                      total: totalEssays,
+                    })}
                   </Text>
                 )}
               </View>
@@ -733,11 +831,13 @@ export default function StudentEssaysScreen() {
                 <MaterialIcons name="summarize" size={24} color="#8B5CF6" />
                 <View style={styles.headerTextContainer}>
                   <Text style={styles.sectionTitle}>
-                    Student Performance Summary
+                    {t("analytics.studentPerformanceSummary")}
                   </Text>
                   {batchFeedback && (
                     <Text style={styles.summarySubtext}>
-                      {batchFeedback.total} essays analyzed
+                      {t("analytics.essaysAnalyzed", {
+                        count: batchFeedback.total,
+                      })}
                     </Text>
                   )}
                 </View>
@@ -748,11 +848,10 @@ export default function StudentEssaysScreen() {
               <View style={styles.emptyPlaceholderBox}>
                 <MaterialIcons name="info-outline" size={32} color="#8B5CF6" />
                 <Text style={styles.placeholderTitle}>
-                  Get Performance Insights
+                  {t("analytics.getPerformanceInsights")}
                 </Text>
                 <Text style={styles.placeholderText}>
-                  Analyze all essays and get comprehensive feedback, common
-                  patterns, and suggestions for improvement
+                  {t("analytics.analyzeAllEssays")}
                 </Text>
                 <TouchableOpacity
                   style={styles.generateSummaryButton}
@@ -761,7 +860,7 @@ export default function StudentEssaysScreen() {
                 >
                   <MaterialIcons name="play-arrow" size={20} color="#fff" />
                   <Text style={styles.generateSummaryButtonText}>
-                    Generate Summary
+                    {t("analytics.generateSummary")}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -772,10 +871,10 @@ export default function StudentEssaysScreen() {
                 <ActivityIndicator color="#8B5CF6" size="large" />
                 <View style={styles.loadingTextContainer}>
                   <Text style={styles.batchFeedbackStatusText}>
-                    Analyzing all essays...
+                    {t("analytics.analyzingEssays")}
                   </Text>
                   <Text style={styles.loadingSubtext}>
-                    This may take a moment
+                    {t("analytics.thisMayTakeAMoment")}
                   </Text>
                 </View>
               </View>
@@ -793,7 +892,7 @@ export default function StudentEssaysScreen() {
             {batchFeedback && (
               <View style={styles.batchFeedbackContent}>
                 <View style={styles.statsGridContainer}>
-                  <View style={styles.statCard}>
+                  <View style={styles.batchStatCard}>
                     <View style={styles.statIconWrapper}>
                       <MaterialIcons
                         name="description"
@@ -801,26 +900,31 @@ export default function StudentEssaysScreen() {
                         color="#8B5CF6"
                       />
                     </View>
-                    <Text style={styles.statCardLabel}>Total Essays</Text>
-                    <Text style={styles.statCardValue}>
+                    <Text style={styles.batchStatCardLabel}>
+                      {" "}
+                      {t("analytics.totalEssays")}
+                    </Text>
+                    <Text style={styles.batchStatCardValue}>
                       {batchFeedback.total}
                     </Text>
                   </View>
 
                   {batchFeedback.summary?.total_scored !== undefined && (
-                    <View style={styles.statCard}>
+                    <View style={styles.batchStatCard}>
                       <View style={styles.statIconWrapper}>
                         <MaterialIcons name="grade" size={24} color="#10B981" />
                       </View>
-                      <Text style={styles.statCardLabel}>Essays Scored</Text>
-                      <Text style={styles.statCardValue}>
+                      <Text style={styles.batchStatCardLabel}>
+                        {t("analytics.essaysScored2")}
+                      </Text>
+                      <Text style={styles.batchStatCardValue}>
                         {batchFeedback.summary.total_scored || 0}
                       </Text>
                     </View>
                   )}
 
                   {batchFeedback.summary?.average_score !== undefined && (
-                    <View style={styles.statCard}>
+                    <View style={styles.batchStatCard}>
                       <View style={styles.statIconWrapper}>
                         <MaterialIcons
                           name="trending-up"
@@ -828,8 +932,10 @@ export default function StudentEssaysScreen() {
                           color="#F59E0B"
                         />
                       </View>
-                      <Text style={styles.statCardLabel}>Avg Score</Text>
-                      <Text style={styles.statCardValue}>
+                      <Text style={styles.batchStatCardLabel}>
+                        {t("analytics.avgScoreShort")}
+                      </Text>
+                      <Text style={styles.batchStatCardValue}>
                         {(batchFeedback.summary.average_score || 0).toFixed(1)}
                       </Text>
                     </View>
@@ -846,18 +952,17 @@ export default function StudentEssaysScreen() {
                           color="#F59E0B"
                         />
                         <Text style={styles.suggestionsBoxTitle}>
-                          Common Suggestions Across All Essays
+                          {t("analytics.commonSuggestions")}
                         </Text>
                       </View>
                       {batchFeedback.summary.common_suggestions.map(
                         (suggestion, idx) => (
                           <View key={idx} style={styles.commonSuggestionItem}>
-                            <Text style={styles.suggestionBullet}>•</Text>
                             <Text style={styles.commonSuggestionText}>
                               {suggestion}
                             </Text>
                           </View>
-                        )
+                        ),
                       )}
                     </View>
                   )}
@@ -881,10 +986,10 @@ export default function StudentEssaysScreen() {
                           color="#10B981"
                         />
                         <Text style={styles.audioPlaceholderTitle}>
-                          Generate Audio Feedback
+                          {t("analytics.generateAudioFeedback")}
                         </Text>
                         <Text style={styles.audioPlaceholderText}>
-                          Create personalized audio feedback for all essays
+                          {t("analytics.createAudioFeedback")}
                         </Text>
                         <TouchableOpacity
                           style={styles.generateAudioFeedbackButton}
@@ -897,7 +1002,7 @@ export default function StudentEssaysScreen() {
                             color="#fff"
                           />
                           <Text style={styles.generateAudioFeedbackButtonText}>
-                            Generate Audio
+                            {t("analytics.generateAudio")}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -949,11 +1054,21 @@ export default function StudentEssaysScreen() {
                                     : { uri: audioFeedback.audio_base64 };
 
                                   await sound.loadAsync(source);
+                                  await sound.setRateAsync(
+                                    audioPlaybackRate,
+                                    true,
+                                  );
                                   audioPlayerRef.current = sound;
                                   console.log(
                                     audioFeedback.audio_url
                                       ? "🎵 Playing audio from URL"
-                                      : "🎵 Playing audio from base64"
+                                      : "🎵 Playing audio from base64",
+                                  );
+                                } else {
+                                  // Always set playback rate before playing
+                                  await audioPlayerRef.current.setRateAsync(
+                                    audioPlaybackRate,
+                                    true,
                                   );
                                 }
 
@@ -1000,6 +1115,108 @@ export default function StudentEssaysScreen() {
                               Duration: {audioFeedback.duration}s
                             </Text>
                           )}
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              marginTop: 8,
+                            }}
+                          >
+                            <Text style={{ color: "#fff", marginRight: 8 }}>
+                              Speed:
+                            </Text>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor:
+                                  audioPlaybackRate === 0.75
+                                    ? "#10B981"
+                                    : "#23262F",
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 6,
+                                marginRight: 4,
+                              }}
+                              onPress={async () => {
+                                setAudioPlaybackRate(0.75);
+                                if (audioPlayerRef.current) {
+                                  await audioPlayerRef.current.setRateAsync(
+                                    0.75,
+                                    true,
+                                  );
+                                }
+                              }}
+                            >
+                              <Text style={{ color: "#fff" }}>0.75x</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor:
+                                  audioPlaybackRate === 1.0
+                                    ? "#10B981"
+                                    : "#23262F",
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 6,
+                                marginRight: 4,
+                              }}
+                              onPress={async () => {
+                                setAudioPlaybackRate(1.0);
+                                if (audioPlayerRef.current) {
+                                  await audioPlayerRef.current.setRateAsync(
+                                    1.0,
+                                    true,
+                                  );
+                                }
+                              }}
+                            >
+                              <Text style={{ color: "#fff" }}>1x</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor:
+                                  audioPlaybackRate === 1.25
+                                    ? "#10B981"
+                                    : "#23262F",
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 6,
+                                marginRight: 4,
+                              }}
+                              onPress={async () => {
+                                setAudioPlaybackRate(1.25);
+                                if (audioPlayerRef.current) {
+                                  await audioPlayerRef.current.setRateAsync(
+                                    1.25,
+                                    true,
+                                  );
+                                }
+                              }}
+                            >
+                              <Text style={{ color: "#fff" }}>1.25x</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor:
+                                  audioPlaybackRate === 1.5
+                                    ? "#10B981"
+                                    : "#23262F",
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 6,
+                              }}
+                              onPress={async () => {
+                                setAudioPlaybackRate(1.5);
+                                if (audioPlayerRef.current) {
+                                  await audioPlayerRef.current.setRateAsync(
+                                    1.5,
+                                    true,
+                                  );
+                                }
+                              }}
+                            >
+                              <Text style={{ color: "#fff" }}>1.5x</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       </View>
                     )}
@@ -1020,8 +1237,26 @@ export default function StudentEssaysScreen() {
             {(() => {
               // Collect all scored essays
               const scoredEssays = studentInfo.essays.filter(
-                (essay: UserImageUpload) => essay.score
+                (essay: UserImageUpload) => essay.score,
               );
+
+              console.log("📊 CHART DEBUG - All essays in studentInfo:", {
+                totalEssays: studentInfo.essays.length,
+                essays: studentInfo.essays.map((e: UserImageUpload) => ({
+                  id: e.id,
+                  score: e.score,
+                  hasScore: !!e.score,
+                })),
+              });
+
+              console.log("📊 CHART DEBUG - Filtered scored essays:", {
+                scoredCount: scoredEssays.length,
+                scoredEssays: scoredEssays.map((e: UserImageUpload) => ({
+                  id: e.id,
+                  score: e.score,
+                  type: typeof e.score,
+                })),
+              });
 
               if (scoredEssays.length === 0) {
                 return (
@@ -1043,47 +1278,47 @@ export default function StudentEssaysScreen() {
               const avgScore =
                 scoredEssays.reduce(
                   (sum: number, e: UserImageUpload) => sum + (e.score || 0),
-                  0
+                  0,
                 ) / totalScored;
               const maxScore = Math.max(
-                ...scoredEssays.map((e: UserImageUpload) => e.score || 0)
+                ...scoredEssays.map((e: UserImageUpload) => e.score || 0),
               );
               const minScore = Math.min(
-                ...scoredEssays.map((e: UserImageUpload) => e.score || 0)
+                ...scoredEssays.map((e: UserImageUpload) => e.score || 0),
               );
 
               // Rubric averages
               const richnessEssays = scoredEssays.filter(
-                (e: UserImageUpload) => e.rubric?.richness_5 !== undefined
+                (e: UserImageUpload) => e.rubric?.richness_5 !== undefined,
               );
               let avgRichness =
                 richnessEssays.length > 0
                   ? richnessEssays.reduce(
                       (sum: number, e: UserImageUpload) =>
                         sum + (e.rubric?.richness_5 || 0),
-                      0
+                      0,
                     ) / richnessEssays.length
                   : 0;
               const organizationEssays = scoredEssays.filter(
-                (e: UserImageUpload) => e.rubric?.organization_6 !== undefined
+                (e: UserImageUpload) => e.rubric?.organization_6 !== undefined,
               );
               let avgOrganization =
                 organizationEssays.length > 0
                   ? organizationEssays.reduce(
                       (sum: number, e: UserImageUpload) =>
                         sum + (e.rubric?.organization_6 || 0),
-                      0
+                      0,
                     ) / organizationEssays.length
                   : 0;
               const technicalEssays = scoredEssays.filter(
-                (e: UserImageUpload) => e.rubric?.technical_3 !== undefined
+                (e: UserImageUpload) => e.rubric?.technical_3 !== undefined,
               );
               let avgTechnical =
                 technicalEssays.length > 0
                   ? technicalEssays.reduce(
                       (sum: number, e: UserImageUpload) =>
                         sum + (e.rubric?.technical_3 || 0),
-                      0
+                      0,
                     ) / technicalEssays.length
                   : 0;
 
@@ -1103,20 +1338,20 @@ export default function StudentEssaysScreen() {
               // Trend analysis (last 3 vs first 3)
               const recentEssays = scoredEssays.slice(
                 0,
-                Math.min(3, scoredEssays.length)
+                Math.min(3, scoredEssays.length),
               );
               const oldEssays = scoredEssays.slice(
-                -Math.min(3, scoredEssays.length)
+                -Math.min(3, scoredEssays.length),
               );
               const recentAvg =
                 recentEssays.reduce(
                   (sum: number, e: UserImageUpload) => sum + (e.score || 0),
-                  0
+                  0,
                 ) / recentEssays.length;
               const oldAvg =
                 oldEssays.reduce(
                   (sum: number, e: UserImageUpload) => sum + (e.score || 0),
-                  0
+                  0,
                 ) / oldEssays.length;
               const trend = recentAvg - oldAvg;
               const trendPercentage =
@@ -1124,7 +1359,7 @@ export default function StudentEssaysScreen() {
 
               // Dyslexia detection stats
               const dyslexicCount = scoredEssays.filter(
-                (e: UserImageUpload) => e.details?.dyslexic_flag
+                (e: UserImageUpload) => e.details?.dyslexic_flag,
               ).length;
               const dyslexicRate = (
                 (dyslexicCount / totalScored) *
@@ -1204,15 +1439,20 @@ export default function StudentEssaysScreen() {
                     <View style={styles.chartContainer}>
                       {/* Y-axis labels */}
                       <View style={styles.yAxisLabels}>
-                        <Text style={styles.yAxisLabel}>14</Text>
-                        <Text style={styles.yAxisLabel}>10</Text>
-                        <Text style={styles.yAxisLabel}>7</Text>
-                        <Text style={styles.yAxisLabel}>3</Text>
-                        <Text style={styles.yAxisLabel}>0</Text>
+                        <Text style={styles.yAxisLabel}>100%</Text>
+                        <Text style={styles.yAxisLabel}>75%</Text>
+                        <Text style={styles.yAxisLabel}>50%</Text>
+                        <Text style={styles.yAxisLabel}>25%</Text>
+                        <Text style={styles.yAxisLabel}>0%</Text>
                       </View>
 
                       {/* Chart area */}
-                      <View style={styles.chartArea}>
+                      <View
+                        style={styles.chartArea}
+                        onLayout={(event) =>
+                          setChartAreaWidth(event.nativeEvent.layout.width)
+                        }
+                      >
                         {/* Grid lines */}
                         <View style={styles.gridLines}>
                           {[0, 1, 2, 3, 4].map((i) => (
@@ -1220,42 +1460,179 @@ export default function StudentEssaysScreen() {
                           ))}
                         </View>
 
-                        {/* Data points and line */}
+                        {/* Line Chart */}
                         <View style={styles.chartDataContainer}>
-                          {(scoredEssays as UserImageUpload[])
-                            .slice(0, Math.min(10, scoredEssays.length))
-                            .reverse()
-                            .map((essay: UserImageUpload, index: number) => {
-                              const heightPercent =
-                                ((essay.score || 0) / 14) * 100;
-                              return (
-                                <View key={index} style={styles.chartColumn}>
-                                  <View style={styles.chartBarWrapper}>
-                                    <View
-                                      style={[
-                                        styles.chartBar,
-                                        {
-                                          height: `${heightPercent}%`,
-                                          backgroundColor:
-                                            index === scoredEssays.length - 1
-                                              ? "#007AFF"
-                                              : "#60A5FA",
-                                        },
-                                      ]}
-                                    />
-                                    <View
-                                      style={[
-                                        styles.chartDot,
-                                        { bottom: `${heightPercent}%` },
-                                      ]}
-                                    />
+                          {(() => {
+                            const essaysToShow = (
+                              scoredEssays as UserImageUpload[]
+                            )
+                              .slice(0, Math.min(10, scoredEssays.length))
+                              .reverse();
+
+                            console.log("📊 Line Chart DISPLAY INFO:", {
+                              essaysToShow: essaysToShow.length,
+                              maxScore: Math.max(
+                                ...essaysToShow.map((e) => e.score || 0),
+                              ),
+                              minScore: Math.min(
+                                ...essaysToShow.map((e) => e.score || 0),
+                              ),
+                              avgScore: (
+                                essaysToShow.reduce(
+                                  (s, e) => s + (e.score || 0),
+                                  0,
+                                ) / essaysToShow.length
+                              ).toFixed(2),
+                              allScores: essaysToShow.map((e) => e.score),
+                            });
+
+                            // Calculate chart dimensions - fill full width
+                            const chartHeight = 180;
+                            const padding = 10;
+                            const availableWidth = Math.max(chartAreaWidth, 0);
+                            if (availableWidth === 0) {
+                              return null;
+                            }
+                            const chartWidth = Math.max(
+                              availableWidth - padding * 2,
+                              0,
+                            );
+                            const svgDimension = chartWidth + padding * 2;
+
+                            // Calculate points for line chart - distribute evenly across width
+                            const points = essaysToShow.map(
+                              (essay: UserImageUpload, index: number) => {
+                                const score = essay.score || 0;
+
+                                // Calculate percentage (same logic as before)
+                                let scorePercent: number;
+                                if (score > 14) {
+                                  scorePercent = Math.min(score, 100);
+                                } else {
+                                  scorePercent = (score / 14) * 100;
+                                }
+
+                                // Distribute points evenly across full width
+                                const xSpacing =
+                                  essaysToShow.length > 1
+                                    ? chartWidth / (essaysToShow.length - 1)
+                                    : chartWidth / 2;
+                                const x = xSpacing * index + padding;
+                                const y =
+                                  chartHeight -
+                                  (scorePercent / 100) * chartHeight;
+
+                                return { x, y, score, scorePercent, index };
+                              },
+                            );
+
+                            // Generate SVG path for line
+                            const pathD = points
+                              .map(
+                                (point, idx) =>
+                                  `${idx === 0 ? "M" : "L"} ${point.x} ${point.y}`,
+                              )
+                              .join(" ");
+
+                            return (
+                              <View
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  position: "relative",
+                                }}
+                              >
+                                {/* SVG Canvas for line - responsive scaling */}
+                                <Svg
+                                  width="100%"
+                                  height={chartHeight}
+                                  viewBox={`0 0 ${svgDimension} ${chartHeight}`}
+                                  preserveAspectRatio="none"
+                                  style={{
+                                    position: "absolute",
+                                    left: 0,
+                                    top: 0,
+                                  }}
+                                >
+                                  {/* Line path */}
+                                  <SvgPath
+                                    d={pathD}
+                                    stroke="#007AFF"
+                                    strokeWidth={2}
+                                    fill="none"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </Svg>
+
+                                {/* Data point markers and labels */}
+                                <View
+                                  style={{
+                                    position: "absolute",
+                                    left: 0,
+                                    top: 0,
+                                    width: "100%",
+                                    height: "100%",
+                                  }}
+                                >
+                                  <View
+                                    style={{
+                                      position: "relative",
+                                      width: svgDimension,
+                                      height: "100%",
+                                    }}
+                                  >
+                                    {points.map((point) => (
+                                      <View key={point.index}>
+                                        {/* Score label */}
+                                        <Text
+                                          style={[
+                                            styles.chartScoreLabel,
+                                            {
+                                              position: "absolute",
+                                              left: point.x - 15,
+                                              top: point.y - 25,
+                                            },
+                                          ]}
+                                        >
+                                          {point.score.toFixed(1)}
+                                        </Text>
+
+                                        {/* Marker circle */}
+                                        <View
+                                          style={{
+                                            position: "absolute",
+                                            left: point.x - 6,
+                                            top: point.y - 6,
+                                            width: 12,
+                                            height: 12,
+                                            borderRadius: 6,
+                                            backgroundColor: "#007AFF",
+                                            borderWidth: 2,
+                                            borderColor: "#fff",
+                                          }}
+                                        />
+
+                                        {/* X-axis label */}
+                                        <Text
+                                          style={[
+                                            styles.xAxisLabel,
+                                            {
+                                              position: "absolute",
+                                              left: point.x - 8,
+                                              bottom: -18,
+                                            },
+                                          ]}
+                                        >
+                                          {point.index + 1}
+                                        </Text>
+                                      </View>
+                                    ))}
                                   </View>
-                                  <Text style={styles.xAxisLabel}>
-                                    {index + 1}
-                                  </Text>
                                 </View>
-                              );
-                            })}
+                              </View>
+                            );
+                          })()}
                         </View>
                       </View>
                     </View>
@@ -1513,7 +1890,7 @@ export default function StudentEssaysScreen() {
                   {/* Fairness Metrics Dashboard removed as requested */}
 
                   {/* Special Needs Detection */}
-                  <View style={styles.dashboardCard}>
+                  {/* <View style={styles.dashboardCard}>
                     <View style={styles.cardHeader}>
                       <MaterialIcons
                         name="health-and-safety"
@@ -1557,7 +1934,15 @@ export default function StudentEssaysScreen() {
                         </Text>
                       </View>
                     )}
-                  </View>
+                  </View> */}
+                  <LearningSupport
+                    scoredEssays={scoredEssays}
+                    totalScored={totalScored}
+                  />
+                  <StudentWritingPatternProfile
+                    essays={studentInfo.essays}
+                    totalEssays={studentInfo.essays.length}
+                  />
 
                   {/* Latest Essay Quick View */}
                   <View style={styles.dashboardCard}>
@@ -1573,9 +1958,11 @@ export default function StudentEssaysScreen() {
                     </View>
                     <View style={styles.latestEssayInfo}>
                       <Text style={styles.latestEssayScore}>
-                        Score: {typeof latestEssay.score === "number"
+                        Score:{" "}
+                        {typeof latestEssay.score === "number"
                           ? latestEssay.score.toFixed(2)
-                          : "-"}/14
+                          : "-"}
+                        /100
                       </Text>
                       {latestEssay.details?.topic && (
                         <Text style={styles.latestEssayTopic}>
@@ -1602,26 +1989,24 @@ export default function StudentEssaysScreen() {
 // @ts-ignore - Web-specific CSS properties (cursor, userSelect) are intentionally used for web compatibility
 const styles = StyleSheet.create({
   batchFeedbackSection: {
-    backgroundColor: "#23262F",
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: "#1C1E26",
+    borderRadius: 24,
+    padding: 24,
     marginBottom: 28,
-    borderLeftWidth: 4,
-    borderLeftColor: "#8B5CF6",
     borderWidth: 1,
-    borderColor: "#333640",
+    borderColor: "#2D313E",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 6,
   },
 
   batchFeedbackHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 20,
   },
 
   headerLeft: {
@@ -1637,61 +2022,67 @@ const styles = StyleSheet.create({
 
   summarySubtext: {
     color: "#9CA3AF",
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 13,
+    marginTop: 4,
+    fontWeight: "500",
   },
 
   emptyPlaceholderBox: {
-    backgroundColor: "#111827",
-    borderRadius: 12,
+    backgroundColor: "#0F1117",
+    borderRadius: 20,
     padding: 24,
     alignItems: "center",
-    borderLeftWidth: 3,
-    borderLeftColor: "#8B5CF6",
-    gap: 12,
+    borderWidth: 1,
+    borderColor: "#2D313E",
+    gap: 16,
   },
 
   placeholderTitle: {
-    color: "#E5E7EB",
-    fontSize: 16,
-    fontWeight: "600",
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
     textAlign: "center",
+    letterSpacing: 0.3,
   },
 
   placeholderText: {
     color: "#9CA3AF",
-    fontSize: 13,
+    fontSize: 14,
     textAlign: "center",
-    lineHeight: 18,
-    marginBottom: 12,
+    lineHeight: 22,
   },
 
   generateSummaryButton: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+    gap: 10,
     marginTop: 8,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
 
   generateSummaryButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
+    color: "#0F1117",
+    fontSize: 15,
+    fontWeight: "700",
   },
 
   loadingTextContainer: {
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
 
   loadingSubtext: {
     color: "#6B7280",
-    fontSize: 12,
+    fontSize: 13,
     textAlign: "center",
   },
 
@@ -1699,42 +2090,47 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 20,
   },
 
-  statCard: {
-    backgroundColor: "#111827",
-    borderRadius: 12,
+  batchStatCard: {
+    backgroundColor: "#0F1117",
+    borderRadius: 16,
     padding: 16,
     flex: 1,
-    minWidth: 120,
+    minWidth: 140,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#333640",
+    borderColor: "#2D313E",
     justifyContent: "center",
   },
 
   statIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: "#1F2937",
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#1C1E26",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#2D313E",
   },
 
-  statCardLabel: {
+  batchStatCardLabel: {
     color: "#9CA3AF",
     fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
     marginBottom: 6,
     textAlign: "center",
   },
 
-  statCardValue: {
-    color: "#E5E7EB",
-    fontSize: 20,
-    fontWeight: "bold",
+  batchStatCardValue: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "900",
     textAlign: "center",
   },
 
@@ -1750,13 +2146,14 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 24,
-    gap: 12,
+    paddingVertical: 32,
+    gap: 16,
   },
 
   batchFeedbackStatusText: {
-    color: "#9CA3AF",
-    fontSize: 13,
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
     textAlign: "center",
   },
 
@@ -2034,23 +2431,23 @@ const styles = StyleSheet.create({
   },
 
   feedbackSection: {
-    backgroundColor: "#23262F",
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: "#1C1E26",
+    borderRadius: 24,
+    padding: 24,
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: "#333640",
+    borderColor: "#2D313E",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 6,
   },
   feedbackHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 20,
+    gap: 12,
+    marginBottom: 24,
   },
   // Stats Grid
   statsGrid: {
@@ -2062,12 +2459,12 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     minWidth: "45%",
-    backgroundColor: "#181A20",
+    backgroundColor: "#0F1117",
     padding: 16,
-    borderRadius: 10,
+    borderRadius: 16,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#333640",
+    borderColor: "#2D313E",
   },
   statCardValue: {
     color: "#007AFF",
@@ -2083,23 +2480,24 @@ const styles = StyleSheet.create({
   },
   // Dashboard Card
   dashboardCard: {
-    backgroundColor: "#181A20",
-    padding: 16,
-    borderRadius: 10,
+    backgroundColor: "#0F1117",
+    padding: 20,
+    borderRadius: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#333640",
+    borderColor: "#2D313E",
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 16,
   },
   cardTitle: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "800",
+    letterSpacing: 0.3,
   },
   // Trend Analysis
   trendContainer: {
@@ -2168,14 +2566,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#333640",
   },
   chartDataContainer: {
-    flexDirection: "row",
+    width: "100%",
     height: "100%",
-    alignItems: "flex-end",
-    justifyContent: "space-around",
+    position: "relative",
     paddingHorizontal: 4,
+    paddingBottom: 20,
   },
   chartColumn: {
     flex: 1,
+    height: "100%",
     alignItems: "center",
     justifyContent: "flex-end",
     maxWidth: 40,
@@ -2202,6 +2601,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#fff",
     position: "absolute",
+  },
+  chartScoreLabel: {
+    color: "#007AFF",
+    fontSize: 11,
+    fontWeight: "600",
+    marginBottom: 4,
+    textAlign: "center",
+    minHeight: 16,
   },
   xAxisLabel: {
     color: "#B0B3C6",
@@ -2459,10 +2866,12 @@ const styles = StyleSheet.create({
   },
   dyslexiaStatItem: {
     flex: 1,
-    backgroundColor: "#23262F",
+    backgroundColor: "#0F1117",
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#2D313E",
   },
   dyslexiaCount: {
     color: "#fff",
@@ -2549,10 +2958,12 @@ const styles = StyleSheet.create({
   },
   feedbackStatItem: {
     flex: 1,
-    backgroundColor: "#181A20",
+    backgroundColor: "#0F1117",
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#2D313E",
   },
   feedbackStatLabel: {
     color: "#B0B3C6",
@@ -2594,39 +3005,39 @@ const styles = StyleSheet.create({
   },
   fullBg: {
     flex: 1,
-    backgroundColor: "#181A20",
-    minHeight: "100vh",
+    backgroundColor: "#0F1117",
     width: "100%",
   },
   container: {
     flex: 1,
     backgroundColor: "transparent",
     width: "100%",
-    minHeight: "100vh",
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 16,
+    padding: 24,
   },
   content: {
-    padding: 16,
+    padding: 24,
     maxWidth: 1000,
     marginHorizontal: "auto",
     width: "100%",
   },
   loadingText: {
-    color: "#B0B3C6",
+    color: "#9CA3AF",
     marginTop: 16,
     fontSize: 16,
+    fontWeight: "500",
   },
   errorTitle: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: "800",
     marginTop: 16,
     marginBottom: 24,
+    letterSpacing: 0.5,
   },
   backButtonTop: {
     flexDirection: "row",
@@ -2639,54 +3050,62 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   studentInfoCard: {
-    backgroundColor: "#23262F",
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: "#1C1E26",
+    borderRadius: 24,
+    padding: 24,
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: "#333640",
+    borderColor: "#2D313E",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
   },
   studentHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
   },
   iconContainer: {
     width: 64,
     height: 64,
-    borderRadius: 32,
-    backgroundColor: "#181A20",
+    borderRadius: 20,
+    backgroundColor: "#0F1117",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
+    borderWidth: 1,
+    borderColor: "#2D313E",
   },
   studentDetails: {
     flex: 1,
   },
   studentId: {
-    color: "#fff",
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 8,
+    color: "#FFFFFF",
+    fontSize: 26,
+    fontWeight: "900",
+    marginBottom: 4,
+    letterSpacing: 0.5,
   },
   detailsRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
+    flexWrap: "nowrap",
   },
   detailItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    backgroundColor: "#0F1117",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#2D313E",
   },
   detailText: {
-    color: "#B0B3C6",
-    fontSize: 14,
+    color: "#E5E7EB",
+    fontSize: 12,
+    fontWeight: "600",
   },
   statsRow: {
     flexDirection: "row",
@@ -2697,10 +3116,12 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: "#181A20",
+    backgroundColor: "#0F1117",
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 16,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#2D313E",
   },
   statNumber: {
     color: "#007AFF",
@@ -2714,16 +3135,8 @@ const styles = StyleSheet.create({
   },
   essaysSection: {
     marginBottom: 28,
-    backgroundColor: "#23262F",
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#333640",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    backgroundColor: "transparent",
+    padding: 0,
     maxWidth: "100%",
   },
   essaysHeaderRow: {
@@ -2731,134 +3144,140 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 20,
+    paddingHorizontal: 4,
   },
   pagination: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  pageButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#23262F",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#333640",
-  },
-  pageButtonDisabled: {
-    opacity: 0.5,
-  },
-  pageInfo: {
-    color: "#B0B3C6",
-    fontSize: 12,
-  },
-  rangeInfo: {
-    color: "#B0B3C6",
-    fontSize: 12,
-    textAlign: "right",
-    marginTop: 8,
-  },
-  sectionTitle: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 0,
-  },
-  essayCardWrapper: {
-    marginBottom: 12,
-  },
-  essayCardContainer: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 10,
   },
-  essayCard: {
-    flex: 1,
-    flexDirection: "row",
-    backgroundColor: "#181A20",
+  pageButton: {
+    width: 36,
+    height: 36,
     borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#333640",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  deleteIconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "rgba(255, 59, 48, 0.1)",
+    backgroundColor: "#1C1E26",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#FF3B30",
+    borderWidth: 1,
+    borderColor: "#2D313E",
+  },
+  pageButtonDisabled: {
+    opacity: 0.3,
+  },
+  pageInfo: {
+    color: "#9CA3AF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  rangeInfo: {
+    color: "#6B7280",
+    fontSize: 12,
+    textAlign: "right",
+    marginTop: 12,
+    fontWeight: "500",
+  },
+  sectionTitle: {
+    color: "#FFFFFF",
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  essayCardWrapper: {
+    marginBottom: 16,
+  },
+  essayCard: {
+    flexDirection: "row",
+    backgroundColor: "#1C1E26",
+    borderRadius: 24,
+    padding: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#2D313E",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
   thumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    marginRight: 12,
+    width: 84,
+    height: 84,
+    borderRadius: 16,
+    marginRight: 16,
     borderWidth: 1,
-    borderColor: "#333640",
+    borderColor: "#2D313E",
   },
   essayInfo: {
     flex: 1,
-    paddingRight: 8,
   },
   fileName: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 6,
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 4,
+    letterSpacing: 0.2,
   },
   uploadDate: {
-    color: "#B0B3C6",
+    color: "#9CA3AF",
     fontSize: 12,
+    fontWeight: "600",
     marginBottom: 6,
+    opacity: 0.8,
   },
   description: {
-    color: "#888",
+    color: "#9CA3AF",
     fontSize: 13,
-    fontStyle: "italic",
+    lineHeight: 18,
     marginBottom: 4,
+    fontStyle: "italic",
+    opacity: 0.6,
   },
   actionButtonsRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
-    gap: 8,
+    marginTop: 12,
+    gap: 12,
   },
   mindmapButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(0, 122, 255, 0.15)",
-    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: "#0F1117",
+    borderRadius: 12,
+    gap: 8,
     borderWidth: 1,
-    borderColor: "#007AFF",
-    gap: 6,
+    borderColor: "#2D313E",
   },
   mindmapButtonText: {
-    color: "#007AFF",
-    fontSize: 12,
-    fontWeight: "600",
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  inlineDeleteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.2)",
   },
   backButton: {
     backgroundColor: "#007AFF",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 16,
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
   },
   backButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });
